@@ -1,41 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { gerarLinkPagamentoCliente } from "./pagamento-actions";
 
 export function LinkPagamento({ clienteId, whatsapp }: { clienteId: string; whatsapp: string | null }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
-  const [pendente, iniciarTransicao] = useTransition();
+  const [url, setUrl] = useState<string | null>(null);
 
-  function gerar() {
-    setErro(null);
-    iniciarTransicao(async () => {
-      const resultado = await gerarLinkPagamentoCliente(clienteId);
-      if ("erro" in resultado) {
-        setErro(resultado.erro);
-        return;
-      }
-      setUrl(resultado.url);
-    });
-  }
+  useEffect(() => {
+    // window.location só existe no cliente — setar aqui (e não no useState
+    // inicial) é o jeito de evitar mismatch de hidratação nesse valor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUrl(`${window.location.origin}/pagar/${clienteId}`);
+  }, [clienteId]);
 
-  if (!url) {
-    return (
-      <div className="flex flex-col gap-2">
-        <Button variant="ghost" disabled={pendente} onClick={gerar} className="w-full">
-          {pendente ? "Gerando link…" : "Gerar link de pagamento (Pix/cartão)"}
-        </Button>
-        {erro ? <p className="text-xs text-danger">{erro}</p> : null}
-      </div>
-    );
-  }
+  if (!url) return null;
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border-strong p-3">
+      <p className="text-xs text-text-dim">
+        Link permanente — o cliente abre e paga sozinho com Pix ou cartão sempre que quiser.
+      </p>
       <p className="truncate text-xs text-text-dim">{url}</p>
       <div className="flex gap-2">
         <Button

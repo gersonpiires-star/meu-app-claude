@@ -34,7 +34,7 @@ export async function dadosPainel(revendedorId: string) {
   const agora = new Date();
   const { inicio, fim } = limitesDoMes(agora);
 
-  const [clientes, renovacoesMes, vendasMes, custosMedios] = await Promise.all([
+  const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes] = await Promise.all([
     prisma.cliente.findMany({
       where: { revendedorId },
       include: { servico: true },
@@ -48,6 +48,9 @@ export async function dadosPainel(revendedorId: string) {
       include: { produto: true },
     }),
     custoMedioProdutos(revendedorId),
+    prisma.cliente.count({
+      where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } },
+    }),
   ]);
 
   const receitaRecorrente = renovacoesMes.reduce((a, r) => a + r.valor, 0);
@@ -76,6 +79,9 @@ export async function dadosPainel(revendedorId: string) {
     return info && info.atual <= p.estoqueMinimo;
   });
 
+  const baseRetencao = naoCancelados.length + canceladosMes;
+  const taxaRetencao = baseRetencao > 0 ? (naoCancelados.length / baseRetencao) * 100 : 100;
+
   return {
     receitaRecorrente,
     receitaApar,
@@ -88,6 +94,8 @@ export async function dadosPainel(revendedorId: string) {
     ativos: ativos.length,
     vencendo,
     vencidos,
+    canceladosMes,
+    taxaRetencao,
     produtosBaixoEstoque,
     temClientes: clientes.length > 0,
   };

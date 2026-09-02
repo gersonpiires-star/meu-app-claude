@@ -58,10 +58,16 @@ export default async function PainelPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Clientes ativos" value={String(dados.ativos)} />
         <StatTile label="Vencendo" value={String(dados.vencendo.length)} tone="warning" />
         <StatTile label="Vencidos" value={String(dados.vencidos.length)} tone="danger" />
+        <StatTile
+          label="Retenção"
+          value={`${dados.taxaRetencao.toFixed(0)}%`}
+          sub={`${dados.canceladosMes} cancelado${dados.canceladosMes === 1 ? "" : "s"} este mês`}
+          tone={dados.taxaRetencao >= 90 ? "accent" : dados.taxaRetencao >= 75 ? "warning" : "danger"}
+        />
       </div>
 
       {dados.produtosBaixoEstoque.length > 0 ? (

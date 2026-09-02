@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Field, Input, Textarea } from "@/components/ui";
 import { restaurarBackup } from "./backup-actions";
 
-export function BackupForm() {
+export function BackupForm({ podeRestaurar = true }: { podeRestaurar?: boolean }) {
   const [restaurando, setRestaurando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
@@ -24,7 +24,7 @@ export function BackupForm() {
         </a>
       </div>
 
-      {!restaurando ? (
+      {!podeRestaurar ? null : !restaurando ? (
         <button type="button" className="text-xs font-semibold text-text-dim hover:text-text" onClick={() => setRestaurando(true)}>
           Restaurar de um backup
         </button>

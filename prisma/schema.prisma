@@ -84,6 +84,10 @@ model Revendedor {
   mpAccessToken String?
   mpPublicKey   String?
 
+  // Cancela automaticamente o cliente que ficar vencido por mais que esse
+  // número de dias. Null/0 = desligado (nunca cancela sozinho).
+  diasParaCancelarAutomatico Int?
+
   servicos   Servico[]
   clientes   Cliente[]
   produtos   Produto[]
@@ -94,6 +98,35 @@ model Revendedor {
   plataformas    Plataforma[]
   chavesPix      ChavePix[]
   modelosMensagem ModeloMensagem[]
+  funcionarios    Funcionario[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Login adicional para um funcionário do revendedor. Compartilha os
+// mesmos dados (tudo é escopado por revendedorId, que aqui aponta pro
+// dono/tenant), mas não pode gerenciar credenciais de pagamento nem
+// outros funcionários.
+model Funcionario {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  nome         String
+  email        String  @unique
+  senhaHash    String
+  ativo        Boolean @default(true)
+  criadoEm     DateTime @default(now())
+}
+
+// Inscrição de notificação push (Web Push) de um dispositivo do
+// revendedor ou de um funcionário dele, usada pelo lembrete diário.
+model PushSubscription {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  endpoint     String @unique
+  p256dh       String
+  auth         String
+  criadoEm     DateTime @default(now())
 }
 
 model Servico {

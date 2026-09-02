@@ -172,7 +172,17 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             {cliente.renovacoes.map((r) => (
               <div key={r.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-text-muted">{dataPorExtenso(r.data)} · {PLANO_LABEL[r.plano]}</span>
-                <span className="font-semibold text-accent">{brl(r.valor)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-accent">{brl(r.valor)}</span>
+                  <a
+                    href={`/api/renovacoes/${r.id}/recibo`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-text-dim hover:text-accent"
+                  >
+                    Recibo
+                  </a>
+                </div>
               </div>
             ))}
           </div>

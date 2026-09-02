@@ -18,16 +18,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !senha) return null;
 
         const revendedor = await prisma.revendedor.findUnique({ where: { email } });
-        if (!revendedor) return null;
+        if (revendedor) {
+          const senhaOk = await bcrypt.compare(senha, revendedor.senhaHash);
+          if (!senhaOk) return null;
+          return {
+            id: revendedor.id,
+            tenantId: revendedor.id,
+            funcionario: false,
+            name: revendedor.nome,
+            email: revendedor.email,
+            papel: revendedor.papel,
+          };
+        }
 
-        const senhaOk = await bcrypt.compare(senha, revendedor.senhaHash);
+        // Login de funcionário: mesma base de dados do dono (tenantId), só
+        // que sem acesso a credenciais de pagamento nem à gestão de equipe.
+        const funcionario = await prisma.funcionario.findUnique({ where: { email } });
+        if (!funcionario || !funcionario.ativo) return null;
+        const senhaOk = await bcrypt.compare(senha, funcionario.senhaHash);
         if (!senhaOk) return null;
 
         return {
-          id: revendedor.id,
-          name: revendedor.nome,
-          email: revendedor.email,
-          papel: revendedor.papel,
+          id: funcionario.id,
+          tenantId: funcionario.revendedorId,
+          funcionario: true,
+          name: funcionario.nome,
+          email: funcionario.email,
+          papel: "REVENDEDOR" as const,
         };
       },
     }),
@@ -36,6 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
+        token.tenantId = (user as { tenantId?: string }).tenantId ?? (user.id as string);
+        token.funcionario = (user as { funcionario?: boolean }).funcionario ?? false;
         token.papel = (user as { papel?: string }).papel;
       }
       return token;
@@ -43,6 +62,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.tenantId = token.tenantId as string;
+        session.user.funcionario = Boolean(token.funcionario);
         session.user.papel = token.papel as "ADMIN" | "REVENDEDOR";
       }
       return session;

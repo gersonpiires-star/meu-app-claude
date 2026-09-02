@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 
 export async function restaurarBackup(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; erro: string }> {
-  const revendedor = await exigirRevendedor();
+  const revendedor = await exigirDono();
   const confirmacao = String(formData.get("confirmacao") ?? "");
   if (confirmacao !== "RESTAURAR") {
     return { ok: false, erro: 'Digite exatamente "RESTAURAR" para confirmar.' };
