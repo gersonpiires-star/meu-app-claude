@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a2530;
+  --bg-deep: #032025;
+  --surface: #123441;
+  --surface-2: #0e2c38;
+  --border: #1a4152;
+  --border-strong: #1d4959;
+  --text: #e9f4f8;
+  --text-muted: #9dbcc7;
+  --text-dim: #688e9b;
+  --accent: #2ee6c5;
+  --accent-strong: #1d6a70;
+  --accent-soft: #0d3844;
+  --danger: #ff6b5e;
+  --danger-bg: #2a1414;
+  --danger-border: #5a2626;
+  --warning: #f5c542;
+  --warning-bg: #231e10;
+  --warning-border: #574a19;
+  --success: #4cc4b4;
+  --success-bg: #08301a;
+  --success-border: #1b5e3b;
+  --whatsapp: #25d366;
+  --info: #6aa9ff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-whatsapp: var(--whatsapp);
+  --color-info: var(--info);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg-deep);
+}

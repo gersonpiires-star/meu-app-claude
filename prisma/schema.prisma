@@ -1,0 +1,222 @@
+// Schema do GestorPro — gestão de revenda de IPTV/streaming
+// Multi-tenant: todo dado de negócio é escopado por revendedorId
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Papel {
+  ADMIN
+  REVENDEDOR
+}
+
+enum StatusAssinatura {
+  TRIAL
+  ATIVO
+  PAUSADO
+  CANCELADO
+}
+
+enum PlanoAssinatura {
+  MENSAL
+  ANUAL
+}
+
+enum PlanoCliente {
+  MENSAL
+  DOIS_MESES
+  TRIMESTRAL
+  SEMESTRAL
+}
+
+enum StatusCliente {
+  TESTE
+  ATIVO
+  VENCIDO
+  CANCELADO
+}
+
+enum TipoMovimentoEstoque {
+  ENTRADA
+  SAIDA
+}
+
+enum DestinoAviso {
+  TODOS_REVENDEDORES
+  TODOS_CLIENTES
+  CLIENTES_DO_SERVICO
+}
+
+model Revendedor {
+  id        String   @id @default(cuid())
+  nome      String
+  cpf       String?
+  whatsapp  String
+  email     String   @unique
+  senhaHash String
+  papel     Papel    @default(REVENDEDOR)
+  criadoEm  DateTime @default(now())
+
+  statusAssinatura   StatusAssinatura @default(TRIAL)
+  planoAssinatura    PlanoAssinatura?
+  trialFim           DateTime
+  assinaturaVence    DateTime?
+
+  servicos   Servico[]
+  clientes   Cliente[]
+  produtos   Produto[]
+  vendas     Venda[]
+  recargas   Recarga[]
+  avisos     Aviso[]
+  fechamentosMes FechamentoMes[]
+}
+
+model Servico {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  nome         String
+  criadoEm     DateTime @default(now())
+
+  clientes Cliente[]
+  recargas Recarga[]
+  avisos   Aviso[]
+
+  @@unique([revendedorId, nome])
+}
+
+model Cliente {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  servicoId    String?
+  servico      Servico? @relation(fields: [servicoId], references: [id])
+
+  nome      String
+  cpf       String?
+  whatsapp  String?
+  telas     Int      @default(1)
+
+  plano       PlanoCliente
+  valorPlano  Float
+  vencimento  DateTime
+  testeGratis Boolean  @default(false)
+  status      StatusCliente @default(ATIVO)
+
+  anotacao        String?
+  motivoSaida     String?
+  motivoSaidaData DateTime?
+
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  renovacoes Renovacao[]
+
+  @@index([revendedorId, status])
+  @@index([revendedorId, vencimento])
+}
+
+model Renovacao {
+  id        String   @id @default(cuid())
+  clienteId String
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  plano     PlanoCliente
+  valor     Float
+  custo     Float    @default(0)
+  data      DateTime @default(now())
+}
+
+model Produto {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
+  modelo        String
+  estoqueMinimo Int    @default(0)
+  criadoEm      DateTime @default(now())
+
+  movimentos MovimentoEstoque[]
+  vendas     Venda[]
+
+  @@unique([revendedorId, modelo])
+}
+
+model MovimentoEstoque {
+  id            String @id @default(cuid())
+  produtoId     String
+  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  tipo          TipoMovimentoEstoque
+  quantidade    Int
+  custoUnitario Float
+  data          DateTime @default(now())
+}
+
+model Venda {
+  id             String @id @default(cuid())
+  revendedorId   String
+  revendedor     Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  produtoId      String
+  produto        Produto @relation(fields: [produtoId], references: [id])
+
+  quantidade      Int
+  valorUnitario   Float
+  formaPagamento  String
+  taxaPercentual  Float @default(0)
+  data            DateTime @default(now())
+}
+
+model Recarga {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  servicoId    String
+  servico      Servico @relation(fields: [servicoId], references: [id])
+
+  quantidade  Int
+  valorPago   Float
+  utilizadas  Int      @default(0)
+  data        DateTime @default(now())
+}
+
+model Aviso {
+  id           String @id @default(cuid())
+  revendedorId String?
+  revendedor   Revendedor? @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  servicoId    String?
+  servico      Servico? @relation(fields: [servicoId], references: [id])
+
+  destino  DestinoAviso
+  titulo   String
+  mensagem String
+  criadoEm DateTime @default(now())
+}
+
+model Interessado {
+  id          String   @id @default(cuid())
+  nome        String
+  whatsapp    String
+  interesse   String?
+  retornarEm  DateTime?
+  observacao  String?
+  convertido  Boolean  @default(false)
+  criadoEm    DateTime @default(now())
+}
+
+model FechamentoMes {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  ano          Int
+  mes          Int
+  receita      Float
+  custo        Float
+  lucro        Float
+  fechadoEm    DateTime @default(now())
+
+  @@unique([revendedorId, ano, mes])
+}

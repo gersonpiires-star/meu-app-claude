@@ -1,0 +1,46 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { exigirRevendedor } from "@/lib/sessao";
+
+const vendaSchema = z.object({
+  produtoId: z.string().min(1, "Selecione um produto"),
+  quantidade: z.coerce.number().int().min(1),
+  valorUnitario: z.coerce.number().min(0),
+  formaPagamento: z.string().trim().min(1, "Informe a forma de pagamento"),
+  taxaPercentual: z.coerce.number().min(0).default(0),
+});
+
+export async function registrarVenda(formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = vendaSchema.parse(Object.fromEntries(formData));
+
+  await prisma.$transaction([
+    prisma.venda.create({
+      data: {
+        revendedorId: revendedor.id,
+        produtoId: dados.produtoId,
+        quantidade: dados.quantidade,
+        valorUnitario: dados.valorUnitario,
+        formaPagamento: dados.formaPagamento,
+        taxaPercentual: dados.taxaPercentual,
+      },
+    }),
+    prisma.movimentoEstoque.create({
+      data: {
+        produtoId: dados.produtoId,
+        tipo: "SAIDA",
+        quantidade: dados.quantidade,
+        custoUnitario: 0,
+      },
+    }),
+  ]);
+
+  revalidatePath("/vendas");
+  revalidatePath("/estoque");
+  revalidatePath("/painel");
+  redirect("/vendas");
+}
