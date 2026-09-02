@@ -4,13 +4,16 @@ import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl, dataPorExtenso, iniciais } from "@/lib/format";
 import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
+import { mesclarModelos } from "@/lib/mensagens";
 import { Badge, Button, Card } from "@/components/ui";
-import { renovarCliente, cancelarCliente, excluirCliente } from "../actions";
+import { renovarCliente, cancelarCliente, excluirCliente, corrigirVencimento, aplicarReajusteCliente } from "../actions";
+import { ReajusteForm } from "./reajuste-form";
 import { RenovarForm } from "./renovar-form";
 import { MensagemWhatsApp } from "./mensagem-whatsapp";
 import { CancelarForm } from "./cancelar-form";
 import { ExcluirBotao } from "./excluir-botao";
 import { LinkPagamento } from "./link-pagamento";
+import { CorrigirVencimento } from "./corrigir-vencimento";
 
 function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
   const meses = Math.max(
@@ -31,11 +34,16 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const revendedor = await exigirRevendedor();
   const { id } = await params;
 
-  const cliente = await prisma.cliente.findUnique({
-    where: { id, revendedorId: revendedor.id },
-    include: { servico: true, renovacoes: { orderBy: { data: "desc" } } },
-  });
+  const [cliente, chaves, overridesModelos] = await Promise.all([
+    prisma.cliente.findUnique({
+      where: { id, revendedorId: revendedor.id },
+      include: { servico: true, renovacoes: { orderBy: { data: "desc" } } },
+    }),
+    prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
+    prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
+  ]);
   if (!cliente) notFound();
+  const modelos = mesclarModelos(overridesModelos);
 
   const faixa = faixaVencimento(cliente.vencimento);
   const jaRendeu = cliente.renovacoes.reduce((a, r) => a + r.valor, 0);
@@ -84,8 +92,12 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Próximo vencimento</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Próximo vencimento</p>
+              {!cancelado ? <CorrigirVencimento vencimentoAtual={cliente.vencimento} acao={corrigirVencimento.bind(null, id)} /> : null}
+            </div>
             <p className="mt-0.5 font-semibold text-text">{dataPorExtenso(cliente.vencimento)}</p>
+            {cliente.diaFixo ? <p className="text-xs text-text-dim">Dia fixo: {cliente.diaFixo}</p> : null}
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Cliente há</p>
@@ -100,7 +112,10 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <p className="mt-0.5 font-semibold text-text">{cliente.servico?.nome ?? "—"}</p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Plano</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Plano</p>
+              {!cancelado ? <ReajusteForm valorAtual={cliente.valorPlano} acao={aplicarReajusteCliente.bind(null, id)} /> : null}
+            </div>
             <p className="mt-0.5 font-semibold text-text">{PLANO_LABEL[cliente.plano]} · {brl(cliente.valorPlano)}</p>
           </div>
           <div>
@@ -134,6 +149,8 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         <h2 className="mb-3 text-sm font-bold text-text">Falar com o cliente</h2>
         <MensagemWhatsApp
           whatsapp={cliente.whatsapp}
+          chaves={chaves}
+          modelos={modelos}
           dados={{
             nome: cliente.nome,
             app: cliente.servico?.nome ?? "",

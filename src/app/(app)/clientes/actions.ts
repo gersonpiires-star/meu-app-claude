@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
-import { calcularVencimento } from "@/lib/planos";
+import { calcularVencimentoComDiaFixo } from "@/lib/planos";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
@@ -18,9 +18,17 @@ const clienteSchema = z.object({
   telas: z.coerce.number().int().min(1).default(1),
   plano: planoSchema,
   valorPlano: z.coerce.number().min(0),
+  diaFixo: z.string().trim().optional(),
   testeGratis: z.coerce.boolean().default(false),
   anotacao: z.string().trim().optional(),
 });
+
+function parseDiaFixo(texto?: string): number | null {
+  if (!texto) return null;
+  const n = Number(texto);
+  if (!Number.isInteger(n) || n < 1 || n > 31) return null;
+  return n;
+}
 
 async function resolverServico(revendedorId: string, nome?: string) {
   const nomeLimpo = nome?.trim();
@@ -48,8 +56,9 @@ export async function criarCliente(formData: FormData) {
       telas: dados.telas,
       plano: dados.plano as PlanoCliente,
       valorPlano: dados.valorPlano,
+      diaFixo: parseDiaFixo(dados.diaFixo),
       testeGratis: dados.testeGratis,
-      vencimento: calcularVencimento(dados.plano as PlanoCliente),
+      vencimento: calcularVencimentoComDiaFixo(dados.plano as PlanoCliente, new Date(), parseDiaFixo(dados.diaFixo)),
       anotacao: dados.anotacao || null,
       status: "ATIVO",
     },
@@ -75,6 +84,7 @@ export async function atualizarCliente(id: string, formData: FormData) {
       telas: dados.telas,
       plano: dados.plano as PlanoCliente,
       valorPlano: dados.valorPlano,
+      diaFixo: parseDiaFixo(dados.diaFixo),
       testeGratis: dados.testeGratis,
       anotacao: dados.anotacao || null,
     },
@@ -84,6 +94,33 @@ export async function atualizarCliente(id: string, formData: FormData) {
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/painel");
   redirect(`/clientes/${id}`);
+}
+
+export async function aplicarReajusteCliente(id: string, formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const novoValor = Number(formData.get("novoValor") ?? 0);
+  if (!(novoValor > 0)) return;
+
+  await prisma.cliente.update({
+    where: { id, revendedorId: revendedor.id },
+    data: { valorPlano: novoValor },
+  });
+
+  revalidatePath(`/clientes/${id}`);
+  revalidatePath("/clientes");
+}
+
+export async function aplicarReajusteEmGrupo(clienteIds: string[], novoValor: number) {
+  const revendedor = await exigirRevendedor();
+  if (!(novoValor > 0) || clienteIds.length === 0) return;
+
+  await prisma.cliente.updateMany({
+    where: { id: { in: clienteIds }, revendedorId: revendedor.id },
+    data: { valorPlano: novoValor },
+  });
+
+  revalidatePath("/clientes");
+  revalidatePath("/painel");
 }
 
 export async function renovarCliente(id: string, formData: FormData) {
@@ -97,7 +134,7 @@ export async function renovarCliente(id: string, formData: FormData) {
   });
 
   const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
-  const novoVencimento = calcularVencimento(plano, base);
+  const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
 
   await prisma.$transaction([
     prisma.renovacao.create({
@@ -132,6 +169,22 @@ export async function cancelarCliente(id: string, formData: FormData) {
       motivoSaida: motivo || null,
       motivoSaidaData: new Date(),
     },
+  });
+
+  revalidatePath(`/clientes/${id}`);
+  revalidatePath("/clientes");
+  revalidatePath("/painel");
+}
+
+export async function corrigirVencimento(id: string, formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const texto = String(formData.get("vencimento") ?? "");
+  const [dia, mes, ano] = texto.split("/").map(Number);
+  if (!dia || !mes || !ano) return;
+
+  await prisma.cliente.update({
+    where: { id, revendedorId: revendedor.id },
+    data: { vencimento: new Date(ano, mes - 1, dia) },
   });
 
   revalidatePath(`/clientes/${id}`);

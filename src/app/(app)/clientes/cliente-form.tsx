@@ -15,6 +15,7 @@ type ValoresIniciais = {
   telas?: number;
   plano?: PlanoCliente;
   valorPlano?: number;
+  diaFixo?: number | null;
   testeGratis?: boolean;
   anotacao?: string | null;
 };
@@ -96,6 +97,17 @@ export function ClienteForm({
           />
         </Field>
       </div>
+
+      <Field label="Dia fixo de vencimento (opcional)">
+        <Input
+          type="number"
+          name="diaFixo"
+          min={1}
+          max={31}
+          defaultValue={valoresIniciais?.diaFixo ?? ""}
+          placeholder="vazio = segue os dias do plano"
+        />
+      </Field>
 
       <label className="flex items-center gap-2 text-sm text-text-muted">
         <input

@@ -21,6 +21,16 @@ export const MODELOS_COMUNICADO: Record<string, string> = {
   Livre: "",
 };
 
+export const MODELOS_PADRAO: Record<string, string> = { ...MODELOS_COBRANCA, ...MODELOS_COMUNICADO };
+
+export function mesclarModelos(overrides: { chave: string; texto: string }[]): Record<string, string> {
+  const mapa = { ...MODELOS_PADRAO };
+  for (const o of overrides) {
+    if (o.chave in mapa) mapa[o.chave] = o.texto;
+  }
+  return mapa;
+}
+
 export function preencherModelo(texto: string, dados: Record<string, string>): string {
   return texto.replace(/\{(\w+)\}/g, (match, chave) => dados[chave] ?? match);
 }

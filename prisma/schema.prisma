@@ -88,10 +88,12 @@ model Revendedor {
   clientes   Cliente[]
   produtos   Produto[]
   vendas     Venda[]
-  recargas   Recarga[]
   avisos     Aviso[]
   fechamentosMes FechamentoMes[]
   pagamentos     Pagamento[]
+  plataformas    Plataforma[]
+  chavesPix      ChavePix[]
+  modelosMensagem ModeloMensagem[]
 }
 
 model Servico {
@@ -101,11 +103,38 @@ model Servico {
   nome         String
   criadoEm     DateTime @default(now())
 
+  plataformaId      String?
+  plataforma        Plataforma? @relation(fields: [plataformaId], references: [id], onDelete: SetNull)
+  custoCredito      Float?
+  cobrancaTelaExtra Float?
+
   clientes Cliente[]
-  recargas Recarga[]
   avisos   Aviso[]
 
   @@unique([revendedorId, nome])
+}
+
+model Plataforma {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  nome         String
+  minimo       Int    @default(0)
+  criadoEm     DateTime @default(now())
+
+  lotes    LotePlataforma[]
+  servicos Servico[]
+
+  @@unique([revendedorId, nome])
+}
+
+model LotePlataforma {
+  id           String @id @default(cuid())
+  plataformaId String
+  plataforma   Plataforma @relation(fields: [plataformaId], references: [id], onDelete: Cascade)
+  quantidade   Int
+  valorPago    Float
+  data         DateTime @default(now())
 }
 
 model Cliente {
@@ -123,6 +152,7 @@ model Cliente {
   plano       PlanoCliente
   valorPlano  Float
   vencimento  DateTime
+  diaFixo     Int?
   testeGratis Boolean  @default(false)
   status      StatusCliente @default(ATIVO)
 
@@ -189,17 +219,23 @@ model Venda {
   data            DateTime @default(now())
 }
 
-model Recarga {
+model ChavePix {
   id           String @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
-  servicoId    String
-  servico      Servico @relation(fields: [servicoId], references: [id])
+  tipo         String
+  valor        String
+  criadoEm     DateTime @default(now())
+}
 
-  quantidade  Int
-  valorPago   Float
-  utilizadas  Int      @default(0)
-  data        DateTime @default(now())
+model ModeloMensagem {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  chave        String
+  texto        String
+
+  @@unique([revendedorId, chave])
 }
 
 model Aviso {

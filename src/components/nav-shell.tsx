@@ -58,6 +58,28 @@ export function NavShell({
         >
           Configurações
         </Link>
+        <Link
+          href="/plataformas"
+          className={cx(
+            "rounded-lg px-3 py-2 text-sm font-medium transition",
+            pathname.startsWith("/plataformas")
+              ? "bg-accent-soft text-accent"
+              : "text-text-muted hover:bg-surface-2 hover:text-text"
+          )}
+        >
+          Plataformas
+        </Link>
+        <Link
+          href="/precificacao"
+          className={cx(
+            "rounded-lg px-3 py-2 text-sm font-medium transition",
+            pathname.startsWith("/precificacao")
+              ? "bg-accent-soft text-accent"
+              : "text-text-muted hover:bg-surface-2 hover:text-text"
+          )}
+        >
+          Precificação
+        </Link>
         {ehAdmin ? (
           <Link
             href="/admin"

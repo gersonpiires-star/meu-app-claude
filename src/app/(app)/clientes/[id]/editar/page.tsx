@@ -35,6 +35,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
             telas: cliente.telas,
             plano: cliente.plano,
             valorPlano: cliente.valorPlano,
+            diaFixo: cliente.diaFixo,
             testeGratis: cliente.testeGratis,
             anotacao: cliente.anotacao,
           }}
