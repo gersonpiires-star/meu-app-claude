@@ -1,6 +1,7 @@
 import { exigirRevendedor } from "@/lib/sessao";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
 import { salvarCredenciaisMP } from "./actions";
+import { ImportarForm } from "./importar-form";
 
 export default async function ConfiguracoesPage() {
   const revendedor = await exigirRevendedor();
@@ -42,6 +43,11 @@ export default async function ConfiguracoesPage() {
             Salvar credenciais
           </Button>
         </form>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-bold text-text">Trazer dados de outro sistema</h2>
+        <ImportarForm />
       </Card>
     </div>
   );
