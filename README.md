@@ -56,18 +56,26 @@ criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
 ## Deploy (Supabase + Vercel)
 
 1. **Banco de dados**: crie um projeto em [supabase.com](https://supabase.com) (gratuito para começar).
-   Em *Project Settings → Database → Connection string → URI*, use o **Transaction pooler** (porta
-   `6543`, com `?pgbouncer=true` no final) como `DATABASE_URL`.
-2. Rode as migrações contra o banco do Supabase uma vez: `DATABASE_URL="<sua-url>" npm run db:deploy`
-   (e opcionalmente `npm run db:seed` para criar o admin).
+   No botão **Connect** do projeto, pegue a connection string do **Transaction pooler** (porta
+   `6543`, host `aws-0-<região>.pooler.supabase.com`, usuário `postgres.<ref-do-projeto>`) como
+   `DATABASE_URL`. Use sempre o pooler, não a conexão direta (`db.<ref>.supabase.co`) — ela só
+   aceita IPv6 e o build/runtime da Vercel (e várias redes corporativas) não conseguem alcançá-la.
+2. **Não precisa rodar a migração manualmente**: o script `vercel-build` (já configurado no
+   `package.json`) roda `prisma migrate deploy` automaticamente antes de cada build na Vercel, contra
+   a `DATABASE_URL` configurada lá. No primeiro deploy, ele já cria todas as tabelas.
 3. **Hospedagem**: importe este repositório em [vercel.com](https://vercel.com) (New Project → Import
-   Git Repository). O `postinstall` do projeto já roda `prisma generate` sozinho.
+   Git Repository). A Vercel detecta o script `vercel-build` automaticamente — não precisa mexer no
+   "Build Command".
 4. Configure as variáveis de ambiente no projeto da Vercel:
-   - `DATABASE_URL` (a do Supabase)
+   - `DATABASE_URL` (a do Supabase, formato pooler acima)
    - `AUTH_SECRET` (gere com o comando do `.env.example`) e `AUTH_TRUST_HOST=true`
    - `APP_URL` = a URL pública que a Vercel te der (ex: `https://gestorpro.vercel.app`)
    - `SUPORTE_WHATSAPP`, `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY` conforme a seção acima
-5. Deploy. A URL que a Vercel gerar já é o endereço público do app.
+5. Deploy. A URL que a Vercel gerar já é o endereço público do app. Depois de rodar, crie o admin
+   direto pela SQL Editor do Supabase (cadastre-se normalmente pela tela do app e rode
+   `update "Revendedor" set papel = 'ADMIN' where email = 'seu@email.com';`), já que o `db:seed`
+   também não roda por aqui — a mesma restrição de rede do pooler direto se aplica a rodar comandos
+   contra o Supabase de fora da Vercel.
 
 ## Instalar como app (celular e PC)
 
