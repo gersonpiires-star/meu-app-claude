@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 enum Papel {
@@ -52,6 +52,18 @@ enum DestinoAviso {
   CLIENTES_DO_SERVICO
 }
 
+enum TipoPagamento {
+  ASSINATURA
+  RENOVACAO
+}
+
+enum StatusPagamento {
+  PENDENTE
+  APROVADO
+  RECUSADO
+  CANCELADO
+}
+
 model Revendedor {
   id        String   @id @default(cuid())
   nome      String
@@ -67,6 +79,11 @@ model Revendedor {
   trialFim           DateTime
   assinaturaVence    DateTime?
 
+  // Credenciais próprias do Mercado Pago do revendedor, para receber
+  // pagamentos de renovação de seus clientes direto na conta dele.
+  mpAccessToken String?
+  mpPublicKey   String?
+
   servicos   Servico[]
   clientes   Cliente[]
   produtos   Produto[]
@@ -74,6 +91,7 @@ model Revendedor {
   recargas   Recarga[]
   avisos     Aviso[]
   fechamentosMes FechamentoMes[]
+  pagamentos     Pagamento[]
 }
 
 model Servico {
@@ -116,6 +134,7 @@ model Cliente {
   atualizadoEm DateTime @updatedAt
 
   renovacoes Renovacao[]
+  pagamentos Pagamento[]
 
   @@index([revendedorId, status])
   @@index([revendedorId, vencimento])
@@ -219,4 +238,32 @@ model FechamentoMes {
   fechadoEm    DateTime @default(now())
 
   @@unique([revendedorId, ano, mes])
+}
+
+// Registro de cada preferência de pagamento criada no Mercado Pago,
+// tanto para a assinatura do GestorPro quanto para a renovação de um
+// cliente. O webhook nunca confia no corpo recebido: ele usa este
+// registro para saber qual token consultar na API do Mercado Pago.
+model Pagamento {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  clienteId    String?
+  cliente      Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  tipo   TipoPagamento
+  status StatusPagamento @default(PENDENTE)
+
+  plano         PlanoCliente?
+  valor         Float
+  custo         Float @default(0)
+  meses         Int?
+
+  mpPreferenceId String? @unique
+  mpPaymentId    String? @unique
+
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([revendedorId, status])
 }

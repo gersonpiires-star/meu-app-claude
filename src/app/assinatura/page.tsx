@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { Badge, Button, Card } from "@/components/ui";
+import { iniciarPagamentoAssinatura } from "./actions";
 
 const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
+const MP_DISPONIVEL = Boolean(process.env.MP_ACCESS_TOKEN);
 
 function linkPix(plano: string) {
   const texto = encodeURIComponent(`Olá! Quero liberar o GestorPro no plano ${plano} — prefiro pagar via Pix.`);
@@ -32,8 +34,15 @@ export default async function AssinaturaPage() {
               <span className="text-2xl font-bold text-accent">R$ 29</span>
               <span className="text-sm text-text-dim"> /mês</span>
             </div>
+            {MP_DISPONIVEL ? (
+              <form action={iniciarPagamentoAssinatura.bind(null, "MENSAL")}>
+                <Button type="submit" className="mt-3 w-full">
+                  Pagar com Pix ou cartão
+                </Button>
+              </form>
+            ) : null}
             <a href={linkPix("Mensal — R$ 29/mês")} target="_blank" rel="noreferrer">
-              <Button variant="whatsapp" className="mt-3 w-full">
+              <Button variant="whatsapp" className="mt-2 w-full">
                 Prefiro pagar no Pix — falar no WhatsApp
               </Button>
             </a>
@@ -48,8 +57,15 @@ export default async function AssinaturaPage() {
               <span className="text-2xl font-bold text-accent">R$ 24</span>
               <span className="text-sm text-text-dim"> /mês</span>
             </div>
+            {MP_DISPONIVEL ? (
+              <form action={iniciarPagamentoAssinatura.bind(null, "ANUAL")}>
+                <Button type="submit" className="mt-3 w-full">
+                  Pagar com Pix ou cartão
+                </Button>
+              </form>
+            ) : null}
             <a href={linkPix("Anual — R$ 290 à vista")} target="_blank" rel="noreferrer">
-              <Button variant="whatsapp" className="mt-3 w-full">
+              <Button variant="whatsapp" className="mt-2 w-full">
                 Prefiro pagar no Pix — falar no WhatsApp
               </Button>
             </a>
