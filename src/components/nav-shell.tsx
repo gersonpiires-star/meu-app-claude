@@ -15,9 +15,11 @@ const ITENS = [
 
 export function NavShell({
   nome,
+  ehAdmin = false,
   children,
 }: {
   nome: string;
+  ehAdmin?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -56,6 +58,14 @@ export function NavShell({
         >
           Configurações
         </Link>
+        {ehAdmin ? (
+          <Link
+            href="/admin"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-surface-2"
+          >
+            Administração GestorPro
+          </Link>
+        ) : null}
         <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
           <span className="truncate text-xs text-text-dim">{nome}</span>
           <SairButton />
@@ -69,6 +79,11 @@ export function NavShell({
             <span className="text-sm font-bold">GestorPro</span>
           </div>
           <div className="flex items-center gap-3">
+            {ehAdmin ? (
+              <Link href="/admin" className="text-xs font-semibold text-accent">
+                Admin
+              </Link>
+            ) : null}
             <Link href="/configuracoes" className="text-xs font-semibold text-text-dim">
               Config.
             </Link>

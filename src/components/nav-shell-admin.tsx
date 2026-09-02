@@ -39,6 +39,12 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
             </Link>
           ))}
         </nav>
+        <Link
+          href="/painel"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-surface-2"
+        >
+          Minha operação (revenda)
+        </Link>
         <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
           <span className="truncate text-xs text-text-dim">{nome}</span>
           <SairButton />
@@ -48,7 +54,12 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
       <div className="flex flex-1 flex-col pb-16 md:pb-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
           <span className="text-sm font-bold">GestorPro · Admin</span>
-          <SairButton />
+          <div className="flex items-center gap-3">
+            <Link href="/painel" className="text-xs font-semibold text-accent">
+              Minha revenda
+            </Link>
+            <SairButton />
+          </div>
         </header>
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>

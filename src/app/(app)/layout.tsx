@@ -4,10 +4,15 @@ import { AcessoPausado } from "@/components/acesso-pausado";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const revendedor = await exigirRevendedor();
+  const ehAdmin = revendedor.papel === "ADMIN";
 
-  if (!acessoLiberado(revendedor)) {
+  if (!ehAdmin && !acessoLiberado(revendedor)) {
     return <AcessoPausado nome={revendedor.nome} />;
   }
 
-  return <NavShell nome={revendedor.nome}>{children}</NavShell>;
+  return (
+    <NavShell nome={revendedor.nome} ehAdmin={ehAdmin}>
+      {children}
+    </NavShell>
+  );
 }

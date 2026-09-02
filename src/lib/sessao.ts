@@ -8,7 +8,6 @@ export async function exigirRevendedor() {
 
   const revendedor = await prisma.revendedor.findUnique({ where: { id: session.user.id } });
   if (!revendedor) redirect("/entrar");
-  if (revendedor.papel === "ADMIN") redirect("/admin");
 
   return revendedor;
 }
