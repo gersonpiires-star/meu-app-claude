@@ -9,6 +9,11 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Só usado pela CLI (migrate/generate) — o app em runtime conecta via
+    // src/lib/prisma.ts, que lê DATABASE_URL diretamente. DIRECT_URL deve
+    // ser uma conexão sem pooler de transação (session pooler ou direta),
+    // porque o Prisma Migrate usa advisory locks que o pgbouncer em modo
+    // "transaction" não sustenta — some com DATABASE_URL sem isso.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

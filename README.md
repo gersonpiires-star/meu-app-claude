@@ -56,18 +56,23 @@ criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
 ## Deploy (Supabase + Vercel)
 
 1. **Banco de dados**: crie um projeto em [supabase.com](https://supabase.com) (gratuito para começar).
-   No botão **Connect** do projeto, pegue a connection string do **Transaction pooler** (porta
-   `6543`, host `aws-0-<região>.pooler.supabase.com`, usuário `postgres.<ref-do-projeto>`) como
-   `DATABASE_URL`. Use sempre o pooler, não a conexão direta (`db.<ref>.supabase.co`) — ela só
-   aceita IPv6 e o build/runtime da Vercel (e várias redes corporativas) não conseguem alcançá-la.
+   No botão **Connect** do projeto, você vai precisar de **duas** connection strings do mesmo projeto:
+   - `DATABASE_URL` = aba **Transaction pooler** (porta `6543`, host
+     `aws-0-<região>.pooler.supabase.com`, usuário `postgres.<ref-do-projeto>`, com
+     `?pgbouncer=true` no final). É a que o app usa em produção pra tudo.
+   - `DIRECT_URL` = aba **Session pooler** (porta `5432`, mesmo host e usuário, sem
+     `?pgbouncer=true`). É usada só durante o build, pra rodar a migração — o Prisma Migrate
+     precisa de locks que o pooler em modo "transaction" não sustenta.
+   - Nunca use a conexão direta (`db.<ref>.supabase.co`) em nenhuma das duas: só aceita IPv6 e a
+     Vercel (e várias redes) não alcançam.
 2. **Não precisa rodar a migração manualmente**: o script `vercel-build` (já configurado no
-   `package.json`) roda `prisma migrate deploy` automaticamente antes de cada build na Vercel, contra
-   a `DATABASE_URL` configurada lá. No primeiro deploy, ele já cria todas as tabelas.
+   `package.json`) roda `prisma migrate deploy` (usando `DIRECT_URL`) automaticamente antes de cada
+   build na Vercel. No primeiro deploy, ele já cria todas as tabelas.
 3. **Hospedagem**: importe este repositório em [vercel.com](https://vercel.com) (New Project → Import
    Git Repository). A Vercel detecta o script `vercel-build` automaticamente — não precisa mexer no
    "Build Command".
 4. Configure as variáveis de ambiente no projeto da Vercel:
-   - `DATABASE_URL` (a do Supabase, formato pooler acima)
+   - `DATABASE_URL` e `DIRECT_URL` (as duas do Supabase, formato acima)
    - `AUTH_SECRET` (gere com o comando do `.env.example`) e `AUTH_TRUST_HOST=true`
    - `APP_URL` = a URL pública que a Vercel te der (ex: `https://gestorpro.vercel.app`)
    - `SUPORTE_WHATSAPP`, `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY` conforme a seção acima
