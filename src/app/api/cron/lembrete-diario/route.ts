@@ -14,6 +14,13 @@ export async function GET(req: NextRequest) {
   }
 
   const agora = new Date();
+
+  // Limpa tentativas de login antigas — só servem pra bloquear força bruta
+  // numa janela de 15 min, não precisam ficar guardadas depois disso.
+  await prisma.tentativaLogin
+    .deleteMany({ where: { criadoEm: { lt: new Date(agora.getTime() - 24 * 60 * 60000) } } })
+    .catch(() => {});
+
   const revendedores = await prisma.revendedor.findMany({
     where: { statusAssinatura: { in: ["ATIVO", "TRIAL"] } },
     include: { pushSubscriptions: true },

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirDono } from "@/lib/sessao";
+import { registrarLog } from "@/lib/log";
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome"),
@@ -27,21 +28,29 @@ export async function criarFuncionario(formData: FormData): Promise<{ erro?: str
     data: { revendedorId: revendedor.id, nome: parsed.data.nome, email, senhaHash },
   });
 
+  await registrarLog(revendedor.id, "funcionario.criar", `Adicionou o funcionário ${parsed.data.nome} (${email})`);
+
   revalidatePath("/configuracoes/funcionarios");
   return {};
 }
 
 export async function alternarFuncionarioAtivo(id: string, ativo: boolean) {
   const revendedor = await exigirDono();
-  await prisma.funcionario.update({
+  const funcionario = await prisma.funcionario.update({
     where: { id, revendedorId: revendedor.id },
     data: { ativo },
   });
+  await registrarLog(
+    revendedor.id,
+    "funcionario.alternar",
+    `${ativo ? "Reativou" : "Bloqueou"} o funcionário ${funcionario.nome}`
+  );
   revalidatePath("/configuracoes/funcionarios");
 }
 
 export async function excluirFuncionario(id: string) {
   const revendedor = await exigirDono();
-  await prisma.funcionario.delete({ where: { id, revendedorId: revendedor.id } });
+  const excluido = await prisma.funcionario.delete({ where: { id, revendedorId: revendedor.id } });
+  await registrarLog(revendedor.id, "funcionario.excluir", `Removeu o funcionário ${excluido.nome}`);
   revalidatePath("/configuracoes/funcionarios");
 }

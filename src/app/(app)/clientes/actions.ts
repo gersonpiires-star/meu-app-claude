@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
-import { calcularVencimentoComDiaFixo } from "@/lib/planos";
+import { calcularVencimentoComDiaFixo, PLANO_LABEL } from "@/lib/planos";
+import { registrarLog } from "@/lib/log";
+import { brl } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
@@ -64,6 +66,8 @@ export async function criarCliente(formData: FormData) {
     },
   });
 
+  await registrarLog(revendedor.id, "cliente.criar", `Cadastrou o cliente ${cliente.nome}`);
+
   revalidatePath("/clientes");
   revalidatePath("/painel");
   redirect(`/clientes/${cliente.id}`);
@@ -90,6 +94,8 @@ export async function atualizarCliente(id: string, formData: FormData) {
     },
   });
 
+  await registrarLog(revendedor.id, "cliente.editar", `Editou os dados de ${dados.nome}`);
+
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/painel");
@@ -101,10 +107,12 @@ export async function aplicarReajusteCliente(id: string, formData: FormData) {
   const novoValor = Number(formData.get("novoValor") ?? 0);
   if (!(novoValor > 0)) return;
 
-  await prisma.cliente.update({
+  const cliente = await prisma.cliente.update({
     where: { id, revendedorId: revendedor.id },
     data: { valorPlano: novoValor },
   });
+
+  await registrarLog(revendedor.id, "cliente.reajuste", `Ajustou o plano de ${cliente.nome} para ${brl(novoValor)}`);
 
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
@@ -118,6 +126,12 @@ export async function aplicarReajusteEmGrupo(clienteIds: string[], novoValor: nu
     where: { id: { in: clienteIds }, revendedorId: revendedor.id },
     data: { valorPlano: novoValor },
   });
+
+  await registrarLog(
+    revendedor.id,
+    "cliente.reajuste_grupo",
+    `Ajustou o plano de ${clienteIds.length} clientes para ${brl(novoValor)}`
+  );
 
   revalidatePath("/clientes");
   revalidatePath("/painel");
@@ -152,6 +166,8 @@ export async function renovarCliente(id: string, formData: FormData) {
     }),
   ]);
 
+  await registrarLog(revendedor.id, "cliente.renovar", `Renovou o plano de ${cliente.nome} (${PLANO_LABEL[plano]}, ${brl(valor)})`);
+
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
@@ -162,7 +178,7 @@ export async function cancelarCliente(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const motivo = String(formData.get("motivo") ?? "").trim();
 
-  await prisma.cliente.update({
+  const cliente = await prisma.cliente.update({
     where: { id, revendedorId: revendedor.id },
     data: {
       status: "CANCELADO",
@@ -170,6 +186,12 @@ export async function cancelarCliente(id: string, formData: FormData) {
       motivoSaidaData: new Date(),
     },
   });
+
+  await registrarLog(
+    revendedor.id,
+    "cliente.cancelar",
+    `Cancelou o cliente ${cliente.nome}${motivo ? ` — motivo: ${motivo}` : ""}`
+  );
 
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
@@ -182,10 +204,12 @@ export async function corrigirVencimento(id: string, formData: FormData) {
   const [dia, mes, ano] = texto.split("/").map(Number);
   if (!dia || !mes || !ano) return;
 
-  await prisma.cliente.update({
+  const cliente = await prisma.cliente.update({
     where: { id, revendedorId: revendedor.id },
     data: { vencimento: new Date(ano, mes - 1, dia) },
   });
+
+  await registrarLog(revendedor.id, "cliente.corrigir_vencimento", `Alterou o vencimento de ${cliente.nome} para ${texto}`);
 
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
@@ -194,7 +218,8 @@ export async function corrigirVencimento(id: string, formData: FormData) {
 
 export async function excluirCliente(id: string) {
   const revendedor = await exigirRevendedor();
-  await prisma.cliente.delete({ where: { id, revendedorId: revendedor.id } });
+  const excluido = await prisma.cliente.delete({ where: { id, revendedorId: revendedor.id } });
+  await registrarLog(revendedor.id, "cliente.excluir", `Excluiu o cliente ${excluido.nome}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
   redirect("/clientes");

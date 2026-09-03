@@ -100,6 +100,34 @@ model Revendedor {
   modelosMensagem ModeloMensagem[]
   funcionarios    Funcionario[]
   pushSubscriptions PushSubscription[]
+  logsAtividade   LogAtividade[]
+}
+
+// Registro de ações sensíveis feitas por quem loga (dono ou funcionário) —
+// pra dar pro dono visibilidade de quem fez o quê, principalmente depois
+// que a conta passou a permitir logins de funcionário.
+model LogAtividade {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  autorNome    String
+  autorTipo    String
+  acao         String
+  descricao    String
+  criadoEm     DateTime @default(now())
+
+  @@index([revendedorId, criadoEm])
+}
+
+// Tentativas de login (sucesso ou falha), usadas só para bloquear força
+// bruta — não guarda a senha, só o e-mail tentado e o resultado.
+model TentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  sucesso  Boolean
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
 }
 
 // Login adicional para um funcionário do revendedor. Compartilha os

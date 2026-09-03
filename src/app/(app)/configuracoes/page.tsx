@@ -68,6 +68,20 @@ export default async function ConfiguracoesPage() {
         </Card>
       )}
 
+      {ehFuncionario ? null : (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-text">Histórico de ações</h2>
+              <p className="mt-1 text-sm text-text-dim">Veja o que você e seus funcionários andaram fazendo.</p>
+            </div>
+            <Link href="/configuracoes/historico">
+              <Button variant="ghost">Ver histórico</Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <h2 className="mb-1 text-sm font-bold text-text">Lembrete diário de vencimento</h2>
         <p className="mb-3 text-sm text-text-dim">

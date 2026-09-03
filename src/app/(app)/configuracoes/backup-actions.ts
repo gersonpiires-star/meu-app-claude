@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { exigirDono } from "@/lib/sessao";
+import { registrarLog } from "@/lib/log";
 
 export async function restaurarBackup(
   formData: FormData
@@ -154,6 +155,12 @@ export async function restaurarBackup(
   for (const chave of dados.chavesPix ?? []) {
     await prisma.chavePix.create({ data: { revendedorId, tipo: chave.tipo, valor: chave.valor } });
   }
+
+  await registrarLog(
+    revendedorId,
+    "backup.restaurar",
+    `Restaurou um backup — substituiu todos os dados (${dados.clientes?.length ?? 0} clientes)`
+  );
 
   revalidatePath("/painel");
   revalidatePath("/clientes");
