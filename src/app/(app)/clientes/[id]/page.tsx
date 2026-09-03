@@ -352,7 +352,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
           <h2 className="text-sm font-bold text-text">Histórico</h2>
           <span className={cx("text-xs font-semibold", renovado ? "text-accent" : "text-text-dim")}>{renTexto}</span>
         </div>
-        <div className="flex max-h-72 flex-col overflow-y-auto">
+        <div className="flex max-h-72 flex-col overflow-y-auto pr-3 [scrollbar-gutter:stable]">
           {historico.map((h, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0">
               <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", BARRA_COR[h.tom])} />
