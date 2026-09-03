@@ -10,7 +10,14 @@ export function PrecificacaoTabs({
   plataformas,
   margemPadrao,
 }: {
-  servicos: { id: string; nome: string; plataformaId: string | null; custoCredito: number | null; cobrancaTelaExtra: number | null }[];
+  servicos: {
+    id: string;
+    nome: string;
+    plataformaId: string | null;
+    custoCredito: number | null;
+    cobrancaTelaExtra: number | null;
+    totalClientes: number;
+  }[];
   plataformas: { id: string; nome: string }[];
   margemPadrao: number;
 }) {
