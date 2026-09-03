@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
-import { calcularVencimentoComDiaFixo, PLANO_LABEL } from "@/lib/planos";
+import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { registrarLog } from "@/lib/log";
 import { brl } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
@@ -172,6 +172,30 @@ export async function renovarCliente(id: string, formData: FormData) {
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");
+}
+
+export async function converterTeste(id: string) {
+  const revendedor = await exigirRevendedor();
+  const cliente = await prisma.cliente.findUniqueOrThrow({ where: { id, revendedorId: revendedor.id } });
+  if (!cliente.testeGratis) return;
+
+  const novoVencimento = calcularVencimentoComDiaFixo("MENSAL", new Date(), cliente.diaFixo);
+  await prisma.cliente.update({
+    where: { id },
+    data: {
+      testeGratis: false,
+      plano: "MENSAL",
+      valorPlano: PLANO_VALOR_SUGERIDO.MENSAL,
+      vencimento: novoVencimento,
+      status: "ATIVO",
+    },
+  });
+
+  await registrarLog(revendedor.id, "cliente.converter_teste", `Converteu ${cliente.nome} de teste grátis para Mensal`);
+
+  revalidatePath(`/clientes/${id}`);
+  revalidatePath("/clientes");
+  revalidatePath("/painel");
 }
 
 export async function cancelarCliente(id: string, formData: FormData) {

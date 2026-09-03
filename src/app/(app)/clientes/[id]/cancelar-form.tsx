@@ -3,19 +3,23 @@
 import { useState, useTransition } from "react";
 import { Button, Field, Textarea } from "@/components/ui";
 
-export function CancelarForm({ acao }: { acao: (formData: FormData) => Promise<void> }) {
+export function CancelarForm({
+  acao,
+  label = "Cancelar cliente",
+  className,
+}: {
+  acao: (formData: FormData) => Promise<void>;
+  label?: string;
+  className?: string;
+}) {
   const [aberto, setAberto] = useState(false);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
     return (
-      <button
-        type="button"
-        className="text-xs font-semibold text-text-dim hover:text-danger"
-        onClick={() => setAberto(true)}
-      >
-        Cancelar cliente
-      </button>
+      <Button type="button" variant="ghost" className={className} onClick={() => setAberto(true)}>
+        {label}
+      </Button>
     );
   }
 

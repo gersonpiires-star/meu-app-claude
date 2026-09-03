@@ -2,19 +2,63 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, dataPorExtenso, iniciais } from "@/lib/format";
-import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
-import { mesclarModelos } from "@/lib/mensagens";
+import { brl, brl0, dataCurta, dataHora, dataPorExtenso, iniciais } from "@/lib/format";
+import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
+import { MODELOS_COMUNICADO, mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { faixaPontualidade } from "@/lib/pontualidade";
-import { Badge, Button, Card } from "@/components/ui";
+import { ehAniversarioDeCasa } from "@/lib/aniversario";
+import { Badge, Button, Card, cx } from "@/components/ui";
 import { renovarCliente, cancelarCliente, excluirCliente, corrigirVencimento, aplicarReajusteCliente } from "../actions";
 import { ReajusteForm } from "./reajuste-form";
 import { RenovarForm } from "./renovar-form";
-import { MensagemWhatsApp } from "./mensagem-whatsapp";
 import { CancelarForm } from "./cancelar-form";
 import { ExcluirBotao } from "./excluir-botao";
-import { LinkPagamento } from "./link-pagamento";
 import { CorrigirVencimento } from "./corrigir-vencimento";
+import { ConverterTesteBotao } from "./converter-teste-botao";
+import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
+import { RenovarBotao } from "../renovar-em-lote/renovar-botao";
+
+type Tom = "neutral" | "danger" | "warning" | "success";
+
+const AVATAR_TOM: Record<Tom, string> = {
+  neutral: "bg-surface-2 text-text-muted",
+  danger: "bg-danger-bg text-danger",
+  warning: "bg-warning-bg text-warning",
+  success: "bg-accent-soft text-accent",
+};
+
+const BARRA_COR: Record<Tom, string> = {
+  neutral: "bg-text-dim",
+  danger: "bg-danger",
+  warning: "bg-warning",
+  success: "bg-accent",
+};
+
+const TEXTO_COR: Record<Tom, string> = {
+  neutral: "text-text-dim",
+  danger: "text-danger",
+  warning: "text-warning",
+  success: "text-accent",
+};
+
+function estadoCliente(status: string, vencimento: Date): { tom: Tom; label: string } {
+  if (status === "CANCELADO") return { tom: "neutral", label: "Cancelado" };
+  const faixa = faixaVencimento(vencimento);
+  if (faixa === "VENCIDO") return { tom: "danger", label: "Vencido" };
+  if (faixa === "ATE_5_DIAS") return { tom: "warning", label: "Vencendo" };
+  return { tom: "success", label: "Em dia" };
+}
+
+function diasTexto(vencimento: Date): string {
+  const dias = diasParaVencer(vencimento);
+  return dias < 0 ? `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"} atrás` : `em ${dias} dia${dias === 1 ? "" : "s"}`;
+}
+
+function mesesComoCliente(criadoEm: Date, hoje: Date = new Date()): number {
+  let m = (hoje.getFullYear() - criadoEm.getFullYear()) * 12 + (hoje.getMonth() - criadoEm.getMonth());
+  if (hoje.getDate() < criadoEm.getDate()) m -= 1;
+  return Math.max(0, m);
+}
 
 function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
   const dias = Math.floor((ate.getTime() - criadoEm.getTime()) / 86400000);
@@ -22,10 +66,7 @@ function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
 }
 
 function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
-  const meses = Math.max(
-    0,
-    (ate.getFullYear() - desde.getFullYear()) * 12 + (ate.getMonth() - desde.getMonth())
-  );
+  const meses = Math.max(0, (ate.getFullYear() - desde.getFullYear()) * 12 + (ate.getMonth() - desde.getMonth()));
   if (meses < 1) {
     const dias = Math.max(0, Math.round((ate.getTime() - desde.getTime()) / 86400000));
     return `${dias} dia${dias === 1 ? "" : "s"}`;
@@ -36,200 +77,341 @@ function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
   return resto ? `${anos}a ${resto}m` : `${anos} ano${anos === 1 ? "" : "s"}`;
 }
 
+function horaCurta(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function InfoTile({ label, value, span2 = false, tom = "neutral" as Tom }: { label: string; value: string; span2?: boolean; tom?: Tom }) {
+  const destacado = tom !== "neutral";
+  return (
+    <div
+      className={cx(
+        "rounded-xl border p-3.5",
+        span2 ? "col-span-2" : "",
+        destacado ? "border-accent-strong bg-accent-soft" : "border-border bg-surface-2"
+      )}
+    >
+      <p className={cx("text-[10px] font-semibold uppercase tracking-wider", destacado ? TEXTO_COR[tom] : "text-text-dim")}>{label}</p>
+      <p className={cx("mt-1 text-base font-semibold", destacado ? TEXTO_COR[tom] : "text-text")}>{value}</p>
+    </div>
+  );
+}
+
 export default async function ClienteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const revendedor = await exigirRevendedor();
   const { id } = await params;
 
-  const [cliente, chaves, overridesModelos] = await Promise.all([
+  const [cliente, overridesModelos] = await Promise.all([
     prisma.cliente.findUnique({
       where: { id, revendedorId: revendedor.id },
       include: {
         servico: true,
         renovacoes: { orderBy: { data: "desc" } },
         vendas: true,
-        _count: { select: { cobrancas: true } },
+        cobrancas: { orderBy: { criadoEm: "desc" }, take: 10 },
       },
     }),
-    prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
   ]);
   if (!cliente) notFound();
   const modelos = mesclarModelos(overridesModelos);
 
+  const estado = estadoCliente(cliente.status, cliente.vencimento);
   const faixa = faixaVencimento(cliente.vencimento);
+  const dias = diasParaVencer(cliente.vencimento);
+  const barraPct = Math.max(4, Math.min(100, Math.round(100 - (dias / 93) * 100)));
   const ltvRenovacoes = cliente.renovacoes.reduce((a, r) => a + r.valor, 0);
   const ltvVendas = cliente.vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
   const jaRendeu = ltvRenovacoes + ltvVendas;
   const cancelado = cliente.status === "CANCELADO";
-  const clienteNovo = ehClienteNovo(cliente.criadoEm);
-  const pontualidade = faixaPontualidade(cliente._count.cobrancas, cliente.renovacoes.length);
+  const clienteNovo = ehClienteNovo(cliente.criadoEm) && !cliente.testeGratis && !cancelado;
+  const pontualidade = faixaPontualidade(cliente.cobrancas.length, cliente.renovacoes.length);
+  const mesesCasa = mesesComoCliente(cliente.criadoEm);
+  const clienteHaTexto = mesesCasa < 1 ? "Entrou este mês" : tempoDeCasa(cliente.criadoEm);
+  const aniversario = ehAniversarioDeCasa(cliente.criadoEm);
+
+  const pendentes: string[] = [];
+  if (!cliente.whatsapp) pendentes.push("WhatsApp incompleto — cobrança não funciona");
+  if (!cliente.servico) pendentes.push("Serviço não informado");
+  if (!cliente.valorPlano) pendentes.push("Valor do plano não informado");
+
+  const hoje0 = new Date();
+  hoje0.setHours(0, 0, 0, 0);
+  const cobrancasHoje = cliente.cobrancas.filter((c) => c.criadoEm >= hoje0);
+  const cobradoHoje = cobrancasHoje.length > 0;
+  const cobrarLabel = cobradoHoje ? `Já cobrado hoje · ${horaCurta(cobrancasHoje[0].criadoEm)}` : "Cobrar no WhatsApp";
+
+  const renovado = cliente.renovacoes.length > 0;
+  const renTexto = renovado
+    ? `✓ ${PLANO_LABEL[cliente.renovacoes[0].plano]} · última em ${dataCurta(cliente.renovacoes[0].data)}`
+    : "Nenhuma renovação registrada";
+
+  const historico = [
+    ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom })),
+    ...cliente.renovacoes.slice(0, 6).map((r) => ({ label: `Renovado — ${PLANO_LABEL[r.plano]}`, data: dataHora(r.data), tom: "success" as Tom })),
+    ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom })),
+    { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom },
+  ];
+
+  const dadosMensagem = {
+    nome: cliente.nome,
+    app: cliente.servico?.nome ?? "",
+    plano: PLANO_LABEL[cliente.plano],
+    vencimento: dataPorExtenso(cliente.vencimento),
+    prazo: faixa === "VENCIDO" ? "vencido" : "a vencer",
+    valor: brl(cliente.valorPlano),
+    novoValor: brl(cliente.valorPlano),
+  };
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-5">
+    <div className="mx-auto flex max-w-lg flex-col gap-4">
       <div className="flex items-center justify-between">
         <Link href="/clientes" className="text-xs font-semibold text-text-dim hover:text-text">
           ‹ Clientes
         </Link>
         {!cancelado ? (
-          <div className="flex gap-2">
-            <Link href={`/clientes/${id}/editar`}>
-              <Button variant="ghost">Editar</Button>
+          <div className="flex gap-4">
+            <Link href={`/clientes/${id}/editar`} className="text-xs font-semibold text-accent hover:underline">
+              Editar
             </Link>
             <ExcluirBotao acao={excluirCliente.bind(null, id)} />
           </div>
         ) : null}
       </div>
 
-      <Card>
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-accent">
-            {iniciais(cliente.nome)}
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-text">{cliente.nome}</h1>
-            <p className="truncate text-xs text-text-dim">{cliente.whatsapp ?? "sem WhatsApp cadastrado"}</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className={cx("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold", AVATAR_TOM[estado.tom])}>
+          {iniciais(cliente.nome)}
         </div>
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-bold text-text">{cliente.nome}</h1>
+          <Badge tone={estado.tom}>
+            {estado.label} · {cliente.whatsapp ?? "sem WhatsApp"}
+          </Badge>
+        </div>
+      </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {cancelado ? (
-            <Badge tone="neutral">Saiu em {cliente.motivoSaidaData ? dataPorExtenso(cliente.motivoSaidaData) : "—"}</Badge>
-          ) : cliente.testeGratis ? (
-            <Badge tone="warning">Cliente em teste grátis</Badge>
-          ) : clienteNovo ? (
-            <Badge tone="accent">Cliente novo</Badge>
-          ) : (
-            <Badge tone={faixa === "VENCIDO" ? "danger" : faixa === "ATE_5_DIAS" ? "warning" : "success"}>
-              {faixa === "VENCIDO" ? "Vencido" : faixa === "ATE_5_DIAS" ? "Vencendo" : "Em dia"}
-            </Badge>
-          )}
-          {pontualidade.faixa !== "SEM_HISTORICO" ? (
-            <Badge
-              tone={
-                pontualidade.faixa === "PAGA_SOZINHO" || pontualidade.faixa === "PAGA_NA_LEMBRANCA"
-                  ? "success"
-                  : pontualidade.faixa === "PRECISA_INSISTIR"
-                    ? "warning"
-                    : "danger"
-              }
+      {!cancelado ? (
+        <Card className="flex flex-col gap-3 bg-gradient-to-br from-accent-soft to-surface">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Próximo vencimento</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold tracking-tight text-text">{dataPorExtenso(cliente.vencimento)}</span>
+            <span className={cx("text-xs font-semibold", TEXTO_COR[estado.tom])}>{diasTexto(cliente.vencimento)}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-border">
+            <div className={cx("h-1.5 rounded-full", BARRA_COR[estado.tom])} style={{ width: `${barraPct}%` }} />
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-2">
+        <InfoTile label="Plano" value={PLANO_LABEL[cliente.plano]} />
+        <InfoTile label="Valor" value={brl(cliente.valorPlano)} />
+        <InfoTile label="Cliente há" value={clienteHaTexto} />
+        <InfoTile label="Telas" value={`${cliente.telas} tela${cliente.telas === 1 ? "" : "s"}`} />
+        <InfoTile label="Vencimento" value={cliente.diaFixo ? `Dia ${cliente.diaFixo}` : "Pelo plano"} />
+        <InfoTile label="Serviço" value={cliente.servico?.nome ?? "—"} />
+        <InfoTile label="Renovação" value={renTexto} span2 tom={renovado ? "success" : "neutral"} />
+      </div>
+
+      {clienteNovo ? (
+        <Card className="flex flex-col gap-3 border-success-border bg-success-bg/30">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-success" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-success">Cliente novo</p>
+              <p className="text-xs text-text-dim">
+                {ehClienteNovo(cliente.criadoEm) ? "Cadastrado recentemente" : ""} · vence {dataCurta(cliente.vencimento)}
+              </p>
+            </div>
+          </div>
+          {cliente.whatsapp ? (
+            <RegistrarCobrancaLink
+              clienteId={id}
+              whatsapp={cliente.whatsapp}
+              mensagem={preencherModelo(modelos["Boas-vindas"] ?? MODELOS_COMUNICADO["Boas-vindas"], dadosMensagem)}
+              modelo="Boas-vindas"
             >
-              {pontualidade.label}
-            </Badge>
-          ) : null}
-        </div>
+              <Button variant="whatsapp" className="w-full">
+                Enviar boas-vindas
+              </Button>
+            </RegistrarCobrancaLink>
+          ) : (
+            <p className="text-xs text-text-dim">Cadastre o WhatsApp em Editar para enviar boas-vindas.</p>
+          )}
+        </Card>
+      ) : null}
 
-        <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div className="min-w-0">
-            <CorrigirVencimento
-              vencimentoAtual={cliente.vencimento}
-              diaFixo={cliente.diaFixo}
-              acao={corrigirVencimento.bind(null, id)}
-              podeEditar={!cancelado}
-            />
+      {cliente.testeGratis ? (
+        <Card className="flex flex-col gap-3 border-accent-strong bg-accent-soft/60">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-accent">Cliente em teste grátis</p>
+              <p className="text-xs text-text-dim">{diasTexto(cliente.vencimento)}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Cliente há</p>
-            <p className="mt-0.5 font-semibold text-text">{tempoDeCasa(cliente.criadoEm)}</p>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Telas</p>
-            <p className="mt-0.5 font-semibold text-text">{cliente.telas}</p>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Serviço</p>
-            <p className="mt-0.5 font-semibold text-text">{cliente.servico?.nome ?? "—"}</p>
-          </div>
-          <div className="min-w-0">
-            <ReajusteForm
-              plano={cliente.plano}
-              valorAtual={cliente.valorPlano}
-              acao={aplicarReajusteCliente.bind(null, id)}
-              podeEditar={!cancelado}
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Já rendeu</p>
-            <p className="mt-0.5 font-semibold text-accent">{brl(jaRendeu)}</p>
-            {ltvVendas > 0 ? <p className="text-xs text-text-dim">Inclui {brl(ltvVendas)} em aparelhos</p> : null}
-          </div>
-        </div>
+          <ConverterTesteBotao clienteId={id} nome={cliente.nome} />
+        </Card>
+      ) : null}
 
-        {cliente.anotacao ? (
-          <div className="mt-4 rounded-lg bg-surface-2 p-3 text-sm text-text-muted">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Anotação</p>
-            <p className="mt-1">{cliente.anotacao}</p>
-          </div>
-        ) : null}
+      {pendentes.length > 0 ? (
+        <Link
+          href={`/clientes/${id}/editar`}
+          className="flex items-center gap-2.5 rounded-xl border border-danger-border bg-danger-bg/40 px-4 py-3"
+        >
+          <span className="h-2 w-2 shrink-0 rounded-full bg-danger" />
+          <span className="flex-1 text-sm text-danger">
+            {pendentes.length} {pendentes.length === 1 ? "informação" : "informações"} faltando no cadastro
+          </span>
+          <span className="text-xs font-semibold text-danger">CORRIGIR</span>
+        </Link>
+      ) : null}
+
+      {aniversario.ehAniversario ? (
+        <div className="flex items-center gap-2.5 rounded-xl border border-accent-strong bg-accent-soft px-4 py-3">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+          <span className="text-sm font-semibold text-accent">
+            Completa {aniversario.anos} ano{aniversario.anos === 1 ? "" : "s"} de casa — vale um agradecimento
+          </span>
+        </div>
+      ) : null}
+
+      {cancelado ? (
+        <Card className="flex flex-col gap-1 border-warning-border bg-warning-bg/30">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">
+            Saiu em {cliente.motivoSaidaData ? dataCurta(cliente.motivoSaidaData) : "—"}
+          </span>
+          <span className="text-sm font-semibold text-text">{cliente.motivoSaida || "Motivo não informado"}</span>
+        </Card>
+      ) : null}
+
+      <Card className="flex flex-col gap-2.5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Já rendeu</span>
+          <span className="text-[10px] text-text-dim">Cliente há {tempoDeCasa(cliente.criadoEm)}</span>
+        </div>
+        {jaRendeu > 0 ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-accent">{brl(jaRendeu)}</span>
+              <span className="text-xs font-semibold text-accent/80">
+                {mesesCasa >= 1 ? `${brl(jaRendeu / mesesCasa)} / mês` : "—"}
+              </span>
+            </div>
+            <p className="border-t border-border pt-2 text-xs text-text-dim">
+              {cliente.renovacoes.length} {cliente.renovacoes.length === 1 ? "renovação" : "renovações"}
+              {ltvVendas > 0 ? ` · ${brl0(ltvVendas)} em produto` : ""}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-text-dim">
+            Sem renovações registradas ainda — o total aparece a partir do primeiro pagamento marcado no app.
+          </p>
+        )}
+      </Card>
+
+      <div
+        className={cx(
+          "flex flex-col gap-1 rounded-xl border px-4 py-3",
+          pontualidade.faixa === "PAGA_SOZINHO" || pontualidade.faixa === "PAGA_NA_LEMBRANCA"
+            ? "border-success-border bg-success-bg/30"
+            : pontualidade.faixa === "PRECISA_INSISTIR"
+              ? "border-warning-border bg-warning-bg/30"
+              : pontualidade.faixa === "SO_PAGA_COBRADO"
+                ? "border-danger-border bg-danger-bg/30"
+                : "border-border bg-surface-2"
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className={cx(
+              "h-1.5 w-1.5 rounded-full",
+              pontualidade.faixa === "PAGA_SOZINHO" || pontualidade.faixa === "PAGA_NA_LEMBRANCA"
+                ? "bg-success"
+                : pontualidade.faixa === "PRECISA_INSISTIR"
+                  ? "bg-warning"
+                  : pontualidade.faixa === "SO_PAGA_COBRADO"
+                    ? "bg-danger"
+                    : "bg-text-dim"
+            )}
+          />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">{pontualidade.label}</span>
+        </div>
+        <p className="text-xs text-text-muted">
+          {pontualidade.faixa === "SEM_HISTORICO"
+            ? "Aparece depois do primeiro pagamento registrado"
+            : `${cliente.cobrancas.length} cobrança(s) para ${cliente.renovacoes.length} pagamento(s)${
+                cliente.renovacoes.length > 0 ? ` · ${pontualidade.razao.toFixed(1).replace(".", ",")} por pagamento` : ""
+              }`}
+        </p>
+      </div>
+
+      {cliente.anotacao ? (
+        <Card className="flex flex-col gap-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Anotação</p>
+          <p className="whitespace-pre-wrap text-sm text-text-muted">{cliente.anotacao}</p>
+        </Card>
+      ) : null}
+
+      <Card>
+        <h2 className="mb-2 text-sm font-bold text-text">Histórico</h2>
+        <div className="flex flex-col">
+          {historico.map((h, i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0">
+              <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", BARRA_COR[h.tom])} />
+              <span className={cx("flex-1 text-sm", h.tom === "danger" ? "text-danger" : "text-text-muted")}>{h.label}</span>
+              <span className="text-xs text-text-dim">{h.data}</span>
+            </div>
+          ))}
+        </div>
       </Card>
 
       {!cancelado ? (
-        <Card>
-          <h2 className="mb-3 text-sm font-bold text-text">Renovação</h2>
+        <div className="flex flex-col gap-2">
+          {cliente.whatsapp ? (
+            <Link href={`/clientes/${id}/cobranca`}>
+              <Button variant="whatsapp" className="w-full">
+                {cobrarLabel}
+              </Button>
+            </Link>
+          ) : (
+            <Link href={`/clientes/${id}/editar`}>
+              <Button variant="ghost" className="w-full">
+                Cadastre o WhatsApp para cobrar
+              </Button>
+            </Link>
+          )}
           <RenovarForm
             acao={renovarCliente.bind(null, id)}
             planoAtual={cliente.plano}
             valorAtual={cliente.valorPlano}
             custoCredito={cliente.servico?.custoCredito ?? 0}
           />
-          <div className="mt-3 border-t border-border pt-3">
-            <LinkPagamento clienteId={id} whatsapp={cliente.whatsapp} />
-            <p className="mt-2 text-xs text-text-dim">
-              Quando o cliente pagar, a renovação é registrada automaticamente.
-            </p>
+          <div className="flex gap-2">
+            <RenovarBotao clienteId={id} className="flex-1" label="Marcar como pago" labelFeito="✓ Pago" />
+            <CancelarForm acao={cancelarCliente.bind(null, id)} label="Marcar como inativo" className="flex-1" />
           </div>
-        </Card>
-      ) : null}
-
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Falar com o cliente</h2>
-        <MensagemWhatsApp
-          clienteId={id}
-          whatsapp={cliente.whatsapp}
-          chaves={chaves}
-          modelos={modelos}
-          dados={{
-            nome: cliente.nome,
-            app: cliente.servico?.nome ?? "",
-            plano: PLANO_LABEL[cliente.plano],
-            vencimento: dataPorExtenso(cliente.vencimento),
-            prazo: faixa === "VENCIDO" ? "vencido" : "a vencer",
-            valor: brl(cliente.valorPlano),
-            novoValor: brl(cliente.valorPlano),
-          }}
-        />
-      </Card>
-
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Histórico</h2>
-        {cliente.renovacoes.length === 0 ? (
-          <p className="text-sm text-text-dim">Nenhuma renovação registrada ainda.</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-border">
-            {cliente.renovacoes.map((r) => (
-              <div key={r.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-text-muted">{dataPorExtenso(r.data)} · {PLANO_LABEL[r.plano]}</span>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-accent">{brl(r.valor)}</span>
-                  <a
-                    href={`/api/renovacoes/${r.id}/recibo`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold text-text-dim hover:text-accent"
-                  >
-                    Recibo
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {!cancelado ? (
-        <div className="flex justify-center">
-          <CancelarForm acao={cancelarCliente.bind(null, id)} />
         </div>
       ) : null}
+
+      <details className="rounded-xl border border-border-strong">
+        <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-text-dim">Ajustes avançados</summary>
+        <div className="flex flex-col gap-3 border-t border-border p-4">
+          <CorrigirVencimento
+            vencimentoAtual={cliente.vencimento}
+            diaFixo={cliente.diaFixo}
+            acao={corrigirVencimento.bind(null, id)}
+            podeEditar={!cancelado}
+          />
+          <ReajusteForm
+            plano={cliente.plano}
+            valorAtual={cliente.valorPlano}
+            acao={aplicarReajusteCliente.bind(null, id)}
+            podeEditar={!cancelado}
+          />
+        </div>
+      </details>
     </div>
   );
 }
