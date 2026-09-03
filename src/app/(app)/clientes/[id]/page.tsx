@@ -96,35 +96,36 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
           )}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Próximo vencimento</p>
-              {!cancelado ? <CorrigirVencimento vencimentoAtual={cliente.vencimento} acao={corrigirVencimento.bind(null, id)} /> : null}
-            </div>
-            <p className="mt-0.5 font-semibold text-text">{dataPorExtenso(cliente.vencimento)}</p>
-            {cliente.diaFixo ? <p className="text-xs text-text-dim">Dia fixo: {cliente.diaFixo}</p> : null}
+        <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+          <div className="min-w-0">
+            <CorrigirVencimento
+              vencimentoAtual={cliente.vencimento}
+              diaFixo={cliente.diaFixo}
+              acao={corrigirVencimento.bind(null, id)}
+              podeEditar={!cancelado}
+            />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Cliente há</p>
             <p className="mt-0.5 font-semibold text-text">{tempoDeCasa(cliente.criadoEm)}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Telas</p>
             <p className="mt-0.5 font-semibold text-text">{cliente.telas}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Serviço</p>
             <p className="mt-0.5 font-semibold text-text">{cliente.servico?.nome ?? "—"}</p>
           </div>
-          <div>
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Plano</p>
-              {!cancelado ? <ReajusteForm valorAtual={cliente.valorPlano} acao={aplicarReajusteCliente.bind(null, id)} /> : null}
-            </div>
-            <p className="mt-0.5 font-semibold text-text">{PLANO_LABEL[cliente.plano]} · {brl(cliente.valorPlano)}</p>
+          <div className="min-w-0">
+            <ReajusteForm
+              plano={cliente.plano}
+              valorAtual={cliente.valorPlano}
+              acao={aplicarReajusteCliente.bind(null, id)}
+              podeEditar={!cancelado}
+            />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Já rendeu</p>
             <p className="mt-0.5 font-semibold text-accent">{brl(jaRendeu)}</p>
           </div>
