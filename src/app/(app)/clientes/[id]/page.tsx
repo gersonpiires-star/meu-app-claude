@@ -165,7 +165,12 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
       {!cancelado ? (
         <Card>
           <h2 className="mb-3 text-sm font-bold text-text">Renovação</h2>
-          <RenovarForm acao={renovarCliente.bind(null, id)} planoAtual={cliente.plano} valorAtual={cliente.valorPlano} />
+          <RenovarForm
+            acao={renovarCliente.bind(null, id)}
+            planoAtual={cliente.plano}
+            valorAtual={cliente.valorPlano}
+            custoCredito={cliente.servico?.custoCredito ?? 0}
+          />
           <div className="mt-3 border-t border-border pt-3">
             <LinkPagamento clienteId={id} whatsapp={cliente.whatsapp} />
             <p className="mt-2 text-xs text-text-dim">

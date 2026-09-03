@@ -31,7 +31,7 @@ export async function criarPagamentoRenovacao(clienteId: string): Promise<{ url:
       tipo: "RENOVACAO",
       plano: cliente.plano,
       valor: cliente.valorPlano,
-      custo: PLANO_MESES[cliente.plano],
+      custo: PLANO_MESES[cliente.plano] * (cliente.servico?.custoCredito ?? 0),
     },
   });
 

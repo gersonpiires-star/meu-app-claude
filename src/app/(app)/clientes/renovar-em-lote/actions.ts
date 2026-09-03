@@ -7,14 +7,18 @@ import { PLANO_MESES, calcularVencimentoComDiaFixo } from "@/lib/planos";
 
 export async function renovarComPlanoAtual(id: string) {
   const revendedor = await exigirRevendedor();
-  const cliente = await prisma.cliente.findUniqueOrThrow({ where: { id, revendedorId: revendedor.id } });
+  const cliente = await prisma.cliente.findUniqueOrThrow({
+    where: { id, revendedorId: revendedor.id },
+    include: { servico: true },
+  });
 
   const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
   const novoVencimento = calcularVencimentoComDiaFixo(cliente.plano, base, cliente.diaFixo);
+  const custo = PLANO_MESES[cliente.plano] * (cliente.servico?.custoCredito ?? 0);
 
   await prisma.$transaction([
     prisma.renovacao.create({
-      data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo: PLANO_MESES[cliente.plano] },
+      data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo },
     }),
     prisma.cliente.update({
       where: { id },

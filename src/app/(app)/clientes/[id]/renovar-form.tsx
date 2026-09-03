@@ -11,15 +11,17 @@ export function RenovarForm({
   acao,
   planoAtual,
   valorAtual,
+  custoCredito,
 }: {
   acao: (formData: FormData) => Promise<void>;
   planoAtual: PlanoCliente;
   valorAtual: number;
+  custoCredito: number;
 }) {
   const [aberto, setAberto] = useState(false);
   const [plano, setPlano] = useState<PlanoCliente>(planoAtual);
   const [valor, setValor] = useState(valorAtual);
-  const [custo, setCusto] = useState(PLANO_MESES[planoAtual]);
+  const [custo, setCusto] = useState(PLANO_MESES[planoAtual] * custoCredito);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -52,7 +54,7 @@ export function RenovarForm({
               const novo = e.target.value as PlanoCliente;
               setPlano(novo);
               setValor(PLANO_VALOR_SUGERIDO[novo]);
-              setCusto(PLANO_MESES[novo]);
+              setCusto(PLANO_MESES[novo] * custoCredito);
             }}
           >
             {PLANOS.map((p) => (
@@ -74,7 +76,7 @@ export function RenovarForm({
           />
         </Field>
       </div>
-      <Field label="Custo (créditos gastos)">
+      <Field label="Custo dos créditos (R$)">
         <Input
           type="number"
           name="custo"
@@ -84,6 +86,11 @@ export function RenovarForm({
           onChange={(e) => setCusto(Number(e.target.value))}
         />
       </Field>
+      {custoCredito === 0 ? (
+        <p className="-mt-1 text-xs text-warning">
+          Cadastre o valor do crédito desse app em Precificação para calcular sozinho.
+        </p>
+      ) : null}
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>
           Cancelar
