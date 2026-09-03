@@ -16,8 +16,8 @@ export function CalendarioMes({ celulas, hojeDia }: { celulas: CelulaCalendario[
   const [selecionado, setSelecionado] = useState<CelulaCalendario | null>(null);
 
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-text-dim">
+    <div className="mx-auto w-full max-w-[280px]">
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-wider text-text-dim">
         {DIAS_SEMANA.map((d, i) => (
           <span key={i}>{d}</span>
         ))}
@@ -34,7 +34,7 @@ export function CalendarioMes({ celulas, hojeDia }: { celulas: CelulaCalendario[
               onMouseEnter={() => c.qtd > 0 && setSelecionado(c)}
               onClick={() => setSelecionado((atual) => (atual?.dia === c.dia ? null : c.qtd > 0 ? c : null))}
               className={cx(
-                "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg text-xs outline-none transition",
+                "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md text-[11px] outline-none transition",
                 c.dia === hojeDia
                   ? "border border-accent-strong bg-accent-soft text-accent"
                   : c.qtd > 0
@@ -44,7 +44,7 @@ export function CalendarioMes({ celulas, hojeDia }: { celulas: CelulaCalendario[
               )}
             >
               <span>{c.dia}</span>
-              {c.urgencia ? <span className={cx("h-1.5 w-1.5 rounded-full", CORES[c.urgencia])} /> : null}
+              {c.urgencia ? <span className={cx("h-1 w-1 rounded-full", CORES[c.urgencia])} /> : null}
             </button>
           )
         )}

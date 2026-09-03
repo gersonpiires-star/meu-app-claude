@@ -22,14 +22,20 @@ export function VendaForm({
   const [pendente, iniciarTransicao] = useTransition();
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState(1);
-  const [valorUnitario, setValorUnitario] = useState(0);
+  // Preço à vista que o revendedor quer receber líquido — no cartão, o
+  // valor cobrado do cliente é maior pra absorver a taxa da maquininha.
+  const [precoAlvo, setPrecoAlvo] = useState(0);
   const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState<(typeof FORMAS_PAGAMENTO)[number]>("Pix");
   const [parcelas, setParcelas] = useState(1);
   const [taxaPercentual, setTaxaPercentual] = useState(0);
 
   const ehCartao = formaPagamento === "Cartão";
-  const bruto = quantidade * valorUnitario;
+  const podeRepassarTaxa = ehCartao && taxaPercentual < 100;
+  const valorCobradoUnitario = podeRepassarTaxa
+    ? Math.round((precoAlvo / (1 - taxaPercentual / 100)) * 100) / 100
+    : precoAlvo;
+  const bruto = quantidade * valorCobradoUnitario;
   const taxaValor = ehCartao ? (bruto * taxaPercentual) / 100 : 0;
   const liquido = bruto - taxaValor;
   const formaPagamentoFinal = ehCartao ? `Cartão ${parcelas}x` : formaPagamento;
@@ -49,7 +55,7 @@ export function VendaForm({
     if (valorEditadoManualmente) return;
     const produto = produtos.find((p) => p.id === id);
     if (produto && produto.custoMedio > 0) {
-      setValorUnitario(Math.round(precoAVista(produto.custoMedio, margemPadrao) * 100) / 100);
+      setPrecoAlvo(Math.round(precoAVista(produto.custoMedio, margemPadrao) * 100) / 100);
     }
   }
 
@@ -90,15 +96,15 @@ export function VendaForm({
             required
           />
         </Field>
-        <Field label="Valor unit. (R$)">
+        <Field label={ehCartao ? "Preço à vista (R$)" : "Valor unit. (R$)"}>
+          <input type="hidden" name="valorUnitario" value={valorCobradoUnitario} />
           <Input
             type="number"
-            name="valorUnitario"
             min={0}
             step="0.01"
-            value={valorUnitario}
+            value={precoAlvo}
             onChange={(e) => {
-              setValorUnitario(Number(e.target.value));
+              setPrecoAlvo(Number(e.target.value));
               setValorEditadoManualmente(true);
             }}
             required
@@ -108,6 +114,11 @@ export function VendaForm({
       {!valorEditadoManualmente && produtoId && produtos.find((p) => p.id === produtoId)?.custoMedio ? (
         <p className="-mt-2 text-[11px] text-text-dim">
           Sugerido pelo custo médio de compra + margem de {margemPadrao}% (ajuste em Precificação · Maquininha).
+        </p>
+      ) : null}
+      {ehCartao ? (
+        <p className="-mt-2 text-[11px] text-text-dim">
+          Cliente paga {brl(valorCobradoUnitario)}/un. no cartão em {parcelas}x — a taxa da maquininha é somada ao preço à vista, do jeito que a aba Maquininha calcula.
         </p>
       ) : null}
 
