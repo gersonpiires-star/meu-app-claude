@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -144,28 +145,60 @@ export async function importarDadosAntigos(
 
   const parsed = importSchema.safeParse(bruto);
   if (!parsed.success) {
+    console.error("importarDadosAntigos: JSON fora do formato esperado", parsed.error.issues);
     return { ok: false, erro: "O JSON não tem o formato esperado do backup do app antigo." };
   }
   const { clientes, modelos, vendas, recebimentos, plataformas, apps } = parsed.data.dados;
 
+  try {
+    return await importar({ revendedorId: revendedor.id, clientes, modelos, vendas, recebimentos, plataformas, apps });
+  } catch (erro) {
+    console.error("importarDadosAntigos: falha ao importar", erro);
+    return { ok: false, erro: "Algo deu errado ao importar esse arquivo. Confira se ele é mesmo um backup do app antigo e tente de novo." };
+  }
+}
+
+async function importar({
+  revendedorId,
+  clientes,
+  modelos,
+  vendas,
+  recebimentos,
+  plataformas,
+  apps,
+}: {
+  revendedorId: string;
+  clientes: z.infer<typeof clienteAntigoSchema>[];
+  modelos: z.infer<typeof modeloAntigoSchema>[];
+  vendas: z.infer<typeof vendaAntigaSchema>[];
+  recebimentos: z.infer<typeof recebimentoAntigoSchema>[];
+  plataformas: z.infer<typeof plataformaAntigaSchema>[];
+  apps: z.infer<typeof appAntigoSchema>[];
+}): Promise<{ ok: true; resumo: string } | { ok: false; erro: string }> {
   const servicoIdPorNome = new Map<string, string>();
   const clienteIdAntigoParaNovo = new Map<number, string>();
   const produtoIdAntigoParaNovo = new Map<number, string>();
   const plataformaIdAntigaParaNova = new Map<number, string>();
 
+  // Plataformas e serviços costumam ser poucos (dezenas, não milhares) e
+  // precisam de upsert pra deduplicar por nome — mantidos sequenciais.
   for (const p of plataformas) {
     const criada = await prisma.plataforma.upsert({
-      where: { revendedorId_nome: { revendedorId: revendedor.id, nome: p.nome } },
+      where: { revendedorId_nome: { revendedorId, nome: p.nome } },
       update: { minimo: p.minimo },
-      create: { revendedorId: revendedor.id, nome: p.nome, minimo: p.minimo },
+      create: { revendedorId, nome: p.nome, minimo: p.minimo },
     });
     plataformaIdAntigaParaNova.set(p.id, criada.id);
-    for (const l of p.lotes) {
-      await prisma.lotePlataforma.create({
-        data: { plataformaId: criada.id, quantidade: l.qtd, valorPago: l.valor, data: parseData(l.data) },
-      });
-    }
   }
+  const lotesData = plataformas.flatMap((p) =>
+    p.lotes.map((l) => ({
+      plataformaId: plataformaIdAntigaParaNova.get(p.id)!,
+      quantidade: l.qtd,
+      valorPago: l.valor,
+      data: parseData(l.data),
+    }))
+  );
+  if (lotesData.length > 0) await prisma.lotePlataforma.createMany({ data: lotesData });
 
   const nomesServicos = new Set<string>([
     ...clientes.map((c) => c.app).filter((v): v is string => Boolean(v)),
@@ -178,14 +211,14 @@ export async function importarDadosAntigos(
       appAntigo?.plataformaId != null ? plataformaIdAntigaParaNova.get(appAntigo.plataformaId) ?? null : undefined;
 
     const servico = await prisma.servico.upsert({
-      where: { revendedorId_nome: { revendedorId: revendedor.id, nome } },
+      where: { revendedorId_nome: { revendedorId, nome } },
       update: {
         custoCredito: appAntigo?.credito ?? undefined,
         cobrancaTelaExtra: appAntigo?.valorTela ?? undefined,
         plataformaId,
       },
       create: {
-        revendedorId: revendedor.id,
+        revendedorId,
         nome,
         custoCredito: appAntigo?.credito ?? null,
         cobrancaTelaExtra: appAntigo?.valorTela ?? null,
@@ -195,84 +228,83 @@ export async function importarDadosAntigos(
     servicoIdPorNome.set(nome, servico.id);
   }
 
-  for (const c of clientes) {
-    const criado = await prisma.cliente.create({
-      data: {
-        revendedorId: revendedor.id,
-        servicoId: c.app ? servicoIdPorNome.get(c.app) ?? null : null,
-        nome: c.nome,
-        whatsapp: normalizarWhatsapp(c.tel),
-        telas: c.telas ?? 1,
-        plano: mapearPlano(c.plano),
-        valorPlano: c.valor ?? 0,
-        vencimento: serialParaData(c.venc),
-        testeGratis: c.teste ?? false,
-        status: c.inativo ? "CANCELADO" : "ATIVO",
-        anotacao: c.nota || null,
-        criadoEm: c.inicio ? serialParaData(c.inicio) : undefined,
-      },
-    });
-    clienteIdAntigoParaNovo.set(c.id, criado.id);
-  }
+  // Clientes, produtos, vendas, movimentos e renovações podem chegar aos
+  // milhares num backup real — gerar os ids aqui e gravar em lote evita
+  // centenas de idas e vindas ao banco (e o timeout que isso causava).
+  const clientesData = clientes.map((c) => {
+    const id = randomUUID();
+    clienteIdAntigoParaNovo.set(c.id, id);
+    return {
+      id,
+      revendedorId,
+      servicoId: c.app ? servicoIdPorNome.get(c.app) ?? null : null,
+      nome: c.nome,
+      whatsapp: normalizarWhatsapp(c.tel),
+      telas: c.telas ?? 1,
+      plano: mapearPlano(c.plano),
+      valorPlano: c.valor ?? 0,
+      vencimento: serialParaData(c.venc),
+      testeGratis: c.teste ?? false,
+      status: c.inativo ? ("CANCELADO" as const) : ("ATIVO" as const),
+      anotacao: c.nota || null,
+      criadoEm: c.inicio ? serialParaData(c.inicio) : undefined,
+    };
+  });
+  if (clientesData.length > 0) await prisma.cliente.createMany({ data: clientesData });
 
-  for (const m of modelos) {
-    const produto = await prisma.produto.create({
-      data: {
-        revendedorId: revendedor.id,
-        modelo: m.nome,
-        estoqueMinimo: m.minimo,
-      },
-    });
-    produtoIdAntigoParaNovo.set(m.id, produto.id);
+  const produtosData = modelos.map((m) => {
+    const id = randomUUID();
+    produtoIdAntigoParaNovo.set(m.id, id);
+    return { id, revendedorId, modelo: m.nome, estoqueMinimo: m.minimo };
+  });
+  if (produtosData.length > 0) await prisma.produto.createMany({ data: produtosData });
 
-    for (const e of m.entradas) {
-      await prisma.movimentoEstoque.create({
-        data: {
-          produtoId: produto.id,
-          tipo: "ENTRADA",
-          quantidade: e.qtd,
-          custoUnitario: e.custo,
-          data: parseData(e.data),
-        },
-      });
-    }
-  }
+  const entradasData = modelos.flatMap((m) =>
+    m.entradas.map((e) => ({
+      produtoId: produtoIdAntigoParaNovo.get(m.id)!,
+      tipo: "ENTRADA" as const,
+      quantidade: e.qtd,
+      custoUnitario: e.custo,
+      data: parseData(e.data),
+    }))
+  );
+  if (entradasData.length > 0) await prisma.movimentoEstoque.createMany({ data: entradasData });
 
-  let vendasImportadas = 0;
-  for (const v of vendas) {
-    const produtoId = v.modeloId ? produtoIdAntigoParaNovo.get(v.modeloId) : undefined;
-    if (!produtoId) continue;
-    await prisma.venda.create({
-      data: {
-        revendedorId: revendedor.id,
-        produtoId,
+  const vendasValidas = vendas.filter((v) => v.modeloId != null && produtoIdAntigoParaNovo.has(v.modeloId));
+  const vendasData = vendasValidas.map((v) => ({
+    revendedorId,
+    produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
+    quantidade: v.qtd,
+    valorUnitario: v.unit,
+    formaPagamento: v.pagamento || "Pix",
+    data: parseData(v.data),
+  }));
+  if (vendasData.length > 0) await prisma.venda.createMany({ data: vendasData });
+  if (vendasValidas.length > 0) {
+    await prisma.movimentoEstoque.createMany({
+      data: vendasValidas.map((v) => ({
+        produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
+        tipo: "SAIDA" as const,
         quantidade: v.qtd,
-        valorUnitario: v.unit,
-        formaPagamento: v.pagamento || "Pix",
+        custoUnitario: 0,
         data: parseData(v.data),
-      },
+      })),
     });
-    await prisma.movimentoEstoque.create({
-      data: { produtoId, tipo: "SAIDA", quantidade: v.qtd, custoUnitario: 0, data: parseData(v.data) },
-    });
-    vendasImportadas += 1;
   }
+  const vendasImportadas = vendasValidas.length;
 
-  let renovacoesImportadas = 0;
-  for (const r of recebimentos) {
-    const clienteId = r.clienteId ? clienteIdAntigoParaNovo.get(r.clienteId) : undefined;
-    if (!clienteId) continue;
-    await prisma.renovacao.create({
-      data: {
-        clienteId,
-        plano: mapearPlano(r.tipo),
-        valor: r.valor,
-        custo: r.custo,
-        data: parseData(r.data),
-      },
-    });
-    renovacoesImportadas += 1;
-  }
+  const recebimentosValidos = recebimentos.filter(
+    (r) => r.clienteId != null && clienteIdAntigoParaNovo.has(r.clienteId)
+  );
+  const renovacoesData = recebimentosValidos.map((r) => ({
+    clienteId: clienteIdAntigoParaNovo.get(r.clienteId!)!,
+    plano: mapearPlano(r.tipo),
+    valor: r.valor,
+    custo: r.custo,
+    data: parseData(r.data),
+  }));
+  if (renovacoesData.length > 0) await prisma.renovacao.createMany({ data: renovacoesData });
+  const renovacoesImportadas = renovacoesData.length;
 
   revalidatePath("/painel");
   revalidatePath("/clientes");
