@@ -78,5 +78,47 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados });
+  // Resumo da plataforma pro(s) administrador(es) — trials vencendo em
+  // breve e pagamentos de assinatura recusados nas últimas 24h. Separado do
+  // loop acima porque não depende do statusAssinatura do admin (o acesso
+  // dele nunca é bloqueado por assinatura).
+  const admins = await prisma.revendedor.findMany({
+    where: { papel: "ADMIN" },
+    include: { pushSubscriptions: true },
+  });
+
+  let notificadosAdmin = 0;
+  if (admins.some((a) => a.pushSubscriptions.length > 0)) {
+    const em3Dias = new Date(agora.getTime() + 3 * 24 * 60 * 60000);
+    const ontem = new Date(agora.getTime() - 24 * 60 * 60000);
+
+    const [trialsVencendoCount, recusadosCount] = await Promise.all([
+      prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL", trialFim: { lte: em3Dias } } }),
+      prisma.pagamento.count({
+        where: { tipo: "ASSINATURA", status: "RECUSADO", atualizadoEm: { gte: ontem } },
+      }),
+    ]);
+
+    if (trialsVencendoCount > 0 || recusadosCount > 0) {
+      const partesAdmin: string[] = [];
+      if (trialsVencendoCount > 0) partesAdmin.push(`${trialsVencendoCount} trial${trialsVencendoCount === 1 ? "" : "s"} vencendo`);
+      if (recusadosCount > 0) partesAdmin.push(`${recusadosCount} pagamento${recusadosCount === 1 ? "" : "s"} recusado${recusadosCount === 1 ? "" : "s"}`);
+
+      for (const admin of admins) {
+        for (const inscricao of admin.pushSubscriptions) {
+          const manter = await enviarPush(inscricao, {
+            titulo: "Resumo do GestorPro",
+            corpo: `${partesAdmin.join(" e ")}. Toque para ver.`,
+            url: "/admin",
+          });
+          if (!manter) {
+            await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+          }
+          notificadosAdmin++;
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin });
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataCurta } from "@/lib/format";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Card, EmptyState, Input } from "@/components/ui";
 
 function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
   const agora = new Date();
@@ -16,11 +16,28 @@ function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; ass
   return <Badge tone="danger">Pausado</Badge>;
 }
 
-export default async function AssinantesPage() {
+export default async function AssinantesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   await exigirAdmin();
+  const { q } = await searchParams;
+  const busca = q?.trim();
 
   const revendedores = await prisma.revendedor.findMany({
-    where: { papel: "REVENDEDOR" },
+    where: {
+      papel: "REVENDEDOR",
+      ...(busca
+        ? {
+            OR: [
+              { nome: { contains: busca, mode: "insensitive" } },
+              { email: { contains: busca, mode: "insensitive" } },
+              { cpf: { contains: busca } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { criadoEm: "desc" },
     include: { _count: { select: { clientes: true } } },
   });
@@ -29,8 +46,14 @@ export default async function AssinantesPage() {
     <div className="flex flex-col gap-5">
       <h1 className="text-lg font-bold text-text">Assinantes</h1>
 
+      <form action="/admin/assinantes" method="get">
+        <Input name="q" defaultValue={busca ?? ""} placeholder="Buscar por nome, e-mail ou CPF" />
+      </form>
+
       {revendedores.length === 0 ? (
-        <EmptyState>Nenhuma conta ainda. Elas aparecem aqui assim que alguém se cadastrar.</EmptyState>
+        <EmptyState>
+          {busca ? "Nenhum assinante encontrado com essa busca." : "Nenhuma conta ainda. Elas aparecem aqui assim que alguém se cadastrar."}
+        </EmptyState>
       ) : (
         <Card className="p-0">
           <div className="flex flex-col divide-y divide-border">

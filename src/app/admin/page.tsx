@@ -1,29 +1,65 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
-import { prisma } from "@/lib/prisma";
-import { Card, StatTile } from "@/components/ui";
+import { dadosAdmin } from "@/lib/dados-admin";
+import { brl0 } from "@/lib/format";
+import { diasParaVencer } from "@/lib/planos";
+import { Badge, Button, Card, StatTile } from "@/components/ui";
 
 export default async function AdminPainelPage() {
   await exigirAdmin();
-
-  const [total, trial, ativos, pausados, interessadosAbertos] = await Promise.all([
-    prisma.revendedor.count({ where: { papel: "REVENDEDOR" } }),
-    prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL" } }),
-    prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "ATIVO" } }),
-    prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "PAUSADO" } }),
-    prisma.interessado.count({ where: { convertido: false } }),
-  ]);
+  const dados = await dadosAdmin();
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold text-text">Painel do administrador</h1>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Assinantes" value={String(total)} tone="accent" />
-        <StatTile label="Em trial" value={String(trial)} />
-        <StatTile label="Ativos" value={String(ativos)} tone="accent" />
-        <StatTile label="Pausados" value={String(pausados)} tone="warning" />
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Este mês</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatTile label="Receita de assinaturas" value={brl0(dados.receitaMes)} tone="accent" />
+          <StatTile
+            label="Retenção"
+            value={`${dados.taxaRetencao.toFixed(0)}%`}
+            sub={`${dados.pausadosMes} pausado${dados.pausadosMes === 1 ? "" : "s"} este mês`}
+            tone={dados.taxaRetencao >= 90 ? "accent" : dados.taxaRetencao >= 75 ? "warning" : "danger"}
+          />
+        </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile label="Assinantes" value={String(dados.total)} tone="accent" />
+        <StatTile label="Em trial" value={String(dados.trial)} />
+        <StatTile label="Ativos" value={String(dados.ativos)} tone="accent" />
+        <StatTile label="Pausados" value={String(dados.pausados)} tone="warning" />
+      </div>
+
+      {dados.trialsVencendo.length > 0 ? (
+        <Card>
+          <h2 className="mb-3 text-sm font-bold text-text">Trials vencendo em breve</h2>
+          <div className="flex flex-col divide-y divide-border">
+            {dados.trialsVencendo.map((r) => {
+              const dias = diasParaVencer(r.trialFim);
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                      {r.nome}
+                    </Link>
+                    <p className="text-xs text-text-dim">
+                      {dias < 0 ? "trial expirado" : dias === 0 ? "vence hoje" : `vence em ${dias}d`}
+                    </p>
+                  </div>
+                  {r.whatsapp ? (
+                    <a href={`https://wa.me/${r.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+                      <Badge tone={dias <= 0 ? "danger" : "warning"}>Chamar</Badge>
+                    </a>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3 md:grid-cols-3">
         <Link href="/admin/assinantes">
@@ -35,7 +71,7 @@ export default async function AdminPainelPage() {
         <Link href="/admin/interessados">
           <Card className="h-full hover:border-accent-strong">
             <h2 className="font-bold text-text">Interessados</h2>
-            <p className="mt-1 text-sm text-text-dim">{interessadosAbertos} em aberto para retornar contato.</p>
+            <p className="mt-1 text-sm text-text-dim">{dados.interessadosAbertos} em aberto para retornar contato.</p>
           </Card>
         </Link>
         <Link href="/admin/comunicados">
@@ -45,6 +81,20 @@ export default async function AdminPainelPage() {
           </Card>
         </Link>
       </div>
+
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-text">Lembrete diário</h2>
+            <p className="mt-1 text-sm text-text-dim">
+              Ative pra receber um aviso todo dia sobre trials vencendo e pagamentos de assinatura recusados.
+            </p>
+          </div>
+          <Link href="/configuracoes">
+            <Button variant="ghost">Configurações</Button>
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

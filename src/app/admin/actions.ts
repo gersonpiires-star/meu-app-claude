@@ -15,7 +15,7 @@ export async function liberarAcesso(revendedorId: string, meses: number) {
 
   await prisma.revendedor.update({
     where: { id: revendedorId },
-    data: { statusAssinatura: "ATIVO", assinaturaVence: vence },
+    data: { statusAssinatura: "ATIVO", assinaturaVence: vence, pausadoEm: null },
   });
 
   revalidatePath("/admin/assinantes");
@@ -26,7 +26,7 @@ export async function pausarAcesso(revendedorId: string) {
   await exigirAdmin();
   await prisma.revendedor.update({
     where: { id: revendedorId },
-    data: { statusAssinatura: "PAUSADO" },
+    data: { statusAssinatura: "PAUSADO", pausadoEm: new Date() },
   });
   revalidatePath("/admin/assinantes");
   revalidatePath(`/admin/assinantes/${revendedorId}`);

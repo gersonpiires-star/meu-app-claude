@@ -78,6 +78,7 @@ model Revendedor {
   planoAssinatura    PlanoAssinatura?
   trialFim           DateTime
   assinaturaVence    DateTime?
+  pausadoEm          DateTime?
 
   // Credenciais próprias do Mercado Pago do revendedor, para receber
   // pagamentos de renovação de seus clientes direto na conta dele.
