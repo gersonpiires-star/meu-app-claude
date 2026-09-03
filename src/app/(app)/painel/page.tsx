@@ -4,7 +4,7 @@ import { dadosPainel } from "@/lib/dados";
 import { brl, brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL } from "@/lib/planos";
 import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
-import { Badge, Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { RegistrarCobrancaLink } from "./registrar-cobranca-link";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 
@@ -16,6 +16,7 @@ const MESES = [
 export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
   const dados = await dadosPainel(revendedor.id);
+  const agora = new Date();
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,33 +44,76 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
-      <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
-          Entrou no mês
-        </p>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Renovações" value={brl0(dados.receitaRecorrente)} tone="accent" />
-          <StatTile label="Produtos" value={brl0(dados.receitaApar)} tone="accent" />
-          <StatTile label="Custo" value={"− " + brl0(dados.custoTotal)} tone="danger" />
-          <StatTile
-            label="Lucro"
-            value={brl0(dados.lucro)}
-            sub={`Previsto p/ ${MESES[dados.proximoMes.getMonth()]}: ${brl0(dados.previstoProxMes)}`}
-            tone="accent"
-          />
-        </div>
-      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <Card className="col-span-2 flex flex-col gap-3 bg-gradient-to-br from-accent-soft to-surface md:col-span-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Entrou no mês</span>
+            <span className="whitespace-nowrap text-[10px] font-semibold text-text-dim">
+              Entradas de {String(agora.getMonth() + 1).padStart(2, "0")}/{agora.getFullYear()}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-lg font-semibold text-text-dim">R$</span>
+            <span className="text-4xl font-bold tracking-tight text-text">
+              {(dados.receitaRecorrente + dados.receitaApar).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          {dados.receitaRecorrente + dados.receitaApar > 0 ? (
+            <div className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+              <div className="rounded-full bg-accent" style={{ flex: dados.receitaRecorrente || 0.001 }} />
+              <div className="rounded-full bg-text-dim" style={{ flex: dados.receitaApar || 0.001 }} />
+            </div>
+          ) : (
+            <div className="h-2 rounded-full bg-accent-strong" />
+          )}
+          <div className="flex flex-wrap gap-3 text-[11px] font-semibold text-text-muted">
+            <span>Renovações {brl0(dados.receitaRecorrente)}</span>
+            <span>Aparelhos {brl0(dados.receitaApar)}</span>
+          </div>
+          <div className="flex gap-4 border-t border-border-strong pt-3 text-sm">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Custo</span>
+              <span className="font-semibold text-danger">− {brl0(dados.custoTotal)}</span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Lucro</span>
+              <span className={`font-semibold ${dados.lucro >= 0 ? "text-accent" : "text-danger"}`}>{brl0(dados.lucro)}</span>
+            </div>
+            <Link href="/relatorio" className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
+                Previsto p/ {MESES[dados.proximoMes.getMonth()]}
+              </span>
+              <span className="font-semibold text-text-muted hover:text-accent">{brl0(dados.previstoProxMes)}</span>
+            </Link>
+          </div>
+        </Card>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Clientes ativos" value={String(dados.ativos)} />
-        <StatTile label="Vencendo" value={String(dados.vencendo.length)} tone="warning" />
-        <StatTile label="Vencidos" value={String(dados.vencidos.length)} tone="danger" />
-        <StatTile
-          label="Retenção"
-          value={`${dados.taxaRetencao.toFixed(0)}%`}
-          sub={`${dados.canceladosMes} cancelado${dados.canceladosMes === 1 ? "" : "s"} este mês`}
-          tone={dados.taxaRetencao >= 90 ? "accent" : dados.taxaRetencao >= 75 ? "warning" : "danger"}
-        />
+        <Link href="/clientes?aba=ativos">
+          <Card className="flex h-full flex-col justify-between gap-2 hover:border-border-strong">
+            <span className="text-3xl font-bold text-text">{dados.ativos}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
+          </Card>
+        </Link>
+        <Link href="/clientes?aba=atencao">
+          <Card className="flex h-full flex-col justify-between gap-2 border-warning-border bg-warning-bg hover:brightness-110">
+            <span className="text-3xl font-bold text-warning">{dados.vencendo.length}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-warning">Vencendo</span>
+          </Card>
+        </Link>
+        <Link href="/clientes?aba=atencao">
+          <Card className="flex h-full flex-col justify-between gap-2 hover:border-border-strong">
+            <span className="text-3xl font-bold text-text">{dados.vencidos.length}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Vencidos</span>
+          </Card>
+        </Link>
+        <Link href="/plataformas">
+          <Card className="flex h-full flex-col justify-between gap-2 hover:border-border-strong">
+            <span className={`text-3xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
+              {dados.saldoCreditos}
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Créditos</span>
+          </Card>
+        </Link>
       </div>
 
       {dados.aniversariantes.length > 0 ? (

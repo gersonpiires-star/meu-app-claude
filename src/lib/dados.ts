@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { faixaVencimento } from "@/lib/planos";
+import { PLANO_MESES, faixaVencimento } from "@/lib/planos";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
+import { saldoTotalCreditos } from "@/lib/plataformas";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
@@ -35,7 +36,7 @@ export async function dadosPainel(revendedorId: string) {
   const agora = new Date();
   const { inicio, fim } = limitesDoMes(agora);
 
-  const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes] = await Promise.all([
+  const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes, creditos] = await Promise.all([
     prisma.cliente.findMany({
       where: { revendedorId },
       include: { servico: true },
@@ -52,6 +53,7 @@ export async function dadosPainel(revendedorId: string) {
     prisma.cliente.count({
       where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } },
     }),
+    saldoTotalCreditos(revendedorId),
   ]);
 
   const receitaRecorrente = renovacoesMes.reduce((a, r) => a + r.valor, 0);
@@ -69,10 +71,16 @@ export async function dadosPainel(revendedorId: string) {
   const naoCancelados = clientes.filter((c) => c.status !== "CANCELADO");
   const vencendo = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "ATE_5_DIAS");
   const vencidos = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO");
-  const ativos = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "EM_DIA");
 
   const proximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
-  const previstoProxMes = naoCancelados.reduce((a, c) => a + c.valorPlano, 0);
+  const depoisDoProximoMes = new Date(agora.getFullYear(), agora.getMonth() + 2, 1);
+  const venceProxMes = naoCancelados.filter((c) => c.vencimento >= proximoMes && c.vencimento < depoisDoProximoMes);
+  const projReceitaProxMes = venceProxMes.reduce((a, c) => a + c.valorPlano, 0);
+  const projCustoProxMes = venceProxMes.reduce(
+    (a, c) => a + PLANO_MESES[c.plano] * (c.servico?.custoCredito ?? 0),
+    0
+  );
+  const previstoProxMes = projReceitaProxMes - projCustoProxMes;
 
   const produtosComEstoque = await prisma.produto.findMany({ where: { revendedorId } });
   const produtosBaixoEstoque = produtosComEstoque.filter((p) => {
@@ -96,7 +104,7 @@ export async function dadosPainel(revendedorId: string) {
     proximoMes,
     previstoProxMes,
     totalClientes: naoCancelados.length,
-    ativos: ativos.length,
+    ativos: naoCancelados.length,
     vencendo,
     vencidos,
     canceladosMes,
@@ -104,5 +112,7 @@ export async function dadosPainel(revendedorId: string) {
     aniversariantes,
     produtosBaixoEstoque,
     temClientes: clientes.length > 0,
+    saldoCreditos: creditos.saldo,
+    creditosBaixos: creditos.baixo,
   };
 }
