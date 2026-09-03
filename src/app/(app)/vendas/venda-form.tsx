@@ -14,14 +14,15 @@ export function VendaForm({
   clientes = [],
   margemPadrao,
 }: {
-  acao: (formData: FormData) => Promise<void>;
-  produtos: { id: string; modelo: string; custoMedio: number }[];
+  acao: (formData: FormData) => Promise<{ erro: string } | undefined>;
+  produtos: { id: string; modelo: string; custoMedio: number; estoqueAtual: number }[];
   clientes?: { id: string; nome: string }[];
   margemPadrao: number;
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState(1);
+  const [erro, setErro] = useState<string | null>(null);
   // Preço à vista que o revendedor quer receber líquido — no cartão, o
   // valor cobrado do cliente é maior pra absorver a taxa da maquininha.
   const [precoAlvo, setPrecoAlvo] = useState(0);
@@ -52,6 +53,7 @@ export function VendaForm({
 
   function escolherProduto(id: string) {
     setProdutoId(id);
+    setErro(null);
     if (valorEditadoManualmente) return;
     const produto = produtos.find((p) => p.id === id);
     if (produto && produto.custoMedio > 0) {
@@ -59,8 +61,20 @@ export function VendaForm({
     }
   }
 
+  const produtoSelecionado = produtos.find((p) => p.id === produtoId);
+  const semEstoqueSuficiente = !!produtoSelecionado && quantidade > produtoSelecionado.estoqueAtual;
+
   return (
-    <form className="flex flex-col gap-4" action={(formData) => iniciarTransicao(() => acao(formData))}>
+    <form
+      className="flex flex-col gap-4"
+      action={(formData) =>
+        iniciarTransicao(async () => {
+          setErro(null);
+          const resultado = await acao(formData);
+          if (resultado?.erro) setErro(resultado.erro);
+        })
+      }
+    >
       <Field label="Produto">
         <Select name="produtoId" required value={produtoId} onChange={(e) => escolherProduto(e.target.value)}>
           <option value="" disabled>
@@ -68,11 +82,16 @@ export function VendaForm({
           </option>
           {produtos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.modelo}
+              {p.modelo} — {p.estoqueAtual > 0 ? `${p.estoqueAtual} em estoque` : "sem estoque"}
             </option>
           ))}
         </Select>
       </Field>
+      {produtoSelecionado ? (
+        <p className={cx("-mt-2 text-[11px]", semEstoqueSuficiente ? "font-semibold text-danger" : "text-text-dim")}>
+          {produtoSelecionado.estoqueAtual} unidade{produtoSelecionado.estoqueAtual === 1 ? "" : "s"} em estoque
+        </p>
+      ) : null}
 
       <Field label="Cliente (opcional)">
         <Select name="clienteId" defaultValue="">
@@ -92,7 +111,10 @@ export function VendaForm({
             name="quantidade"
             min={1}
             value={quantidade}
-            onChange={(e) => setQuantidade(Number(e.target.value))}
+            onChange={(e) => {
+              setQuantidade(Number(e.target.value));
+              setErro(null);
+            }}
             required
           />
         </Field>
@@ -190,8 +212,10 @@ export function VendaForm({
         </div>
       </div>
 
-      <Button type="submit" disabled={pendente || produtos.length === 0} className="mt-1 w-full">
-        {pendente ? "Registrando…" : "Registrar venda"}
+      {erro ? <p className="text-center text-sm font-semibold text-danger">{erro}</p> : null}
+
+      <Button type="submit" disabled={pendente || produtos.length === 0 || semEstoqueSuficiente} className="mt-1 w-full">
+        {pendente ? "Registrando…" : semEstoqueSuficiente ? "Sem estoque suficiente" : "Registrar venda"}
       </Button>
       {produtos.length === 0 ? (
         <p className="text-center text-xs text-text-dim">Cadastre um produto no estoque antes de vender.</p>

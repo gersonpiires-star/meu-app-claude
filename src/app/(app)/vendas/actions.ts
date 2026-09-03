@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
+import { estoqueAtualProduto } from "@/lib/dados";
 
 const vendaSchema = z.object({
   produtoId: z.string().min(1, "Selecione um produto"),
@@ -15,9 +16,22 @@ const vendaSchema = z.object({
   taxaPercentual: z.coerce.number().min(0).default(0),
 });
 
-export async function registrarVenda(formData: FormData) {
+export async function registrarVenda(formData: FormData): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
   const dados = vendaSchema.parse(Object.fromEntries(formData));
+
+  const produto = await prisma.produto.findUnique({ where: { id: dados.produtoId, revendedorId: revendedor.id } });
+  if (!produto) return { erro: "Produto não encontrado." };
+
+  const estoque = await estoqueAtualProduto(dados.produtoId);
+  if (dados.quantidade > estoque) {
+    return {
+      erro:
+        estoque > 0
+          ? `Estoque insuficiente — só há ${estoque} unidade${estoque === 1 ? "" : "s"} de ${produto.modelo} disponível${estoque === 1 ? "" : "is"}.`
+          : `Sem estoque de ${produto.modelo} — repor antes de vender.`,
+    };
+  }
 
   await prisma.$transaction([
     prisma.venda.create({

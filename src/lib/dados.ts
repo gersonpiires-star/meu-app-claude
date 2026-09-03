@@ -10,6 +10,16 @@ export function limitesDoMes(referencia: Date = new Date()) {
   return { inicio, fim };
 }
 
+// Estoque atual de um único produto — usado pra validar uma venda no
+// servidor sem precisar buscar o estoque de todos os produtos.
+export async function estoqueAtualProduto(produtoId: string): Promise<number> {
+  const [entradas, saidas] = await Promise.all([
+    prisma.movimentoEstoque.aggregate({ where: { produtoId, tipo: "ENTRADA" }, _sum: { quantidade: true } }),
+    prisma.movimentoEstoque.aggregate({ where: { produtoId, tipo: "SAIDA" }, _sum: { quantidade: true } }),
+  ]);
+  return (entradas._sum.quantidade ?? 0) - (saidas._sum.quantidade ?? 0);
+}
+
 export async function custoMedioProdutos(revendedorId: string) {
   const produtos = await prisma.produto.findMany({
     where: { revendedorId },

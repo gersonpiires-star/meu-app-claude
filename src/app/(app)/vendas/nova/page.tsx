@@ -22,7 +22,11 @@ export default async function NovaVendaPage() {
     custoMedioProdutos(revendedor.id),
   ]);
 
-  const produtosComCusto = produtos.map((p) => ({ ...p, custoMedio: custos.get(p.id)?.custoMedio ?? 0 }));
+  const produtosComCusto = produtos.map((p) => ({
+    ...p,
+    custoMedio: custos.get(p.id)?.custoMedio ?? 0,
+    estoqueAtual: custos.get(p.id)?.atual ?? 0,
+  }));
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
