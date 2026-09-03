@@ -43,7 +43,7 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
     }),
     prisma.venda.findMany({
       where: { revendedorId, data: { gte: inicio, lt: fim } },
-      include: { produto: true },
+      include: { produto: true, cliente: true },
     }),
     prisma.cliente.findMany({
       where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } },
@@ -60,21 +60,14 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   const lucro = receita - custo;
   const margem = receita > 0 ? (lucro / receita) * 100 : 0;
 
-  const porServico = new Map<string, number>();
-  for (const r of renovacoes) {
-    const nome = r.cliente.servico?.nome ?? "Sem serviço";
-    porServico.set(nome, (porServico.get(nome) ?? 0) + r.valor);
-  }
-
-  const porProduto = new Map<string, number>();
-  for (const v of vendas) {
+  const vendasComCusto = vendas.map((v) => {
     const custoMedio = custos.get(v.produtoId)?.custoMedio ?? 0;
     const bruto = v.quantidade * v.valorUnitario;
     const taxa = bruto * (v.taxaPercentual / 100);
     const custoTotal = v.quantidade * custoMedio;
     const liquido = bruto - taxa - custoTotal;
-    porProduto.set(v.produto.modelo, (porProduto.get(v.produto.modelo) ?? 0) + liquido);
-  }
+    return { ...v, custoUnitario: custoMedio, custoTotal, taxa, liquido };
+  });
 
   return {
     receita,
@@ -84,10 +77,8 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
     custoRenov,
     custoVendas,
     renovacoes,
-    vendas,
+    vendas: vendasComCusto,
     cancelados,
-    porServico: [...porServico.entries()],
-    porProduto: [...porProduto.entries()],
   };
 }
 

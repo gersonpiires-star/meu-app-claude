@@ -3,10 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { dadosMes, proximoMes, ultimosMeses } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
 import { gradeDoMes } from "@/lib/calendario";
-import { brl, dataPorExtenso } from "@/lib/format";
+import { brl, dataCurta, dataPorExtenso } from "@/lib/format";
+import { PLANO_LABEL, PLANO_MESES } from "@/lib/planos";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { GraficoMeses } from "./grafico-meses";
 import { CalendarioMes } from "./calendario-mes";
+import { CustoAcordeon, type LinhaCusto } from "./custo-acordeon";
+import { RenovacoesPorServico, type GrupoRenovacao } from "./renovacoes-por-servico";
+import { VendasDetalhadas, type VendaDetalhe } from "./vendas-detalhadas";
 
 const MESES_NOME = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -41,6 +45,84 @@ export default async function RelatorioPage({
   ]);
   const celulasCalendario = gradeDoMes(clientesDoMesAtual.map((c) => c.vencimento), agora);
 
+  const gruposCreditoMap = new Map<string, { nome: string; qtd: number; meses: number; custo: number; custoCredito: number }>();
+  for (const r of dados.renovacoes) {
+    const nome = r.cliente.servico?.nome ?? "Sem serviço";
+    const atual = gruposCreditoMap.get(nome) ?? { nome, qtd: 0, meses: 0, custo: 0, custoCredito: r.cliente.servico?.custoCredito ?? 0 };
+    atual.qtd += 1;
+    atual.meses += PLANO_MESES[r.plano];
+    atual.custo += r.custo;
+    gruposCreditoMap.set(nome, atual);
+  }
+  const linhasCredito: LinhaCusto[] = [...gruposCreditoMap.values()]
+    .sort((a, b) => b.custo - a.custo)
+    .map((g) => ({
+      nome: g.nome,
+      detalhe: `${g.qtd} renovação(ões) · ${brl(g.custoCredito)}/mês`,
+      meio: String(g.meses),
+      custo: g.custo,
+    }));
+  const mesesCreditoTotal = dados.renovacoes.reduce((a, r) => a + PLANO_MESES[r.plano], 0);
+
+  const gruposProdutoMap = new Map<string, { nome: string; qtd: number; custo: number }>();
+  for (const v of dados.vendas) {
+    const nome = v.produto.modelo;
+    const atual = gruposProdutoMap.get(nome) ?? { nome, qtd: 0, custo: 0 };
+    atual.qtd += v.quantidade;
+    atual.custo += v.custoTotal;
+    gruposProdutoMap.set(nome, atual);
+  }
+  const linhasProduto: LinhaCusto[] = [...gruposProdutoMap.values()]
+    .sort((a, b) => b.custo - a.custo)
+    .map((g) => ({
+      nome: g.nome,
+      detalhe: g.qtd > 0 ? `${brl(g.custo / g.qtd)} por unidade` : "—",
+      meio: String(g.qtd),
+      custo: g.custo,
+    }));
+  const qtdProdutosTotal = dados.vendas.reduce((a, v) => a + v.quantidade, 0);
+
+  const gruposRenovMap = new Map<string, GrupoRenovacao>();
+  for (const r of dados.renovacoes) {
+    const nome = r.cliente.servico?.nome ?? "Sem serviço";
+    const atual = gruposRenovMap.get(nome) ?? { servico: nome, qtd: 0, meses: 0, bruto: 0, custo: 0, itens: [] };
+    atual.qtd += 1;
+    atual.meses += PLANO_MESES[r.plano];
+    atual.bruto += r.valor;
+    atual.custo += r.custo;
+    atual.itens.push({
+      id: r.id,
+      nome: r.cliente.nome,
+      sub: `${PLANO_LABEL[r.plano]} · ${dataCurta(r.data)}`,
+      liquido: r.valor - r.custo,
+      custo: r.custo,
+    });
+    gruposRenovMap.set(nome, atual);
+  }
+  const gruposRenovacao = [...gruposRenovMap.values()].sort((a, b) => b.bruto - b.custo - (a.bruto - a.custo));
+
+  const vendasDetalhadas: VendaDetalhe[] = dados.vendas.map((v) => {
+    const bruto = v.quantidade * v.valorUnitario;
+    return {
+      id: v.id,
+      nome: v.cliente?.nome ?? "Venda avulsa",
+      detalhe: `${v.produto.modelo} · ${brl(bruto)} − ${brl(v.custoTotal + v.taxa)}`,
+      liquidoTexto: brl(v.liquido),
+      liquidoPositivo: v.liquido >= 0,
+      linhas: [
+        { rot: "Produto", val: v.produto.modelo },
+        { rot: "Data", val: dataCurta(v.data) },
+        { rot: "Pagamento", val: v.formaPagamento },
+        { rot: "Quantidade", val: `${v.quantidade} un. × ${brl(v.valorUnitario)}` },
+        { rot: "Valor da venda", val: brl(bruto) },
+        { rot: "Custo de compra", val: `− ${brl(v.custoTotal)} (${brl(v.custoUnitario)}/un)` },
+        ...(v.taxa > 0 ? [{ rot: "Taxa", val: `− ${brl(v.taxa)}` }] : []),
+        { rot: "Líquido", val: brl(v.liquido) },
+        { rot: "Margem", val: bruto > 0 ? `${Math.round((v.liquido / bruto) * 100)}%` : "—" },
+      ],
+    };
+  });
+
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-lg font-bold text-text">
@@ -66,50 +148,39 @@ export default async function RelatorioPage({
         </Card>
       </div>
 
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">De onde vem o custo</h2>
-        <div className="flex flex-col divide-y divide-border text-sm">
-          <div className="flex items-center justify-between py-2">
-            <span className="text-text-muted">Créditos de serviço</span>
-            <span className="font-semibold text-danger">− {brl(dados.custoRenov)}</span>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <span className="text-text-muted">Produtos vendidos</span>
-            <span className="font-semibold text-danger">− {brl(dados.custoVendas)}</span>
-          </div>
+      <div className="flex flex-col gap-2">
+        <div className="px-1">
+          <h2 className="text-sm font-bold text-text">De onde vem o custo</h2>
+          <p className="text-xs text-text-dim">{MESES_NOME[mes]} de {ano} · toque para abrir</p>
         </div>
-      </Card>
+        <CustoAcordeon
+          titulo="Créditos de serviço"
+          legenda={`${dados.renovacoes.length} renovação(ões) · ${mesesCreditoTotal} mês(es) de crédito`}
+          total={dados.custoRenov}
+          tituloColuna="Serviço"
+          colunaMeio="Meses"
+          linhas={linhasCredito}
+          vazio="Nenhuma renovação registrada neste mês"
+        />
+        <CustoAcordeon
+          titulo="Produtos vendidos"
+          legenda={`${qtdProdutosTotal} produto(s) · custo médio de compra`}
+          total={dados.custoVendas}
+          tituloColuna="Modelo"
+          colunaMeio="Qtde"
+          linhas={linhasProduto}
+          vazio="Nenhum produto vendido neste mês"
+        />
+      </div>
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Renovações do mês · por serviço</h2>
-        {dados.porServico.length === 0 ? (
-          <p className="text-sm text-text-dim">Nenhuma renovação registrada neste mês</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-border text-sm">
-            {dados.porServico.map(([nome, valor]) => (
-              <div key={nome} className="flex items-center justify-between py-2">
-                <span className="text-text-muted">{nome}</span>
-                <span className="font-semibold text-accent">{brl(valor)}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <RenovacoesPorServico grupos={gruposRenovacao} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Vendas do mês · líquido por produto</h2>
-        {dados.porProduto.length === 0 ? (
-          <p className="text-sm text-text-dim">Nenhum produto vendido neste mês</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-border text-sm">
-            {dados.porProduto.map(([nome, valor]) => (
-              <div key={nome} className="flex items-center justify-between py-2">
-                <span className="text-text-muted">{nome}</span>
-                <span className="font-semibold text-accent">{brl(valor)}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <h2 className="mb-3 text-sm font-bold text-text">Vendas do mês</h2>
+        <VendasDetalhadas vendas={vendasDetalhadas} />
       </Card>
 
       <Card>
