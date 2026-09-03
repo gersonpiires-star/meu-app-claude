@@ -5,6 +5,16 @@ import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 
+// Encaixa a linha do anexo (chave Pix / link) logo abaixo da linha "Valor…"
+// do modelo — se o modelo não tiver essa linha (ex: Livre), cai no final.
+function inserirAposValor(texto: string, linha: string): string {
+  const linhas = texto.split("\n");
+  const idx = linhas.findIndex((l) => l.trim().toLowerCase().startsWith("valor"));
+  if (idx === -1) return `${texto}\n\n${linha}`;
+  linhas.splice(idx + 1, 0, linha);
+  return linhas.join("\n");
+}
+
 export function MensagemWhatsApp({
   clienteId,
   whatsapp,
@@ -33,12 +43,13 @@ export function MensagemWhatsApp({
   const ehRenovacao = modelo === "Renovação";
   const ehLink = chaveId === "__link__";
   const chaveSelecionada = chaves.find((c) => c.id === chaveId);
-  const mensagemFinal =
+  const linhaAnexo =
     ehLink && linkPagamento
-      ? `${mensagem}\n\nPague com Pix ou cartão pelo link: ${linkPagamento}`
+      ? `Pague com Pix ou cartão pelo link: ${linkPagamento}`
       : chaveSelecionada
-        ? `${mensagem}\n\nChave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
-        : mensagem;
+        ? `Chave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
+        : null;
+  const mensagemFinal = linhaAnexo ? inserirAposValor(mensagem, linhaAnexo) : mensagem;
 
   return (
     <div className="flex flex-col gap-3">
