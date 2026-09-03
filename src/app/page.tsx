@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { sessaoValida } from "@/lib/sessao";
 
 export default async function Home() {
-  const session = await auth();
-  if (!session?.user) redirect("/entrar");
+  const session = await sessaoValida();
+  if (!session) redirect("/entrar");
   redirect(session.user.papel === "ADMIN" ? "/admin" : "/painel");
 }

@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { sessaoValida } from "@/lib/sessao";
 import { Card } from "@/components/ui";
 import { LoginForm } from "./login-form";
 
 export default async function EntrarPage() {
-  const session = await auth();
-  if (session?.user) redirect("/");
+  const session = await sessaoValida();
+  if (session) redirect("/");
 
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
