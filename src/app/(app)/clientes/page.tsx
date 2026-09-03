@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, dataCurta } from "@/lib/format";
-import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
+import { brl, brl0, dataCurta, fmtTelefone, iniciais } from "@/lib/format";
+import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
+import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
+import { RegistrarCobrancaLink } from "../painel/registrar-cobranca-link";
 
 const ABAS = [
   { chave: "todos", label: "Todos" },
@@ -12,10 +14,26 @@ const ABAS = [
   { chave: "cancelados", label: "Cancelados" },
 ] as const;
 
-function badgeTone(faixa: ReturnType<typeof faixaVencimento>) {
-  if (faixa === "VENCIDO") return "danger" as const;
-  if (faixa === "ATE_5_DIAS") return "warning" as const;
-  return "accent" as const;
+type Tom = "neutral" | "danger" | "warning" | "success";
+
+const AVATAR_TOM: Record<Tom, string> = {
+  neutral: "bg-surface-2 text-text-muted",
+  danger: "bg-danger-bg text-danger",
+  warning: "bg-warning-bg text-warning",
+  success: "bg-accent-soft text-accent",
+};
+
+function estadoCliente(status: string, vencimento: Date): { tom: Tom; label: string } {
+  if (status === "CANCELADO") return { tom: "neutral", label: "Cancelado" };
+  const faixa = faixaVencimento(vencimento);
+  if (faixa === "VENCIDO") return { tom: "danger", label: "Vencido" };
+  if (faixa === "ATE_5_DIAS") return { tom: "warning", label: "Vencendo" };
+  return { tom: "success", label: "Em dia" };
+}
+
+function diasTexto(vencimento: Date): string {
+  const dias = diasParaVencer(vencimento);
+  return dias < 0 ? `${Math.abs(dias)}d atrás` : `em ${dias}d`;
 }
 
 export default async function ClientesPage({
@@ -81,30 +99,84 @@ export default async function ClientesPage({
         <EmptyState>Nenhum cliente nesta lista ainda.</EmptyState>
       ) : (
         <Card className="p-0">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+          {/* Desktop: tabela no padrão do app original (Cliente / WhatsApp / Plano · App / Vencimento / Valor / Status / Cobrar) */}
+          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_100px] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
             <span>Cliente</span>
-            <span>Plano</span>
-            <span>Vence</span>
+            <span>WhatsApp</span>
+            <span>Plano · App</span>
+            <span>Vencimento</span>
+            <span>Valor</span>
+            <span>Status</span>
+            <span />
           </div>
           <div className="flex flex-col divide-y divide-border">
-            {filtrados.map((cliente) => (
-              <Link
-                key={cliente.id}
-                href={`/clientes/${cliente.id}`}
-                className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3 hover:bg-surface-2"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
-                  <p className="truncate text-xs text-text-dim">
-                    {cliente.servico?.nome ?? "—"} · {brl(cliente.valorPlano)}
-                  </p>
+            {filtrados.map((cliente) => {
+              const estado = estadoCliente(cliente.status, cliente.vencimento);
+              const vencido = cliente.vencimento < new Date();
+              const mensagem = preencherModelo(MODELOS_COBRANCA[vencido ? "Vencido" : "Lembrete"], {
+                nome: cliente.nome,
+                app: cliente.servico?.nome ?? "",
+                plano: PLANO_LABEL[cliente.plano],
+                vencimento: dataCurta(cliente.vencimento),
+                prazo: vencido ? "vencido" : "a vencer",
+                valor: brl(cliente.valorPlano),
+              });
+
+              return (
+                <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_100px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
+                  {/* Desktop */}
+                  <Link href={`/clientes/${cliente.id}`} className="hidden min-w-0 items-center gap-3 md:flex">
+                    <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold", AVATAR_TOM[estado.tom])}>
+                      {iniciais(cliente.nome)}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-text">{cliente.nome}</span>
+                  </Link>
+                  <span className="hidden truncate text-xs text-text-muted md:block">{fmtTelefone(cliente.whatsapp)}</span>
+                  <span className="hidden truncate text-xs text-text-muted md:block">
+                    {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
+                  </span>
+                  <div className="hidden md:flex md:flex-col">
+                    <span className="text-sm font-semibold text-text">{dataCurta(cliente.vencimento)}</span>
+                    <span className="text-[11px] text-text-dim">{diasTexto(cliente.vencimento)}</span>
+                  </div>
+                  <span className="hidden text-sm font-semibold text-text md:block">{brl0(cliente.valorPlano)}</span>
+                  <span className="hidden md:block">
+                    <Badge tone={estado.tom}>{estado.label}</Badge>
+                  </span>
+                  <span className="hidden md:block">
+                    {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
+                      <RegistrarCobrancaLink
+                        clienteId={cliente.id}
+                        whatsapp={cliente.whatsapp}
+                        mensagem={mensagem}
+                        modelo={vencido ? "Vencido" : "Lembrete"}
+                      >
+                        <Button variant="ghost" className="w-full">
+                          Cobrar
+                        </Button>
+                      </RegistrarCobrancaLink>
+                    ) : null}
+                  </span>
+
+                  {/* Mobile */}
+                  <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 md:hidden">
+                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", AVATAR_TOM[estado.tom])}>
+                      {iniciais(cliente.nome)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
+                      <p className="truncate text-xs text-text-dim">
+                        {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-text">{brl0(cliente.valorPlano)}</span>
+                      <Badge tone={estado.tom}>{estado.label}</Badge>
+                    </div>
+                  </Link>
                 </div>
-                <span className="whitespace-nowrap text-xs text-text-muted">{PLANO_LABEL[cliente.plano]}</span>
-                <Badge tone={cliente.status === "CANCELADO" ? "neutral" : badgeTone(faixaVencimento(cliente.vencimento))}>
-                  {dataCurta(cliente.vencimento)}
-                </Badge>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}

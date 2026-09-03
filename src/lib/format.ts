@@ -24,3 +24,17 @@ export function iniciais(nome: string): string {
   const partes = nome.replace(/\(.*?\)/g, "").trim().split(/\s+/);
   return ((partes[0]?.[0] ?? "?") + (partes[1]?.[0] ?? "")).toUpperCase();
 }
+
+// Formata um WhatsApp salvo com DDI (55...) como "DDD NNNNN-NNNN" pra exibição.
+export function fmtTelefone(tel?: string | null): string {
+  if (!tel) return "—";
+  let d = tel.replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  d = d.slice(0, 11);
+  if (d.length <= 2) return d;
+  const ddd = d.slice(0, 2);
+  const resto = d.slice(2);
+  if (resto.length <= 4) return `${ddd} ${resto}`;
+  const corte = resto.length > 8 ? 5 : 4;
+  return `${ddd} ${resto.slice(0, corte)}-${resto.slice(corte)}`;
+}
