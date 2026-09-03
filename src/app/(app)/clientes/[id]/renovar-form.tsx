@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button, Field, Input, Select } from "@/components/ui";
-import { PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
+import { PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const PLANOS: PlanoCliente[] = ["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"];
@@ -19,6 +19,7 @@ export function RenovarForm({
   const [aberto, setAberto] = useState(false);
   const [plano, setPlano] = useState<PlanoCliente>(planoAtual);
   const [valor, setValor] = useState(valorAtual);
+  const [custo, setCusto] = useState(PLANO_MESES[planoAtual]);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -51,6 +52,7 @@ export function RenovarForm({
               const novo = e.target.value as PlanoCliente;
               setPlano(novo);
               setValor(PLANO_VALOR_SUGERIDO[novo]);
+              setCusto(PLANO_MESES[novo]);
             }}
           >
             {PLANOS.map((p) => (
@@ -73,7 +75,14 @@ export function RenovarForm({
         </Field>
       </div>
       <Field label="Custo (créditos gastos)">
-        <Input type="number" name="custo" min={0} step="0.01" defaultValue={0} />
+        <Input
+          type="number"
+          name="custo"
+          min={0}
+          step="0.01"
+          value={custo}
+          onChange={(e) => setCusto(Number(e.target.value))}
+        />
       </Field>
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>

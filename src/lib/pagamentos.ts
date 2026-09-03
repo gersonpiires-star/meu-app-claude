@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { criarPreferencia } from "@/lib/mercadopago";
+import { PLANO_MESES } from "@/lib/planos";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -30,6 +31,7 @@ export async function criarPagamentoRenovacao(clienteId: string): Promise<{ url:
       tipo: "RENOVACAO",
       plano: cliente.plano,
       valor: cliente.valorPlano,
+      custo: PLANO_MESES[cliente.plano],
     },
   });
 

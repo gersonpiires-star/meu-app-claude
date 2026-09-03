@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
-import { calcularVencimentoComDiaFixo } from "@/lib/planos";
+import { PLANO_MESES, calcularVencimentoComDiaFixo } from "@/lib/planos";
 
 export async function renovarComPlanoAtual(id: string) {
   const revendedor = await exigirRevendedor();
@@ -14,7 +14,7 @@ export async function renovarComPlanoAtual(id: string) {
 
   await prisma.$transaction([
     prisma.renovacao.create({
-      data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo: 0 },
+      data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo: PLANO_MESES[cliente.plano] },
     }),
     prisma.cliente.update({
       where: { id },
