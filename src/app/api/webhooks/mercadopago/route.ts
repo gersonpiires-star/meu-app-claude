@@ -57,7 +57,12 @@ export async function POST(request: Request) {
   const accessToken = pagamento.tipo === "ASSINATURA" ? tokenPlataforma() : pagamento.revendedor.mpAccessToken;
   if (!accessToken) {
     console.error(`Webhook MP: revendedor ${pagamento.revendedorId} sem token para pagamento ${pagamento.id}`);
-    return NextResponse.json({ ok: true, ignorado: "sem token" });
+    // Responder 2xx aqui diria ao Mercado Pago "processado com sucesso" e ele
+    // pararia de reenviar essa notificação — se o revendedor só reconectar o
+    // token depois, o pagamento ficaria PENDENTE pra sempre sem nenhum outro
+    // gatilho pra reconferir. Um status de erro faz o MP tentar de novo mais
+    // tarde, dando chance de o token já estar corrigido na próxima entrega.
+    return NextResponse.json({ ok: false, ignorado: "sem token" }, { status: 503 });
   }
 
   let pagamentoMP;
@@ -77,58 +82,75 @@ export async function POST(request: Request) {
   }
 
   const novoStatus = statusMPParaInterno(pagamentoMP.status ?? "pending");
-  const jaEstavaAprovado = pagamento.status === "APROVADO";
 
-  await prisma.pagamento.update({
-    where: { id: pagamento.id },
-    data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
-  });
+  if (novoStatus !== "APROVADO") {
+    await prisma.pagamento.update({
+      where: { id: pagamento.id },
+      data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
+    });
+    return NextResponse.json({ ok: true });
+  }
 
-  if (novoStatus === "APROVADO" && !jaEstavaAprovado) {
+  // O Mercado Pago reenvia notificações do mesmo pagamento (rotina pro Pix),
+  // então duas entregas podem chegar em paralelo. A troca de status só
+  // acontece se AINDA não estava "APROVADO" — updateMany com esse filtro é
+  // atômica no Postgres (a segunda entrega concorrente fica bloqueada pelo
+  // lock de linha da primeira até ela comitar, e então reavalia o filtro e
+  // não encontra mais a linha pra atualizar) — e o side-effect (estender
+  // assinatura, ou criar a renovação e atualizar o vencimento do cliente)
+  // roda dentro da mesma transação, então nunca fica pela metade nem roda
+  // duas vezes pro mesmo pagamento.
+  const resultado = await prisma.$transaction(async (tx) => {
+    const trocou = await tx.pagamento.updateMany({
+      where: { id: pagamento.id, status: { not: "APROVADO" } },
+      data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
+    });
+    if (trocou.count === 0) return { jaProcessado: true };
+
     if (pagamento.tipo === "ASSINATURA") {
+      const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
       const meses = pagamento.meses ?? 1;
       const base =
-        pagamento.revendedor.assinaturaVence && pagamento.revendedor.assinaturaVence > new Date()
-          ? pagamento.revendedor.assinaturaVence
+        revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
+          ? revendedorAtual.assinaturaVence
           : new Date();
       const vence = new Date(base);
       vence.setMonth(vence.getMonth() + meses);
 
-      await prisma.revendedor.update({
+      await tx.revendedor.update({
         where: { id: pagamento.revendedorId },
         data: { statusAssinatura: "ATIVO", assinaturaVence: vence },
       });
     } else if (pagamento.tipo === "RENOVACAO" && pagamento.clienteId && pagamento.plano) {
-      const cliente = await prisma.cliente.findUnique({ where: { id: pagamento.clienteId } });
+      const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId } });
       if (cliente) {
         const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
         const novoVencimento = calcularVencimento(pagamento.plano as PlanoCliente, base);
 
-        await prisma.$transaction([
-          prisma.renovacao.create({
-            data: {
-              clienteId: cliente.id,
-              plano: pagamento.plano as PlanoCliente,
-              valor: pagamento.valor,
-              custo: pagamento.custo,
-            },
-          }),
-          prisma.cliente.update({
-            where: { id: cliente.id },
-            data: {
-              plano: pagamento.plano as PlanoCliente,
-              valorPlano: pagamento.valor,
-              vencimento: novoVencimento,
-              status: "ATIVO",
-              testeGratis: false,
-            },
-          }),
-        ]);
+        await tx.renovacao.create({
+          data: {
+            clienteId: cliente.id,
+            plano: pagamento.plano as PlanoCliente,
+            valor: pagamento.valor,
+            custo: pagamento.custo,
+          },
+        });
+        await tx.cliente.update({
+          where: { id: cliente.id },
+          data: {
+            plano: pagamento.plano as PlanoCliente,
+            valorPlano: pagamento.valor,
+            vencimento: novoVencimento,
+            status: "ATIVO",
+            testeGratis: false,
+          },
+        });
       }
     }
-  }
+    return { jaProcessado: false };
+  });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ignorado: resultado.jaProcessado ? "já processado" : undefined });
 }
 
 export async function GET(request: Request) {
