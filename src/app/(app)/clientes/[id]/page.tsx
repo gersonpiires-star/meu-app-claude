@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, brl0, dataCurta, dataHora, dataPorExtenso, iniciais } from "@/lib/format";
+import { brl, brl0, dataCurta, dataHora, dataPorExtenso, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { MODELOS_COMUNICADO, mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { faixaPontualidade } from "@/lib/pontualidade";
@@ -78,10 +78,6 @@ function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
   return resto ? `${anos}a ${resto}m` : `${anos} ano${anos === 1 ? "" : "s"}`;
 }
 
-function horaCurta(d: Date): string {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 function InfoTile({ label, value, span2 = false, tom = "neutral" as Tom }: { label: string; value: string; span2?: boolean; tom?: Tom }) {
   const destacado = tom !== "neutral";
   return (
@@ -136,8 +132,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   if (!cliente.servico) pendentes.push("Serviço não informado");
   if (!cliente.valorPlano) pendentes.push("Valor do plano não informado");
 
-  const hoje0 = new Date();
-  hoje0.setHours(0, 0, 0, 0);
+  const hoje0 = inicioDoDiaBr();
   const cobrancasHoje = cliente.cobrancas.filter((c) => c.criadoEm >= hoje0);
 
   const renovado = cliente.renovacoes.length > 0;

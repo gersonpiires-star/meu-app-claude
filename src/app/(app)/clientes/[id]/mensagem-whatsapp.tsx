@@ -63,17 +63,12 @@ export function MensagemWhatsApp({
         </div>
       </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Pré-visualização</span>
-        <Textarea
-          value={mensagem}
-          onChange={(e) => setMensagem(e.target.value)}
-          className="min-h-40 rounded-2xl border-accent-strong bg-accent-soft/40 text-text"
-        />
-      </div>
+      <Field label="Mensagem">
+        <Textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} className="min-h-32" />
+      </Field>
 
       {ehRenovacao ? (
-        <p className="text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
+        <p className="-mt-2 text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
       ) : chaves.length > 0 || linkPagamento ? (
         <Field label="Anexar na mensagem (opcional)">
           <Select value={chaveId} onChange={(e) => setChaveId(e.target.value)}>
@@ -92,6 +87,13 @@ export function MensagemWhatsApp({
           O cliente abre o link e paga sozinho com Pix ou cartão — a renovação é registrada automaticamente.
         </p>
       ) : null}
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Pré-visualização</span>
+        <div className="min-h-32 whitespace-pre-wrap rounded-2xl border border-accent-strong bg-accent-soft/40 px-3.5 py-2.5 text-sm text-text">
+          {mensagemFinal}
+        </div>
+      </div>
 
       <div className="flex gap-2">
         <RegistrarCobrancaLink clienteId={clienteId} whatsapp={whatsapp} mensagem={mensagemFinal} modelo={modelo} className="flex-1">

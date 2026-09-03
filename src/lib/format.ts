@@ -1,3 +1,24 @@
+// Todo o app roda em servidores que costumam estar em UTC (Vercel), mas o
+// revendedor está no Brasil — por isso toda formatação de data/hora abaixo
+// é fixada no fuso de Brasília, senão a hora exibida (e o "cobrado hoje")
+// saem errados. O Brasil não observa mais horário de verão desde 2019, então
+// o fuso é sempre UTC-3, sem ambiguidade.
+const FUSO = "America/Sao_Paulo";
+
+function partesBr(d: Date) {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: FUSO,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const obter = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return { ano: obter("year"), mes: obter("month"), dia: obter("day"), hora: obter("hour"), minuto: obter("minute") };
+}
+
 export function brl(n: number): string {
   return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -7,17 +28,31 @@ export function brl0(n: number): string {
 }
 
 export function dataCurta(d: Date): string {
-  return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+  const { dia, mes } = partesBr(d);
+  return `${dia}/${mes}`;
 }
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export function dataPorExtenso(d: Date): string {
-  return String(d.getDate()).padStart(2, "0") + " " + MESES[d.getMonth()] + " " + d.getFullYear();
+  const { dia, mes, ano } = partesBr(d);
+  return `${dia} ${MESES[Number(mes) - 1]} ${ano}`;
+}
+
+export function horaCurta(d: Date): string {
+  const { hora, minuto } = partesBr(d);
+  return `${hora}:${minuto}`;
 }
 
 export function dataHora(d: Date): string {
-  return dataPorExtenso(d) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  return `${dataPorExtenso(d)} ${horaCurta(d)}`;
+}
+
+// Início (00:00) do dia atual no fuso de Brasília, como instante UTC — usado
+// pra saber se algo (ex: uma cobrança) aconteceu "hoje" pro revendedor.
+export function inicioDoDiaBr(referencia: Date = new Date()): Date {
+  const { ano, mes, dia } = partesBr(referencia);
+  return new Date(`${ano}-${mes}-${dia}T03:00:00.000Z`);
 }
 
 export function iniciais(nome: string): string {

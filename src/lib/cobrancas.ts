@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { inicioDoDiaBr } from "@/lib/format";
 
 // Mapa clienteId -> horário da cobrança mais recente enviada hoje. Usado
 // pra desativar o botão "Cobrar" depois do primeiro envio do dia — ele
-// volta a ficar ativo sozinho na virada do dia.
+// volta a ficar ativo sozinho na virada do dia (hora de Brasília).
 export async function cobradosHojePorCliente(revendedorId: string): Promise<Map<string, Date>> {
-  const hoje0 = new Date();
-  hoje0.setHours(0, 0, 0, 0);
+  const hoje0 = inicioDoDiaBr();
 
   const cobrancas = await prisma.cobranca.findMany({
     where: { cliente: { revendedorId }, criadoEm: { gte: hoje0 } },
