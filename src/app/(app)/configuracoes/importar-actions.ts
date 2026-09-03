@@ -78,12 +78,35 @@ const recebimentoAntigoSchema = z.object({
   clienteId: z.number().optional(),
 });
 
+const loteAntigoSchema = z.object({
+  qtd: z.number(),
+  valor: z.number(),
+  data: z.string().optional(),
+});
+
+const plataformaAntigaSchema = z.object({
+  id: z.number(),
+  nome: z.string(),
+  minimo: z.number().optional().default(3),
+  lotes: z.array(loteAntigoSchema).optional().default([]),
+});
+
+const appAntigoSchema = z.object({
+  id: z.number(),
+  nome: z.string(),
+  credito: z.number().optional(),
+  valorTela: z.number().optional(),
+  plataformaId: z.number().nullable().optional(),
+});
+
 const importSchema = z.object({
   dados: z.object({
     clientes: z.array(clienteAntigoSchema).optional().default([]),
     modelos: z.array(modeloAntigoSchema).optional().default([]),
     vendas: z.array(vendaAntigaSchema).optional().default([]),
     recebimentos: z.array(recebimentoAntigoSchema).optional().default([]),
+    plataformas: z.array(plataformaAntigaSchema).optional().default([]),
+    apps: z.array(appAntigoSchema).optional().default([]),
   }),
 });
 
@@ -123,17 +146,51 @@ export async function importarDadosAntigos(
   if (!parsed.success) {
     return { ok: false, erro: "O JSON não tem o formato esperado do backup do app antigo." };
   }
-  const { clientes, modelos, vendas, recebimentos } = parsed.data.dados;
+  const { clientes, modelos, vendas, recebimentos, plataformas, apps } = parsed.data.dados;
 
   const servicoIdPorNome = new Map<string, string>();
   const clienteIdAntigoParaNovo = new Map<number, string>();
   const produtoIdAntigoParaNovo = new Map<number, string>();
+  const plataformaIdAntigaParaNova = new Map<number, string>();
 
-  for (const nome of new Set(clientes.map((c) => c.app).filter((v): v is string => Boolean(v)))) {
+  for (const p of plataformas) {
+    const criada = await prisma.plataforma.upsert({
+      where: { revendedorId_nome: { revendedorId: revendedor.id, nome: p.nome } },
+      update: { minimo: p.minimo },
+      create: { revendedorId: revendedor.id, nome: p.nome, minimo: p.minimo },
+    });
+    plataformaIdAntigaParaNova.set(p.id, criada.id);
+    for (const l of p.lotes) {
+      await prisma.lotePlataforma.create({
+        data: { plataformaId: criada.id, quantidade: l.qtd, valorPago: l.valor, data: parseData(l.data) },
+      });
+    }
+  }
+
+  const nomesServicos = new Set<string>([
+    ...clientes.map((c) => c.app).filter((v): v is string => Boolean(v)),
+    ...apps.map((a) => a.nome),
+  ]);
+
+  for (const nome of nomesServicos) {
+    const appAntigo = apps.find((a) => a.nome === nome);
+    const plataformaId =
+      appAntigo?.plataformaId != null ? plataformaIdAntigaParaNova.get(appAntigo.plataformaId) ?? null : undefined;
+
     const servico = await prisma.servico.upsert({
       where: { revendedorId_nome: { revendedorId: revendedor.id, nome } },
-      update: {},
-      create: { revendedorId: revendedor.id, nome },
+      update: {
+        custoCredito: appAntigo?.credito ?? undefined,
+        cobrancaTelaExtra: appAntigo?.valorTela ?? undefined,
+        plataformaId,
+      },
+      create: {
+        revendedorId: revendedor.id,
+        nome,
+        custoCredito: appAntigo?.credito ?? null,
+        cobrancaTelaExtra: appAntigo?.valorTela ?? null,
+        plataformaId: plataformaId ?? null,
+      },
     });
     servicoIdPorNome.set(nome, servico.id);
   }
@@ -222,9 +279,11 @@ export async function importarDadosAntigos(
   revalidatePath("/estoque");
   revalidatePath("/vendas");
   revalidatePath("/relatorio");
+  revalidatePath("/plataformas");
+  revalidatePath("/precificacao");
 
   return {
     ok: true,
-    resumo: `Importado: ${clientes.length} clientes, ${modelos.length} modelos de produto, ${vendasImportadas} vendas, ${renovacoesImportadas} renovações.`,
+    resumo: `Importado: ${clientes.length} clientes, ${nomesServicos.size} apps (com preço/plataforma), ${plataformas.length} plataformas, ${modelos.length} modelos de produto, ${vendasImportadas} vendas, ${renovacoesImportadas} renovações.`,
   };
 }
