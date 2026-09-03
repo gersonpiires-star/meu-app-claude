@@ -5,6 +5,11 @@ import { brl0 } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { Badge, Button, Card, StatTile } from "@/components/ui";
 
+const MESES = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
 export default async function AdminPainelPage() {
   await exigirAdmin();
   const dados = await dadosAdmin();
@@ -24,6 +29,35 @@ export default async function AdminPainelPage() {
             tone={dados.taxaRetencao >= 90 ? "accent" : dados.taxaRetencao >= 75 ? "warning" : "danger"}
           />
         </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">O que vem por aí</p>
+        <Card className="border-accent-strong bg-accent-soft/20">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+            Previsto para {MESES[dados.proximoMes.getMonth()]}
+          </p>
+          <p className="mt-1 text-3xl font-bold text-accent">{brl0(dados.previstoProxMes)}</p>
+          <p className="mt-1 text-xs text-text-dim">Receita prevista se todos os assinantes ativos continuarem</p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Planos mensais</p>
+              <p className="mt-0.5 font-semibold text-text">{brl0(dados.previstoMensal)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Planos anuais (mensalizado)</p>
+              <p className="mt-0.5 font-semibold text-text">{brl0(dados.previstoAnual)}</p>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-text-dim">
+            {dados.ativos} assinante{dados.ativos === 1 ? "" : "s"} ativo{dados.ativos === 1 ? "" : "s"}
+            {dados.ativosSemPagamento > 0
+              ? ` (${dados.ativosSemPagamento} sem pagamento registrado, não entra na conta)`
+              : ""}
+          </p>
+        </Card>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

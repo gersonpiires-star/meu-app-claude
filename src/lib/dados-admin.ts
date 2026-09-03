@@ -39,6 +39,38 @@ export async function dadosAdmin() {
   const baseRetencao = ativos + pausadosMes;
   const taxaRetencao = baseRetencao > 0 ? (ativos / baseRetencao) * 100 : 100;
 
+  // Previsto pro mês que vem: pega o último pagamento de assinatura
+  // aprovado de cada assinante ativo e mensaliza (valor ÷ meses) — reflete
+  // o preço real pago, não uma tabela fixa que pode ter mudado.
+  const ativosComPagamento = await prisma.revendedor.findMany({
+    where: { papel: "REVENDEDOR", statusAssinatura: "ATIVO" },
+    select: {
+      pagamentos: {
+        where: { tipo: "ASSINATURA", status: "APROVADO" },
+        orderBy: { criadoEm: "desc" },
+        take: 1,
+        select: { valor: true, meses: true },
+      },
+    },
+  });
+
+  let previstoMensal = 0;
+  let previstoAnual = 0;
+  let ativosSemPagamento = 0;
+  for (const r of ativosComPagamento) {
+    const pagamento = r.pagamentos[0];
+    if (!pagamento) {
+      ativosSemPagamento++;
+      continue;
+    }
+    const meses = pagamento.meses ?? 1;
+    const mensal = pagamento.valor / meses;
+    if (meses <= 1) previstoMensal += mensal;
+    else previstoAnual += mensal;
+  }
+  const previstoProxMes = previstoMensal + previstoAnual;
+  const proximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+
   return {
     total,
     trial,
@@ -49,5 +81,10 @@ export async function dadosAdmin() {
     pausadosMes,
     taxaRetencao,
     trialsVencendo,
+    previstoProxMes,
+    previstoMensal,
+    previstoAnual,
+    ativosSemPagamento,
+    proximoMes,
   };
 }
