@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirAdmin } from "@/lib/sessao";
+import { registrarLog } from "@/lib/log";
+import { dataCurta } from "@/lib/format";
 
 export async function liberarAcesso(revendedorId: string, meses: number) {
   await exigirAdmin();
@@ -18,6 +20,13 @@ export async function liberarAcesso(revendedorId: string, meses: number) {
     data: { statusAssinatura: "ATIVO", assinaturaVence: vence, pausadoEm: null },
   });
 
+  await registrarLog(
+    revendedorId,
+    "admin.liberar_acesso",
+    `Acesso liberado pela Administração GestorPro por ${meses} mês${meses === 1 ? "" : "es"} (vence ${dataCurta(vence)})`,
+    "ADMIN"
+  );
+
   revalidatePath("/admin/assinantes");
   revalidatePath(`/admin/assinantes/${revendedorId}`);
 }
@@ -28,6 +37,9 @@ export async function pausarAcesso(revendedorId: string) {
     where: { id: revendedorId },
     data: { statusAssinatura: "PAUSADO", pausadoEm: new Date() },
   });
+
+  await registrarLog(revendedorId, "admin.pausar_acesso", "Acesso pausado pela Administração GestorPro", "ADMIN");
+
   revalidatePath("/admin/assinantes");
   revalidatePath(`/admin/assinantes/${revendedorId}`);
 }
