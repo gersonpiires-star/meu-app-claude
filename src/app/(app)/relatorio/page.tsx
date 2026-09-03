@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { dadosMes, proximoMes, ultimosMeses } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
 import { gradeDoMes } from "@/lib/calendario";
-import { brl, dataCurta, dataPorExtenso } from "@/lib/format";
+import { brl, dataCurta, dataPorExtenso, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, PLANO_MESES } from "@/lib/planos";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { GraficoMeses } from "./grafico-meses";
@@ -23,9 +23,10 @@ export default async function RelatorioPage({
 }) {
   const revendedor = await exigirRevendedor();
   const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
   const { ano: anoParam, mes: mesParam } = await searchParams;
-  const ano = anoParam ? Number(anoParam) : agora.getFullYear();
-  const mes = mesParam ? Number(mesParam) : agora.getMonth();
+  const ano = anoParam ? Number(anoParam) : agoraCivil.ano;
+  const mes = mesParam ? Number(mesParam) : agoraCivil.mes;
 
   const { inicio: inicioMesAtual, fim: fimMesAtual } = limitesDoMes(agora);
   const [meses, dados, futuro, fechamentos, clientesDoMesAtual] = await Promise.all([
@@ -138,7 +139,7 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Calendário do mês</h2>
-        <CalendarioMes celulas={celulasCalendario} hojeDia={agora.getDate()} />
+        <CalendarioMes celulas={celulasCalendario} hojeDia={agoraCivil.dia} />
       </Card>
 
       {fechamentos.length > 0 ? (

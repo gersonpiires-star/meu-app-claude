@@ -55,6 +55,19 @@ export function inicioDoDiaBr(referencia: Date = new Date()): Date {
   return new Date(`${ano}-${mes}-${dia}T03:00:00.000Z`);
 }
 
+// Converte qualquer instante pro "dia civil" dele em Brasília, representado
+// como um Date sem hora (meio-dia local do servidor, pra nunca cruzar de dia
+// em cálculos de diferença). Use isso — nunca getFullYear()/getMonth()/getDate()
+// direto num Date — sempre que precisar comparar/agrupar datas por dia ou mês
+// (vencimentos, "hoje", limites de mês etc.): o servidor roda em UTC, e ler os
+// campos locais de um Date direto pega o dia em UTC, que diverge do dia em
+// Brasília (UTC-3) das 21h às 23h59 todo dia — e vira o mês errado no fim do
+// mês inteiro. Ver também parseDataBr, pro caso de texto DD/MM/AAAA digitado.
+export function diaCivilBr(d: Date): { ano: number; mes: number; dia: number } {
+  const { ano, mes, dia } = partesBr(d);
+  return { ano: Number(ano), mes: Number(mes) - 1, dia: Number(dia) };
+}
+
 // Constrói o instante UTC correspondente à meia-noite de um DD/MM/AAAA
 // digitado pelo revendedor, no fuso de Brasília — usar sempre que uma data
 // digitada vira um Date, senão ela desalinha com a exibição (que já usa

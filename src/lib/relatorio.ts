@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { custoMedioProdutos, limitesDoMes } from "@/lib/dados";
+import { diaCivilBr } from "@/lib/format";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
   const meses: { ano: number; mes: number; receita: number; custo: number; lucro: number }[] = [];
 
   const custos = await custoMedioProdutos(revendedorId);
 
   for (let i = quantidade - 1; i >= 0; i--) {
-    const referencia = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const referencia = new Date(agoraCivil.ano, agoraCivil.mes - i, 1);
     const { inicio, fim } = limitesDoMes(referencia);
 
     const [renovacoes, vendas] = await Promise.all([
@@ -84,8 +86,9 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
 
 export async function proximoMes(revendedorId: string) {
   const agora = new Date();
-  const proximo = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
-  const depois = new Date(agora.getFullYear(), agora.getMonth() + 2, 1);
+  const { ano, mes } = diaCivilBr(agora);
+  const proximo = new Date(ano, mes + 1, 1);
+  const depois = new Date(ano, mes + 2, 1);
 
   const vencendo = await prisma.cliente.findMany({
     where: { revendedorId, status: { not: "CANCELADO" }, vencimento: { gte: proximo, lt: depois } },

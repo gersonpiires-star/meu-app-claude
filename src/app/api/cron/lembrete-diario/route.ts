@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
 import { dadosMes } from "@/lib/relatorio";
+import { diaCivilBr } from "@/lib/format";
 
 // Disparado uma vez por dia pelo Cron da Vercel (ver vercel.json). Faz duas
 // coisas de manhã, por revendedor: aplica a suspensão automática de quem
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
 
   // Limpa tentativas de login antigas — só servem pra bloquear força bruta
   // numa janela de 15 min, não precisam ficar guardadas depois disso.
@@ -29,8 +31,8 @@ export async function GET(req: NextRequest) {
 
   // No último dia do mês, arquiva o resultado de cada revendedor sem
   // precisar que ele clique em nada (igual ao protótipo original).
-  const ultimoDiaDoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
-  const ehUltimoDia = agora.getDate() === ultimoDiaDoMes;
+  const ultimoDiaDoMes = new Date(agoraCivil.ano, agoraCivil.mes + 1, 0).getDate();
+  const ehUltimoDia = agoraCivil.dia === ultimoDiaDoMes;
 
   let suspensos = 0;
   let notificados = 0;
@@ -44,16 +46,16 @@ export async function GET(req: NextRequest) {
     if (ehUltimoDia) {
       const jaFechou = await prisma.fechamentoMes.findUnique({
         where: {
-          revendedorId_ano_mes: { revendedorId: revendedor.id, ano: agora.getFullYear(), mes: agora.getMonth() },
+          revendedorId_ano_mes: { revendedorId: revendedor.id, ano: agoraCivil.ano, mes: agoraCivil.mes },
         },
       });
       if (!jaFechou) {
-        const dados = await dadosMes(revendedor.id, agora.getFullYear(), agora.getMonth());
+        const dados = await dadosMes(revendedor.id, agoraCivil.ano, agoraCivil.mes);
         await prisma.fechamentoMes.create({
           data: {
             revendedorId: revendedor.id,
-            ano: agora.getFullYear(),
-            mes: agora.getMonth(),
+            ano: agoraCivil.ano,
+            mes: agoraCivil.mes,
             receita: dados.receita,
             custo: dados.custo,
             lucro: dados.lucro,

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
+import { diaCivilBr } from "@/lib/format";
 
 export async function dadosAdmin() {
   const agora = new Date();
@@ -69,7 +70,8 @@ export async function dadosAdmin() {
     else previstoAnual += mensal;
   }
   const previstoProxMes = previstoMensal + previstoAnual;
-  const proximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+  const { ano: anoAgora, mes: mesAgora } = diaCivilBr(agora);
+  const proximoMes = new Date(anoAgora, mesAgora + 1, 1);
 
   return {
     total,

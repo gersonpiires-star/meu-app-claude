@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
 import { PLANO_LABEL } from "@/lib/planos";
-import { dataCurta } from "@/lib/format";
+import { dataCurta, diaCivilBr } from "@/lib/format";
 
 function csvEscape(valor: string): string {
   if (/[",\n;]/.test(valor)) return `"${valor.replace(/"/g, '""')}"`;
@@ -26,7 +26,7 @@ export async function GET() {
       c.servico?.nome ?? "",
       PLANO_LABEL[c.plano],
       c.valorPlano.toFixed(2).replace(".", ","),
-      dataCurta(c.vencimento) + "/" + c.vencimento.getFullYear(),
+      dataCurta(c.vencimento) + "/" + diaCivilBr(c.vencimento).ano,
       c.status,
       c.anotacao ?? "",
     ]

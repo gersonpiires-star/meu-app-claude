@@ -1,3 +1,5 @@
+import { diaCivilBr } from "@/lib/format";
+
 export type UrgenciaDia = "vencido" | "vencendo" | "ok";
 
 export type CelulaCalendario = {
@@ -13,16 +15,17 @@ export type VencimentoCliente = { nome: string; vencimento: Date };
 // a urgência (pra colorir) com base em quantos dias faltam pra hoje, e os
 // nomes dos clientes daquele dia (pra mostrar ao passar o mouse ou tocar).
 export function gradeDoMes(vencimentos: VencimentoCliente[], referencia: Date = new Date()): CelulaCalendario[] {
-  const ano = referencia.getFullYear();
-  const mes = referencia.getMonth();
+  const { ano, mes } = diaCivilBr(referencia);
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
   const primeiroDia = new Date(ano, mes, 1).getDay();
-  const hoje = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+  const hojeCivil = diaCivilBr(new Date());
+  const hoje = new Date(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia);
 
   const porDia = new Map<number, string[]>();
   for (const v of vencimentos) {
-    if (v.vencimento.getFullYear() === ano && v.vencimento.getMonth() === mes) {
-      const d = v.vencimento.getDate();
+    const vc = diaCivilBr(v.vencimento);
+    if (vc.ano === ano && vc.mes === mes) {
+      const d = vc.dia;
       const atual = porDia.get(d) ?? [];
       atual.push(v.nome);
       porDia.set(d, atual);

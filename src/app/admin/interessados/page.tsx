@@ -1,6 +1,6 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dataCurta } from "@/lib/format";
+import { dataCurta, diaCivilBr } from "@/lib/format";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { NovoInteressadoForm } from "./novo-interessado-form";
 import { InteressadoAcoes } from "./interessado-acoes";
@@ -9,11 +9,13 @@ export default async function InteressadosPage() {
   await exigirAdmin();
   const interessados = await prisma.interessado.findMany({ orderBy: { criadoEm: "desc" } });
 
-  const agora = new Date();
-  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
-  const precisaRetornar = (i: (typeof interessados)[number]) =>
-    !i.convertido && i.retornarEm != null &&
-    new Date(i.retornarEm.getFullYear(), i.retornarEm.getMonth(), i.retornarEm.getDate()) <= hoje;
+  const hojeCivil = diaCivilBr(new Date());
+  const hoje = new Date(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia);
+  const precisaRetornar = (i: (typeof interessados)[number]) => {
+    if (i.convertido || i.retornarEm == null) return false;
+    const rc = diaCivilBr(i.retornarEm);
+    return new Date(rc.ano, rc.mes, rc.dia) <= hoje;
+  };
 
   const leadsHoje = interessados.filter(precisaRetornar);
   const ordenados = [...interessados].sort((a, b) => Number(precisaRetornar(b)) - Number(precisaRetornar(a)));

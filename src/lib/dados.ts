@@ -1,21 +1,30 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { PLANO_MESES, faixaVencimento } from "@/lib/planos";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { saldoTotalCreditos } from "@/lib/plataformas";
-import { inicioDoDiaBr } from "@/lib/format";
+import { diaCivilBr, inicioDoDiaBr } from "@/lib/format";
 
 export function limitesDoMes(referencia: Date = new Date()) {
-  const inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
-  const fim = new Date(referencia.getFullYear(), referencia.getMonth() + 1, 1);
+  const { ano, mes } = diaCivilBr(referencia);
+  const inicio = new Date(ano, mes, 1);
+  const fim = new Date(ano, mes + 1, 1);
   return { inicio, fim };
 }
 
 // Estoque atual de um único produto — usado pra validar uma venda no
-// servidor sem precisar buscar o estoque de todos os produtos.
-export async function estoqueAtualProduto(produtoId: string): Promise<number> {
+// servidor sem precisar buscar o estoque de todos os produtos. Aceita um
+// client de transação opcional pra poder checar e gravar a venda no mesmo
+// snapshot (ver registrarVenda em vendas/actions.ts) — sem isso, duas vendas
+// simultâneas do mesmo produto podiam ambas passar na checagem e deixar o
+// estoque negativo.
+export async function estoqueAtualProduto(
+  produtoId: string,
+  db: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<number> {
   const [entradas, saidas] = await Promise.all([
-    prisma.movimentoEstoque.aggregate({ where: { produtoId, tipo: "ENTRADA" }, _sum: { quantidade: true } }),
-    prisma.movimentoEstoque.aggregate({ where: { produtoId, tipo: "SAIDA" }, _sum: { quantidade: true } }),
+    db.movimentoEstoque.aggregate({ where: { produtoId, tipo: "ENTRADA" }, _sum: { quantidade: true } }),
+    db.movimentoEstoque.aggregate({ where: { produtoId, tipo: "SAIDA" }, _sum: { quantidade: true } }),
   ]);
   return (entradas._sum.quantidade ?? 0) - (saidas._sum.quantidade ?? 0);
 }
@@ -92,8 +101,9 @@ export async function dadosPainel(revendedorId: string) {
   const vencendo = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "ATE_5_DIAS");
   const vencidos = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO");
 
-  const proximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
-  const depoisDoProximoMes = new Date(agora.getFullYear(), agora.getMonth() + 2, 1);
+  const { ano: anoAgora, mes: mesAgora } = diaCivilBr(agora);
+  const proximoMes = new Date(anoAgora, mesAgora + 1, 1);
+  const depoisDoProximoMes = new Date(anoAgora, mesAgora + 2, 1);
   const venceProxMes = naoCancelados.filter((c) => c.vencimento >= proximoMes && c.vencimento < depoisDoProximoMes);
   const projReceitaProxMes = venceProxMes.reduce((a, c) => a + c.valorPlano, 0);
   const projCustoProxMes = venceProxMes.reduce(

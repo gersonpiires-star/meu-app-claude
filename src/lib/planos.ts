@@ -1,4 +1,5 @@
 import { PlanoCliente } from "@/generated/prisma/enums";
+import { diaCivilBr } from "@/lib/format";
 
 export const PLANO_LABEL: Record<PlanoCliente, string> = {
   MENSAL: "Mensal",
@@ -49,8 +50,7 @@ export function calcularVencimentoComDiaFixo(
   const alvo = calcularVencimento(plano, apartirDe);
   if (!diaFixo) return alvo;
 
-  const ano = alvo.getFullYear();
-  const mes = alvo.getMonth();
+  const { ano, mes } = diaCivilBr(alvo);
   const diaAjustado = Math.min(diaFixo, ultimoDiaDoMes(ano, mes));
   const candidato = new Date(ano, mes, diaAjustado);
 
@@ -64,8 +64,10 @@ export function calcularVencimentoComDiaFixo(
 
 export function diasParaVencer(vencimento: Date, hoje: Date = new Date()): number {
   const msPorDia = 86400000;
-  const v = new Date(vencimento.getFullYear(), vencimento.getMonth(), vencimento.getDate());
-  const h = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const vc = diaCivilBr(vencimento);
+  const hc = diaCivilBr(hoje);
+  const v = new Date(vc.ano, vc.mes, vc.dia);
+  const h = new Date(hc.ano, hc.mes, hc.dia);
   return Math.round((v.getTime() - h.getTime()) / msPorDia);
 }
 
