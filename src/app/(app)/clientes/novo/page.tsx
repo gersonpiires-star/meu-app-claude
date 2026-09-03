@@ -11,10 +11,15 @@ export default async function NovoClientePage({
   searchParams: Promise<{ nome?: string; whatsapp?: string; servico?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const [servicos, params] = await Promise.all([
+  const [servicos, clientes, params] = await Promise.all([
     prisma.servico.findMany({
       where: { revendedorId: revendedor.id },
       select: { nome: true },
+    }),
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
+      select: { id: true, nome: true },
+      orderBy: { nome: "asc" },
     }),
     searchParams,
   ]);
@@ -29,6 +34,7 @@ export default async function NovoClientePage({
         <ClienteForm
           acao={criarCliente}
           servicosExistentes={servicos.map((s) => s.nome)}
+          clientesParaIndicacao={clientes}
           valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servico: params.servico }}
         />
       </Card>

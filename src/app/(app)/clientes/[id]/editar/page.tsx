@@ -10,9 +10,14 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
   const revendedor = await exigirRevendedor();
   const { id } = await params;
 
-  const [cliente, servicos] = await Promise.all([
+  const [cliente, servicos, clientes] = await Promise.all([
     prisma.cliente.findUnique({ where: { id, revendedorId: revendedor.id }, include: { servico: true } }),
     prisma.servico.findMany({ where: { revendedorId: revendedor.id }, select: { nome: true } }),
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id, status: { not: "CANCELADO" }, id: { not: id } },
+      select: { id: true, nome: true },
+      orderBy: { nome: "asc" },
+    }),
   ]);
 
   if (!cliente) notFound();
@@ -27,6 +32,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         <ClienteForm
           acao={atualizarCliente.bind(null, id)}
           servicosExistentes={servicos.map((s) => s.nome)}
+          clientesParaIndicacao={clientes}
           valoresIniciais={{
             nome: cliente.nome,
             cpf: cliente.cpf,
@@ -38,6 +44,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
             diaFixo: cliente.diaFixo,
             testeGratis: cliente.testeGratis,
             anotacao: cliente.anotacao,
+            indicadoPorId: cliente.indicadoPorId,
           }}
           textoBotao="Salvar alterações"
         />

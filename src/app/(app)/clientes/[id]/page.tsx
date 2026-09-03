@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, brl0, dataCurta, dataHora, dataPorExtenso, fmtTelefone, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
+import { brl, brl0, dataCurta, dataHora, dataPorExtenso, diaCivilBr, fmtTelefone, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { MODELOS_COMUNICADO, mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { faixaPontualidade } from "@/lib/pontualidade";
@@ -56,8 +56,10 @@ function diasTexto(vencimento: Date): string {
 }
 
 function mesesComoCliente(criadoEm: Date, hoje: Date = new Date()): number {
-  let m = (hoje.getFullYear() - criadoEm.getFullYear()) * 12 + (hoje.getMonth() - criadoEm.getMonth());
-  if (hoje.getDate() < criadoEm.getDate()) m -= 1;
+  const c = diaCivilBr(criadoEm);
+  const h = diaCivilBr(hoje);
+  let m = (h.ano - c.ano) * 12 + (h.mes - c.mes);
+  if (h.dia < c.dia) m -= 1;
   return Math.max(0, m);
 }
 
@@ -67,7 +69,9 @@ function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
 }
 
 function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
-  const meses = Math.max(0, (ate.getFullYear() - desde.getFullYear()) * 12 + (ate.getMonth() - desde.getMonth()));
+  const d = diaCivilBr(desde);
+  const a = diaCivilBr(ate);
+  const meses = Math.max(0, (a.ano - d.ano) * 12 + (a.mes - d.mes));
   if (meses < 1) {
     const dias = Math.max(0, Math.round((ate.getTime() - desde.getTime()) / 86400000));
     return `${dias} dia${dias === 1 ? "" : "s"}`;
@@ -106,6 +110,8 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         renovacoes: { orderBy: { data: "desc" } },
         vendas: true,
         cobrancas: { orderBy: { criadoEm: "desc" }, take: 10 },
+        indicadoPor: { select: { id: true, nome: true } },
+        indicados: { select: { id: true, nome: true, status: true, valorPlano: true }, orderBy: { nome: "asc" } },
       },
     }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
@@ -126,6 +132,8 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const mesesCasa = mesesComoCliente(cliente.criadoEm);
   const clienteHaTexto = mesesCasa < 1 ? "Entrou este mês" : tempoDeCasa(cliente.criadoEm);
   const aniversario = ehAniversarioDeCasa(cliente.criadoEm);
+  const indicadosAtivos = cliente.indicados.filter((i) => i.status !== "CANCELADO");
+  const receitaIndicados = indicadosAtivos.reduce((a, i) => a + i.valorPlano, 0);
 
   const pendentes: string[] = [];
   if (!cliente.whatsapp) pendentes.push("WhatsApp incompleto — cobrança não funciona");
@@ -206,6 +214,43 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         <InfoTile label="Vencimento" value={cliente.diaFixo ? `Dia ${cliente.diaFixo}` : "Pelo plano"} />
         <InfoTile label="Serviço" value={cliente.servico?.nome ?? "—"} />
       </div>
+
+      {cliente.indicadoPor || cliente.indicados.length > 0 ? (
+        <Card className="flex flex-col gap-3">
+          {cliente.indicadoPor ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-text-dim">Indicado por</span>
+              <Link href={`/clientes/${cliente.indicadoPor.id}`} className="text-sm font-semibold text-accent hover:underline">
+                {cliente.indicadoPor.nome}
+              </Link>
+            </div>
+          ) : null}
+          {cliente.indicados.length > 0 ? (
+            <div className={cx("flex flex-col gap-2", cliente.indicadoPor ? "border-t border-border pt-3" : "")}>
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs text-text-dim">
+                  Indicou {cliente.indicados.length} cliente{cliente.indicados.length === 1 ? "" : "s"}
+                </span>
+                {receitaIndicados > 0 ? (
+                  <span className="text-xs font-semibold text-accent">{brl0(receitaIndicados)}/mês em receita</span>
+                ) : null}
+              </div>
+              <div className="flex flex-col divide-y divide-border">
+                {cliente.indicados.map((i) => (
+                  <Link
+                    key={i.id}
+                    href={`/clientes/${i.id}`}
+                    className="flex items-center justify-between gap-3 py-1.5 text-sm hover:text-accent"
+                  >
+                    <span className="truncate text-text-muted">{i.nome}</span>
+                    {i.status === "CANCELADO" ? <Badge tone="neutral">Cancelado</Badge> : <Badge tone="success">Ativo</Badge>}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       {clienteNovo ? (
         <Card className="flex flex-col gap-3 border-success-border bg-success-bg/30">

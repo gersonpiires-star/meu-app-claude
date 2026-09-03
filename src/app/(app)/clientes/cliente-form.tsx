@@ -18,17 +18,20 @@ type ValoresIniciais = {
   diaFixo?: number | null;
   testeGratis?: boolean;
   anotacao?: string | null;
+  indicadoPorId?: string | null;
 };
 
 export function ClienteForm({
   acao,
   valoresIniciais,
   servicosExistentes,
+  clientesParaIndicacao = [],
   textoBotao = "Salvar cliente",
 }: {
   acao: (formData: FormData) => Promise<void>;
   valoresIniciais?: ValoresIniciais;
   servicosExistentes: string[];
+  clientesParaIndicacao?: { id: string; nome: string }[];
   textoBotao?: string;
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
@@ -97,6 +100,19 @@ export function ClienteForm({
           />
         </Field>
       </div>
+
+      {clientesParaIndicacao.length > 0 ? (
+        <Field label="Indicado por (opcional)">
+          <Select name="indicadoPorId" defaultValue={valoresIniciais?.indicadoPorId ?? ""}>
+            <option value="">Ninguém indicou / não sei</option>
+            {clientesParaIndicacao.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
 
       <Field label="Dia fixo de vencimento (opcional)">
         <Input

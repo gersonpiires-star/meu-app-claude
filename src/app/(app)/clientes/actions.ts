@@ -23,6 +23,7 @@ const clienteSchema = z.object({
   diaFixo: z.string().trim().optional(),
   testeGratis: z.coerce.boolean().default(false),
   anotacao: z.string().trim().optional(),
+  indicadoPorId: z.string().trim().optional(),
 });
 
 function parseDiaFixo(texto?: string): number | null {
@@ -43,10 +44,19 @@ async function resolverServico(revendedorId: string, nome?: string) {
   return servico.id;
 }
 
+// Confere que o "indicado por" é mesmo um cliente do revendedor (nunca
+// confia no id vindo do form) e não é o próprio cliente sendo editado.
+async function resolverIndicadoPor(revendedorId: string, indicadoPorId: string | undefined, proprioId?: string) {
+  if (!indicadoPorId || indicadoPorId === proprioId) return null;
+  const indicador = await prisma.cliente.findUnique({ where: { id: indicadoPorId, revendedorId } });
+  return indicador?.id ?? null;
+}
+
 export async function criarCliente(formData: FormData) {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
   const servicoId = await resolverServico(revendedor.id, dados.servico);
+  const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId);
 
   const cliente = await prisma.cliente.create({
     data: {
@@ -62,6 +72,7 @@ export async function criarCliente(formData: FormData) {
       testeGratis: dados.testeGratis,
       vencimento: calcularVencimentoComDiaFixo(dados.plano as PlanoCliente, new Date(), parseDiaFixo(dados.diaFixo)),
       anotacao: dados.anotacao || null,
+      indicadoPorId,
       status: "ATIVO",
     },
   });
@@ -77,6 +88,7 @@ export async function atualizarCliente(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
   const servicoId = await resolverServico(revendedor.id, dados.servico);
+  const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId, id);
 
   await prisma.cliente.update({
     where: { id, revendedorId: revendedor.id },
@@ -91,6 +103,7 @@ export async function atualizarCliente(id: string, formData: FormData) {
       diaFixo: parseDiaFixo(dados.diaFixo),
       testeGratis: dados.testeGratis,
       anotacao: dados.anotacao || null,
+      indicadoPorId,
     },
   });
 

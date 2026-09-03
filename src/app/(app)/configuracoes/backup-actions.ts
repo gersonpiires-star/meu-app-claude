@@ -156,6 +156,19 @@ export async function restaurarBackup(
         }
       }
 
+      // Segunda passada pra "indicado por": o cliente que indicou pode
+      // aparecer depois do indicado no arquivo, então o id novo dele só
+      // existe depois que todo mundo já foi criado.
+      for (const c of dados.clientes ?? []) {
+        const indicadoPorIdAntigo = c.indicadoPorId as string | null | undefined;
+        if (!indicadoPorIdAntigo) continue;
+        const clienteId = clienteIdAntigoParaNovo.get(c.id as string);
+        const indicadoPorId = clienteIdAntigoParaNovo.get(indicadoPorIdAntigo);
+        if (clienteId && indicadoPorId) {
+          await tx.cliente.update({ where: { id: clienteId }, data: { indicadoPorId } });
+        }
+      }
+
       for (const v of dados.vendas ?? []) {
         const produtoId = produtoIdAntigoParaNovo.get(v.produtoId as string);
         if (!produtoId) continue;

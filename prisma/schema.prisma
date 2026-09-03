@@ -242,6 +242,12 @@ model Cliente {
   motivoSaida     String?
   motivoSaidaData DateTime?
 
+  // Quem indicou esse cliente pro revendedor, se algum cliente já
+  // cadastrado indicou — pra saber quem são os melhores "promotores".
+  indicadoPorId String?
+  indicadoPor   Cliente?  @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
+  indicados     Cliente[] @relation("Indicacoes")
+
   criadoEm    DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
