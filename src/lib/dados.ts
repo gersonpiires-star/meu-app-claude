@@ -47,8 +47,10 @@ export async function dadosPainel(revendedorId: string) {
   const agora = new Date();
   const { inicio, fim } = limitesDoMes(agora);
 
-  const amanha = new Date(inicioDoDiaBr(agora));
-  amanha.setDate(amanha.getDate() + 1);
+  // Interessados aparecem 3 dias antes do prazo de retorno marcado no
+  // cadastro (e continuam aparecendo se já passou do prazo).
+  const limiteRetornoLead = new Date(inicioDoDiaBr(agora));
+  limiteRetornoLead.setDate(limiteRetornoLead.getDate() + 4);
 
   const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes, creditos, leadsParaRetornar] = await Promise.all([
     prisma.cliente.findMany({
@@ -69,7 +71,7 @@ export async function dadosPainel(revendedorId: string) {
     }),
     saldoTotalCreditos(revendedorId),
     prisma.interessadoCliente.findMany({
-      where: { revendedorId, convertido: false, retornarEm: { lt: amanha } },
+      where: { revendedorId, convertido: false, retornarEm: { lt: limiteRetornoLead } },
       orderBy: { retornarEm: "asc" },
     }),
   ]);

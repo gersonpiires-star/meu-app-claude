@@ -28,15 +28,16 @@ export async function criarInteressado(formData: FormData) {
   });
 
   await registrarLog(revendedor.id, "interessado.criar", `Cadastrou o interessado ${nome}`);
-  revalidatePath("/interessados");
+  revalidatePath("/clientes");
   revalidatePath("/painel");
+  redirect("/clientes?aba=interessados");
 }
 
 export async function excluirInteressado(id: string) {
   const revendedor = await exigirRevendedor();
   const excluido = await prisma.interessadoCliente.delete({ where: { id, revendedorId: revendedor.id } });
   await registrarLog(revendedor.id, "interessado.excluir", `Removeu o interessado ${excluido.nome}`);
-  revalidatePath("/interessados");
+  revalidatePath("/clientes");
   revalidatePath("/painel");
 }
 
@@ -48,7 +49,7 @@ export async function marcarConvertido(id: string) {
   });
 
   await registrarLog(revendedor.id, "interessado.converter", `${lead.nome} virou cliente`);
-  revalidatePath("/interessados");
+  revalidatePath("/clientes");
   revalidatePath("/painel");
 
   const params = new URLSearchParams({ nome: lead.nome, whatsapp: lead.whatsapp });

@@ -7,12 +7,14 @@ import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "./cobrar-botao";
+import { InteressadoItem } from "../interessados/interessado-item";
 
 const ABAS = [
   { chave: "todos", label: "Todos" },
   { chave: "ativos", label: "Ativos" },
   { chave: "atencao", label: "Precisa de atenção" },
   { chave: "cancelados", label: "Cancelados" },
+  { chave: "interessados", label: "Interessados" },
 ] as const;
 
 type Tom = "neutral" | "danger" | "warning" | "success";
@@ -45,13 +47,19 @@ export default async function ClientesPage({
   const revendedor = await exigirRevendedor();
   const { aba = "ativos" } = await searchParams;
 
-  const [clientes, cobradosHoje] = await Promise.all([
+  const [clientes, cobradosHoje, interessados] = await Promise.all([
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id },
       include: { servico: true },
       orderBy: { vencimento: "asc" },
     }),
     cobradosHojePorCliente(revendedor.id),
+    aba === "interessados"
+      ? prisma.interessadoCliente.findMany({
+          where: { revendedorId: revendedor.id, convertido: false },
+          orderBy: [{ retornarEm: "asc" }, { criadoEm: "desc" }],
+        })
+      : Promise.resolve([]),
   ]);
 
   const filtrados = clientes.filter((c) => {
@@ -99,7 +107,17 @@ export default async function ClientesPage({
         ))}
       </div>
 
-      {filtrados.length === 0 ? (
+      {aba === "interessados" ? (
+        interessados.length === 0 ? (
+          <EmptyState>Nenhum interessado cadastrado ainda.</EmptyState>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {interessados.map((lead) => (
+              <InteressadoItem key={lead.id} lead={lead} />
+            ))}
+          </div>
+        )
+      ) : filtrados.length === 0 ? (
         <EmptyState>Nenhum cliente nesta lista ainda.</EmptyState>
       ) : (
         <Card className="p-0">

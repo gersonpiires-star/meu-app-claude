@@ -70,17 +70,6 @@ export function NavShell({
           Plataformas
         </Link>
         <Link
-          href="/interessados"
-          className={cx(
-            "rounded-lg px-3 py-2 text-sm font-medium transition",
-            pathname.startsWith("/interessados")
-              ? "bg-accent-soft text-accent"
-              : "text-text-muted hover:bg-surface-2 hover:text-text"
-          )}
-        >
-          Interessados
-        </Link>
-        <Link
           href="/precificacao"
           className={cx(
             "rounded-lg px-3 py-2 text-sm font-medium transition",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { dadosPainel } from "@/lib/dados";
 import { brl0, dataCurta } from "@/lib/format";
-import { PLANO_LABEL } from "@/lib/planos";
+import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
@@ -26,7 +26,10 @@ export default async function PainelPage() {
           <h1 className="text-lg font-bold text-text">Painel</h1>
           <p className="text-xs text-text-dim">Olá, {revendedor.nome.split(" ")[0]}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/interessados">
+            <Button variant="ghost">Novo interessado</Button>
+          </Link>
           <Link href="/clientes/novo">
             <Button variant="ghost">Novo cliente</Button>
           </Link>
@@ -121,13 +124,15 @@ export default async function PainelPage() {
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-text">Interessados pra retornar</h2>
-            <Link href="/interessados" className="text-xs font-semibold text-accent">
+            <Link href="/clientes?aba=interessados" className="text-xs font-semibold text-accent">
               Ver todos
             </Link>
           </div>
           <div className="flex flex-col divide-y divide-border">
             {dados.leadsParaRetornar.map((lead) => {
-              const atrasado = lead.retornarEm! < new Date(new Date().setHours(0, 0, 0, 0));
+              const dias = diasParaVencer(lead.retornarEm!);
+              const tomPrazo = dias < 0 ? "danger" : dias === 0 ? "warning" : "neutral";
+              const labelPrazo = dias < 0 ? `${Math.abs(dias)}d atrás` : dias === 0 ? "Hoje" : `Em ${dias}d`;
               return (
                 <div key={lead.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
@@ -137,7 +142,7 @@ export default async function PainelPage() {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {atrasado ? <Badge tone="danger">Atrasado</Badge> : <Badge tone="warning">Hoje</Badge>}
+                    <Badge tone={tomPrazo}>{labelPrazo}</Badge>
                     {lead.whatsapp ? (
                       <a
                         href={linkWhatsApp(lead.whatsapp, `Olá ${lead.nome.split(" ")[0]}, tudo bem? Passando pra saber se ficou alguma dúvida.`)}
