@@ -45,7 +45,7 @@ export function ImportarForm() {
         </Button>
       </div>
       <p className="text-xs text-text-dim">
-        Só rode uma vez — importar o mesmo arquivo de novo duplica os clientes.
+        Se você importar o mesmo arquivo de novo por engano, o app bloqueia — não duplica os clientes.
       </p>
     </form>
   );

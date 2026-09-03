@@ -1,10 +1,11 @@
 "use server";
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
+import { dataHora } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function serialParaData(serial: number): Date {
@@ -157,8 +158,28 @@ export async function importarDadosAntigos(
   }
   const { clientes, modelos, vendas, recebimentos, plataformas, apps } = parsed.data.dados;
 
+  // Reimportar o mesmo arquivo (ex: clicar de novo achando que não funcionou
+  // da primeira vez) duplicava clientes, vendas, movimentos e renovações —
+  // esse hash do conteúdo bloqueia a repetição.
+  const hash = createHash("sha256").update(texto).digest("hex");
+  const jaImportado = await prisma.importacaoAntiga.findUnique({
+    where: { revendedorId_hash: { revendedorId: revendedor.id, hash } },
+  });
+  if (jaImportado) {
+    return {
+      ok: false,
+      erro: `Esse mesmo arquivo já foi importado em ${dataHora(jaImportado.criadoEm)} — pra evitar duplicar clientes e vendas, essa importação foi bloqueada. Se algo não apareceu, confira em Clientes/Vendas antes de tentar de novo com outro arquivo.`,
+    };
+  }
+
   try {
-    return await importar({ revendedorId: revendedor.id, clientes, modelos, vendas, recebimentos, plataformas, apps });
+    const resultado = await importar({ revendedorId: revendedor.id, clientes, modelos, vendas, recebimentos, plataformas, apps });
+    if (resultado.ok) {
+      await prisma.importacaoAntiga.create({
+        data: { revendedorId: revendedor.id, hash, resumo: resultado.resumo },
+      });
+    }
+    return resultado;
   } catch (erro) {
     console.error("importarDadosAntigos: falha ao importar", erro);
     return { ok: false, erro: "Algo deu errado ao importar esse arquivo. Confira se ele é mesmo um backup do app antigo e tente de novo." };
@@ -182,136 +203,147 @@ async function importar({
   plataformas: z.infer<typeof plataformaAntigaSchema>[];
   apps: z.infer<typeof appAntigoSchema>[];
 }): Promise<{ ok: true; resumo: string } | { ok: false; erro: string }> {
-  const servicoIdPorNome = new Map<string, string>();
-  const clienteIdAntigoParaNovo = new Map<number, string>();
-  const produtoIdAntigoParaNovo = new Map<number, string>();
-  const plataformaIdAntigaParaNova = new Map<number, string>();
+  // Tudo roda numa única transação — se algo no meio do caminho falhar (ex:
+  // um produto com nome repetido, que colide com a restrição de unicidade),
+  // desfaz tudo em vez de deixar clientes/produtos já criados órfãos e só
+  // reportar erro no fim, como acontecia antes.
+  const resumo = await prisma.$transaction(
+    async (tx) => {
+      const servicoIdPorNome = new Map<string, string>();
+      const clienteIdAntigoParaNovo = new Map<number, string>();
+      const produtoIdAntigoParaNovo = new Map<number, string>();
+      const plataformaIdAntigaParaNova = new Map<number, string>();
 
-  // Plataformas e serviços costumam ser poucos (dezenas, não milhares) e
-  // precisam de upsert pra deduplicar por nome — mantidos sequenciais.
-  for (const p of plataformas) {
-    const criada = await prisma.plataforma.upsert({
-      where: { revendedorId_nome: { revendedorId, nome: p.nome } },
-      update: { minimo: p.minimo },
-      create: { revendedorId, nome: p.nome, minimo: p.minimo },
-    });
-    plataformaIdAntigaParaNova.set(p.id, criada.id);
-  }
-  const lotesData = plataformas.flatMap((p) =>
-    p.lotes.map((l) => ({
-      plataformaId: plataformaIdAntigaParaNova.get(p.id)!,
-      quantidade: l.qtd,
-      valorPago: l.valor,
-      data: parseData(l.data),
-    }))
-  );
-  if (lotesData.length > 0) await prisma.lotePlataforma.createMany({ data: lotesData });
+      // Plataformas e serviços costumam ser poucos (dezenas, não milhares) e
+      // precisam de upsert pra deduplicar por nome — mantidos sequenciais.
+      for (const p of plataformas) {
+        const criada = await tx.plataforma.upsert({
+          where: { revendedorId_nome: { revendedorId, nome: p.nome } },
+          update: { minimo: p.minimo },
+          create: { revendedorId, nome: p.nome, minimo: p.minimo },
+        });
+        plataformaIdAntigaParaNova.set(p.id, criada.id);
+      }
+      const lotesData = plataformas.flatMap((p) =>
+        p.lotes.map((l) => ({
+          plataformaId: plataformaIdAntigaParaNova.get(p.id)!,
+          quantidade: l.qtd,
+          valorPago: l.valor,
+          data: parseData(l.data),
+        }))
+      );
+      if (lotesData.length > 0) await tx.lotePlataforma.createMany({ data: lotesData });
 
-  const nomesServicos = new Set<string>([
-    ...clientes.map((c) => c.app).filter((v): v is string => Boolean(v)),
-    ...apps.map((a) => a.nome),
-  ]);
+      const nomesServicos = new Set<string>([
+        ...clientes.map((c) => c.app).filter((v): v is string => Boolean(v)),
+        ...apps.map((a) => a.nome),
+      ]);
 
-  for (const nome of nomesServicos) {
-    const appAntigo = apps.find((a) => a.nome === nome);
-    const plataformaId =
-      appAntigo?.plataformaId != null ? plataformaIdAntigaParaNova.get(appAntigo.plataformaId) ?? null : undefined;
+      for (const nome of nomesServicos) {
+        const appAntigo = apps.find((a) => a.nome === nome);
+        const plataformaId =
+          appAntigo?.plataformaId != null ? plataformaIdAntigaParaNova.get(appAntigo.plataformaId) ?? null : undefined;
 
-    const servico = await prisma.servico.upsert({
-      where: { revendedorId_nome: { revendedorId, nome } },
-      update: {
-        custoCredito: appAntigo?.credito ?? undefined,
-        cobrancaTelaExtra: appAntigo?.valorTela ?? undefined,
-        plataformaId,
-      },
-      create: {
+        const servico = await tx.servico.upsert({
+          where: { revendedorId_nome: { revendedorId, nome } },
+          update: {
+            custoCredito: appAntigo?.credito ?? undefined,
+            cobrancaTelaExtra: appAntigo?.valorTela ?? undefined,
+            plataformaId,
+          },
+          create: {
+            revendedorId,
+            nome,
+            custoCredito: appAntigo?.credito ?? null,
+            cobrancaTelaExtra: appAntigo?.valorTela ?? null,
+            plataformaId: plataformaId ?? null,
+          },
+        });
+        servicoIdPorNome.set(nome, servico.id);
+      }
+
+      // Clientes, produtos, vendas, movimentos e renovações podem chegar aos
+      // milhares num backup real — gerar os ids aqui e gravar em lote evita
+      // centenas de idas e vindas ao banco (e o timeout que isso causava).
+      const clientesData = clientes.map((c) => {
+        const id = randomUUID();
+        clienteIdAntigoParaNovo.set(c.id, id);
+        return {
+          id,
+          revendedorId,
+          servicoId: c.app ? servicoIdPorNome.get(c.app) ?? null : null,
+          nome: c.nome,
+          whatsapp: normalizarWhatsapp(c.tel),
+          telas: c.telas ?? 1,
+          plano: mapearPlano(c.plano),
+          valorPlano: c.valor ?? 0,
+          vencimento: serialParaData(c.venc),
+          testeGratis: c.teste ?? false,
+          status: c.inativo ? ("CANCELADO" as const) : ("ATIVO" as const),
+          anotacao: c.nota || null,
+          criadoEm: c.inicio ? serialParaData(c.inicio) : undefined,
+        };
+      });
+      if (clientesData.length > 0) await tx.cliente.createMany({ data: clientesData });
+
+      const produtosData = modelos.map((m) => {
+        const id = randomUUID();
+        produtoIdAntigoParaNovo.set(m.id, id);
+        return { id, revendedorId, modelo: m.nome, estoqueMinimo: m.minimo };
+      });
+      if (produtosData.length > 0) await tx.produto.createMany({ data: produtosData });
+
+      const entradasData = modelos.flatMap((m) =>
+        m.entradas.map((e) => ({
+          produtoId: produtoIdAntigoParaNovo.get(m.id)!,
+          tipo: "ENTRADA" as const,
+          quantidade: e.qtd,
+          custoUnitario: e.custo,
+          data: parseData(e.data),
+        }))
+      );
+      if (entradasData.length > 0) await tx.movimentoEstoque.createMany({ data: entradasData });
+
+      const vendasValidas = vendas.filter((v) => v.modeloId != null && produtoIdAntigoParaNovo.has(v.modeloId));
+      const vendasData = vendasValidas.map((v) => ({
         revendedorId,
-        nome,
-        custoCredito: appAntigo?.credito ?? null,
-        cobrancaTelaExtra: appAntigo?.valorTela ?? null,
-        plataformaId: plataformaId ?? null,
-      },
-    });
-    servicoIdPorNome.set(nome, servico.id);
-  }
-
-  // Clientes, produtos, vendas, movimentos e renovações podem chegar aos
-  // milhares num backup real — gerar os ids aqui e gravar em lote evita
-  // centenas de idas e vindas ao banco (e o timeout que isso causava).
-  const clientesData = clientes.map((c) => {
-    const id = randomUUID();
-    clienteIdAntigoParaNovo.set(c.id, id);
-    return {
-      id,
-      revendedorId,
-      servicoId: c.app ? servicoIdPorNome.get(c.app) ?? null : null,
-      nome: c.nome,
-      whatsapp: normalizarWhatsapp(c.tel),
-      telas: c.telas ?? 1,
-      plano: mapearPlano(c.plano),
-      valorPlano: c.valor ?? 0,
-      vencimento: serialParaData(c.venc),
-      testeGratis: c.teste ?? false,
-      status: c.inativo ? ("CANCELADO" as const) : ("ATIVO" as const),
-      anotacao: c.nota || null,
-      criadoEm: c.inicio ? serialParaData(c.inicio) : undefined,
-    };
-  });
-  if (clientesData.length > 0) await prisma.cliente.createMany({ data: clientesData });
-
-  const produtosData = modelos.map((m) => {
-    const id = randomUUID();
-    produtoIdAntigoParaNovo.set(m.id, id);
-    return { id, revendedorId, modelo: m.nome, estoqueMinimo: m.minimo };
-  });
-  if (produtosData.length > 0) await prisma.produto.createMany({ data: produtosData });
-
-  const entradasData = modelos.flatMap((m) =>
-    m.entradas.map((e) => ({
-      produtoId: produtoIdAntigoParaNovo.get(m.id)!,
-      tipo: "ENTRADA" as const,
-      quantidade: e.qtd,
-      custoUnitario: e.custo,
-      data: parseData(e.data),
-    }))
-  );
-  if (entradasData.length > 0) await prisma.movimentoEstoque.createMany({ data: entradasData });
-
-  const vendasValidas = vendas.filter((v) => v.modeloId != null && produtoIdAntigoParaNovo.has(v.modeloId));
-  const vendasData = vendasValidas.map((v) => ({
-    revendedorId,
-    produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
-    quantidade: v.qtd,
-    valorUnitario: v.unit,
-    formaPagamento: v.pagamento || "Pix",
-    data: parseData(v.data),
-  }));
-  if (vendasData.length > 0) await prisma.venda.createMany({ data: vendasData });
-  if (vendasValidas.length > 0) {
-    await prisma.movimentoEstoque.createMany({
-      data: vendasValidas.map((v) => ({
         produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
-        tipo: "SAIDA" as const,
         quantidade: v.qtd,
-        custoUnitario: 0,
+        valorUnitario: v.unit,
+        formaPagamento: v.pagamento || "Pix",
         data: parseData(v.data),
-      })),
-    });
-  }
-  const vendasImportadas = vendasValidas.length;
+      }));
+      if (vendasData.length > 0) await tx.venda.createMany({ data: vendasData });
+      if (vendasValidas.length > 0) {
+        await tx.movimentoEstoque.createMany({
+          data: vendasValidas.map((v) => ({
+            produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
+            tipo: "SAIDA" as const,
+            quantidade: v.qtd,
+            custoUnitario: 0,
+            data: parseData(v.data),
+          })),
+        });
+      }
+      const vendasImportadas = vendasValidas.length;
 
-  const recebimentosValidos = recebimentos.filter(
-    (r) => r.clienteId != null && clienteIdAntigoParaNovo.has(r.clienteId)
+      const recebimentosValidos = recebimentos.filter(
+        (r) => r.clienteId != null && clienteIdAntigoParaNovo.has(r.clienteId)
+      );
+      const renovacoesData = recebimentosValidos.map((r) => ({
+        clienteId: clienteIdAntigoParaNovo.get(r.clienteId!)!,
+        plano: mapearPlano(r.tipo),
+        valor: r.valor,
+        custo: r.custo,
+        data: parseData(r.data),
+      }));
+      if (renovacoesData.length > 0) await tx.renovacao.createMany({ data: renovacoesData });
+      const renovacoesImportadas = renovacoesData.length;
+
+      return `Importado: ${clientes.length} clientes, ${nomesServicos.size} apps (com preço/plataforma), ${plataformas.length} plataformas, ${modelos.length} modelos de produto, ${vendasImportadas} vendas, ${renovacoesImportadas} renovações.`;
+    },
+    { timeout: 120000 }
   );
-  const renovacoesData = recebimentosValidos.map((r) => ({
-    clienteId: clienteIdAntigoParaNovo.get(r.clienteId!)!,
-    plano: mapearPlano(r.tipo),
-    valor: r.valor,
-    custo: r.custo,
-    data: parseData(r.data),
-  }));
-  if (renovacoesData.length > 0) await prisma.renovacao.createMany({ data: renovacoesData });
-  const renovacoesImportadas = renovacoesData.length;
 
   revalidatePath("/painel");
   revalidatePath("/clientes");
@@ -321,8 +353,5 @@ async function importar({
   revalidatePath("/plataformas");
   revalidatePath("/precificacao");
 
-  return {
-    ok: true,
-    resumo: `Importado: ${clientes.length} clientes, ${nomesServicos.size} apps (com preço/plataforma), ${plataformas.length} plataformas, ${modelos.length} modelos de produto, ${vendasImportadas} vendas, ${renovacoesImportadas} renovações.`,
-  };
+  return { ok: true, resumo };
 }

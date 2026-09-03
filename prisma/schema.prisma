@@ -107,6 +107,21 @@ model Revendedor {
   funcionarios    Funcionario[]
   pushSubscriptions PushSubscription[]
   logsAtividade   LogAtividade[]
+  importacoesAntigas ImportacaoAntiga[]
+}
+
+// Marca cada arquivo de backup do app antigo já importado (pelo hash do
+// conteúdo) — sem isso, reimportar o mesmo arquivo duplicava todos os
+// clientes, vendas, movimentos de estoque e renovações.
+model ImportacaoAntiga {
+  id           String   @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  hash         String
+  resumo       String
+  criadoEm     DateTime @default(now())
+
+  @@unique([revendedorId, hash])
 }
 
 // Registro de ações sensíveis feitas por quem loga (dono ou funcionário) —
