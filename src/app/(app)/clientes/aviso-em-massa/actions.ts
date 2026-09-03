@@ -41,3 +41,15 @@ export async function publicarAvisoEmMassa({
   revalidatePath("/painel");
   return { ok: true };
 }
+
+export async function registrarAvisoEnviado(clienteId: string, modelo: string) {
+  const revendedor = await exigirRevendedor();
+  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId, revendedorId: revendedor.id } });
+  if (!cliente) return;
+  await prisma.avisoEnvio.upsert({
+    where: { clienteId_modelo: { clienteId, modelo } },
+    update: { enviadoEm: new Date() },
+    create: { clienteId, modelo },
+  });
+  revalidatePath("/clientes/aviso-em-massa");
+}

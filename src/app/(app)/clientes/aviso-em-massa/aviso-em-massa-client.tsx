@@ -3,9 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { faixaVencimento } from "@/lib/planos";
-import { linkWhatsApp, preencherModelo } from "@/lib/mensagens";
+import { preencherModelo } from "@/lib/mensagens";
 import { brl, dataCurta } from "@/lib/format";
 import { publicarAvisoEmMassa } from "./actions";
+import { RegistrarAvisoLink } from "./registrar-aviso-link";
 
 type ClienteResumo = {
   id: string;
@@ -29,10 +30,12 @@ export function AvisoEmMassaClient({
   servicos,
   clientes,
   modelosComunicado,
+  avisosEnviados,
 }: {
   servicos: { id: string; nome: string }[];
   clientes: ClienteResumo[];
   modelosComunicado: Record<string, string>;
+  avisosEnviados: { clienteId: string; modelo: string }[];
 }) {
   const MODELOS_COMUNICADO = modelosComunicado;
   const [servicoFiltro, setServicoFiltro] = useState("");
@@ -44,7 +47,13 @@ export function AvisoEmMassaClient({
   const [aplicarReajuste, setAplicarReajuste] = useState(false);
   const [novoValor, setNovoValor] = useState(0);
   const [enviado, setEnviado] = useState(false);
+  const [enviadosAgora, setEnviadosAgora] = useState<Set<string>>(new Set());
   const [pendente, iniciarTransicao] = useTransition();
+
+  const jaReceberamEsseModelo = useMemo(
+    () => new Set(avisosEnviados.filter((a) => a.modelo === modelo).map((a) => a.clienteId)),
+    [avisosEnviados, modelo]
+  );
 
   const filtrados = useMemo(() => {
     return clientes.filter((c) => {
@@ -91,13 +100,29 @@ export function AvisoEmMassaClient({
         <div className="flex flex-col divide-y divide-border">
           {clientesSelecionados.map((c) => {
             const texto = preencherModelo(mensagem, { nome: c.nome, app: c.servicoNome ?? "" });
+            const jaEnviado = enviadosAgora.has(c.id);
             return (
               <div key={c.id} className="flex items-center justify-between gap-3 py-2">
-                <span className="truncate text-sm text-text">{c.nome}</span>
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm text-text">{c.nome}</span>
+                  {jaReceberamEsseModelo.has(c.id) ? (
+                    <span className="text-[11px] text-warning">já tinha recebido este aviso antes</span>
+                  ) : null}
+                </div>
                 {c.whatsapp ? (
-                  <a href={linkWhatsApp(c.whatsapp, texto)} target="_blank" rel="noreferrer">
-                    <Button variant="whatsapp">Enviar</Button>
-                  </a>
+                  jaEnviado ? (
+                    <Badge tone="success">Enviado ✓</Badge>
+                  ) : (
+                    <RegistrarAvisoLink
+                      clienteId={c.id}
+                      whatsapp={c.whatsapp}
+                      mensagem={texto}
+                      modelo={modelo}
+                      onEnviado={() => setEnviadosAgora((atual) => new Set(atual).add(c.id))}
+                    >
+                      <Button variant="whatsapp">Enviar</Button>
+                    </RegistrarAvisoLink>
+                  )
                 ) : (
                   <span className="text-xs text-text-dim">sem WhatsApp</span>
                 )}
@@ -139,7 +164,13 @@ export function AvisoEmMassaClient({
             Selecionados: {selecionados.size} de {filtrados.length}
           </p>
           <div className="flex gap-3 text-xs font-semibold">
-            <button type="button" className="text-accent" onClick={() => setSelecionados(new Set(filtrados.map((c) => c.id)))}>
+            <button
+              type="button"
+              className="text-accent"
+              onClick={() =>
+                setSelecionados(new Set(filtrados.filter((c) => !jaReceberamEsseModelo.has(c.id)).map((c) => c.id)))
+              }
+            >
               Marcar todos
             </button>
             <button type="button" className="text-text-dim" onClick={() => setSelecionados(new Set())}>
@@ -147,23 +178,35 @@ export function AvisoEmMassaClient({
             </button>
           </div>
         </div>
+        {jaReceberamEsseModelo.size > 0 ? (
+          <p className="mt-1 text-[11px] text-text-dim">
+            Quem já recebeu &quot;{modelo}&quot; fica marcado abaixo e fora de &quot;Marcar todos&quot; — selecione manualmente se quiser reenviar.
+          </p>
+        ) : null}
 
         <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border">
           {filtrados.length === 0 ? (
             <p className="p-3 text-sm text-text-dim">Nenhum cliente nesse filtro.</p>
           ) : (
-            filtrados.map((c) => (
-              <label key={c.id} className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-0">
-                <input
-                  type="checkbox"
-                  checked={selecionados.has(c.id)}
-                  onChange={() => alternarSelecionado(c.id)}
-                  className="h-4 w-4 rounded border-border-strong bg-bg-deep accent-accent"
-                />
-                <span className="flex-1 truncate text-sm text-text">{c.nome}</span>
-                <Badge tone="neutral">{dataCurta(new Date(c.vencimento))}</Badge>
-              </label>
-            ))
+            filtrados.map((c) => {
+              const jaRecebeu = jaReceberamEsseModelo.has(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className={`flex items-center gap-3 border-b border-border px-3 py-2 last:border-0 ${jaRecebeu ? "opacity-60" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selecionados.has(c.id)}
+                    onChange={() => alternarSelecionado(c.id)}
+                    className="h-4 w-4 rounded border-border-strong bg-bg-deep accent-accent"
+                  />
+                  <span className="flex-1 truncate text-sm text-text">{c.nome}</span>
+                  {jaRecebeu ? <Badge tone="warning">Já recebeu</Badge> : null}
+                  <Badge tone="neutral">{dataCurta(new Date(c.vencimento))}</Badge>
+                </label>
+              );
+            })
           )}
         </div>
       </Card>

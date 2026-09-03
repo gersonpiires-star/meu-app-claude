@@ -7,7 +7,7 @@ import { AvisoEmMassaClient } from "./aviso-em-massa-client";
 export default async function AvisoEmMassaPage() {
   const revendedor = await exigirRevendedor();
 
-  const [servicos, clientes, overridesModelos] = await Promise.all([
+  const [servicos, clientes, overridesModelos, avisosEnviados] = await Promise.all([
     prisma.servico.findMany({ where: { revendedorId: revendedor.id }, orderBy: { nome: "asc" } }),
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
@@ -15,6 +15,10 @@ export default async function AvisoEmMassaPage() {
       orderBy: { nome: "asc" },
     }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
+    prisma.avisoEnvio.findMany({
+      where: { cliente: { revendedorId: revendedor.id } },
+      select: { clienteId: true, modelo: true },
+    }),
   ]);
 
   const modelosMesclados = mesclarModelos(overridesModelos);
@@ -33,6 +37,7 @@ export default async function AvisoEmMassaPage() {
       </div>
       <AvisoEmMassaClient
         modelosComunicado={modelosComunicado}
+        avisosEnviados={avisosEnviados}
         servicos={servicos.map((s) => ({ id: s.id, nome: s.nome }))}
         clientes={clientes.map((c) => ({
           id: c.id,

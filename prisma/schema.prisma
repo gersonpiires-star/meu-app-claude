@@ -225,13 +225,26 @@ model Cliente {
   criadoEm    DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  renovacoes Renovacao[]
-  pagamentos Pagamento[]
-  vendas     Venda[]
-  cobrancas  Cobranca[]
+  renovacoes    Renovacao[]
+  pagamentos    Pagamento[]
+  vendas        Venda[]
+  cobrancas     Cobranca[]
+  avisosEnviados AvisoEnvio[]
 
   @@index([revendedorId, status])
   @@index([revendedorId, vencimento])
+}
+
+// Marca quando um cliente recebeu um determinado modelo de aviso em massa,
+// pra evitar reenviar o mesmo comunicado pra quem já recebeu.
+model AvisoEnvio {
+  id        String   @id @default(cuid())
+  clienteId String
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  modelo    String
+  enviadoEm DateTime @default(now())
+
+  @@unique([clienteId, modelo])
 }
 
 // Registro de cada vez que uma mensagem de cobrança é enviada pro cliente
