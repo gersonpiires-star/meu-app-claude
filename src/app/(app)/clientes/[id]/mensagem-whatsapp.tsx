@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { Button, Field, Select, Textarea } from "@/components/ui";
-import { linkWhatsApp, preencherModelo } from "@/lib/mensagens";
+import { preencherModelo } from "@/lib/mensagens";
+import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 
 export function MensagemWhatsApp({
+  clienteId,
   whatsapp,
   dados,
   chaves = [],
   modelos,
 }: {
+  clienteId: string;
   whatsapp: string | null;
   dados: Record<string, string>;
   chaves?: { id: string; tipo: string; valor: string }[];
@@ -64,11 +67,11 @@ export function MensagemWhatsApp({
         </Field>
       ) : null}
 
-      <a href={linkWhatsApp(whatsapp, mensagemFinal)} target="_blank" rel="noreferrer">
+      <RegistrarCobrancaLink clienteId={clienteId} whatsapp={whatsapp} mensagem={mensagemFinal} modelo={modelo}>
         <Button variant="whatsapp" className="w-full">
           Avisar cliente no WhatsApp
         </Button>
-      </a>
+      </RegistrarCobrancaLink>
     </div>
   );
 }

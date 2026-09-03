@@ -26,7 +26,7 @@ export function NavShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-surface p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
         <div className="mb-6 flex items-center gap-2 px-1">
           <div className="h-8 w-8 rounded-lg bg-accent" />
           <span className="text-sm font-bold">GestorPro</span>

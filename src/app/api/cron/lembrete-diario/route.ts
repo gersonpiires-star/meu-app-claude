@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
+import { dadosMes } from "@/lib/relatorio";
 
 // Disparado uma vez por dia pelo Cron da Vercel (ver vercel.json). Faz duas
 // coisas de manhã, por revendedor: aplica a suspensão automática de quem
@@ -26,13 +27,42 @@ export async function GET(req: NextRequest) {
     include: { pushSubscriptions: true },
   });
 
+  // No último dia do mês, arquiva o resultado de cada revendedor sem
+  // precisar que ele clique em nada (igual ao protótipo original).
+  const ultimoDiaDoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+  const ehUltimoDia = agora.getDate() === ultimoDiaDoMes;
+
   let suspensos = 0;
   let notificados = 0;
+  let fechados = 0;
 
   for (const revendedor of revendedores) {
     const clientes = await prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
     });
+
+    if (ehUltimoDia) {
+      const jaFechou = await prisma.fechamentoMes.findUnique({
+        where: {
+          revendedorId_ano_mes: { revendedorId: revendedor.id, ano: agora.getFullYear(), mes: agora.getMonth() },
+        },
+      });
+      if (!jaFechou) {
+        const dados = await dadosMes(revendedor.id, agora.getFullYear(), agora.getMonth());
+        await prisma.fechamentoMes.create({
+          data: {
+            revendedorId: revendedor.id,
+            ano: agora.getFullYear(),
+            mes: agora.getMonth(),
+            receita: dados.receita,
+            custo: dados.custo,
+            lucro: dados.lucro,
+            clientesAtivos: clientes.length,
+          },
+        });
+        fechados++;
+      }
+    }
 
     if (revendedor.diasParaCancelarAutomatico) {
       for (const cliente of clientes) {
@@ -120,5 +150,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin });
+  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin, fechados });
 }

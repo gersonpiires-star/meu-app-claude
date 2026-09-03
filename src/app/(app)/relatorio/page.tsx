@@ -1,8 +1,12 @@
 import { exigirRevendedor } from "@/lib/sessao";
+import { prisma } from "@/lib/prisma";
 import { dadosMes, proximoMes, ultimosMeses } from "@/lib/relatorio";
-import { brl } from "@/lib/format";
+import { limitesDoMes } from "@/lib/dados";
+import { gradeDoMes } from "@/lib/calendario";
+import { brl, dataPorExtenso } from "@/lib/format";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { GraficoMeses } from "./grafico-meses";
+import { CalendarioMes } from "./calendario-mes";
 
 const MESES_NOME = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -20,11 +24,22 @@ export default async function RelatorioPage({
   const ano = anoParam ? Number(anoParam) : agora.getFullYear();
   const mes = mesParam ? Number(mesParam) : agora.getMonth();
 
-  const [meses, dados, futuro] = await Promise.all([
+  const { inicio: inicioMesAtual, fim: fimMesAtual } = limitesDoMes(agora);
+  const [meses, dados, futuro, fechamentos, clientesDoMesAtual] = await Promise.all([
     ultimosMeses(revendedor.id),
     dadosMes(revendedor.id, ano, mes),
     proximoMes(revendedor.id),
+    prisma.fechamentoMes.findMany({
+      where: { revendedorId: revendedor.id },
+      orderBy: [{ ano: "desc" }, { mes: "desc" }],
+      take: 12,
+    }),
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id, status: { not: "CANCELADO" }, vencimento: { gte: inicioMesAtual, lt: fimMesAtual } },
+      select: { vencimento: true },
+    }),
   ]);
+  const celulasCalendario = gradeDoMes(clientesDoMesAtual.map((c) => c.vencimento), agora);
 
   return (
     <div className="flex flex-col gap-5">
@@ -112,6 +127,37 @@ export default async function RelatorioPage({
           </div>
         )}
       </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-bold text-text">Calendário do mês</h2>
+        <CalendarioMes celulas={celulasCalendario} hojeDia={agora.getDate()} />
+      </Card>
+
+      {fechamentos.length > 0 ? (
+        <Card>
+          <h2 className="mb-3 text-sm font-bold text-text">Fechamentos de mês</h2>
+          <div className="flex flex-col divide-y divide-border text-sm">
+            {fechamentos.map((f) => (
+              <div key={f.id} className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-semibold text-text">
+                    {MESES_NOME[f.mes][0].toUpperCase() + MESES_NOME[f.mes].slice(1)} de {f.ano}
+                  </p>
+                  <p className="text-xs text-text-dim">
+                    {f.clientesAtivos} cliente(s) · arquivado em {dataPorExtenso(f.fechadoEm)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-accent">{brl(f.lucro)}</p>
+                  <p className="text-xs text-text-dim">
+                    {brl(f.receita)} − {brl(f.custo)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <h2 className="mb-1 text-sm font-bold text-text">O que vem por aí</h2>

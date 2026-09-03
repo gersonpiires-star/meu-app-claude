@@ -7,11 +7,18 @@ import { registrarVenda } from "../actions";
 
 export default async function NovaVendaPage() {
   const revendedor = await exigirRevendedor();
-  const produtos = await prisma.produto.findMany({
-    where: { revendedorId: revendedor.id },
-    orderBy: { modelo: "asc" },
-    select: { id: true, modelo: true },
-  });
+  const [produtos, clientes] = await Promise.all([
+    prisma.produto.findMany({
+      where: { revendedorId: revendedor.id },
+      orderBy: { modelo: "asc" },
+      select: { id: true, modelo: true },
+    }),
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
+      orderBy: { nome: "asc" },
+      select: { id: true, nome: true },
+    }),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
@@ -20,7 +27,7 @@ export default async function NovaVendaPage() {
       </Link>
       <h1 className="text-lg font-bold text-text">Registrar venda</h1>
       <Card>
-        <VendaForm acao={registrarVenda} produtos={produtos} />
+        <VendaForm acao={registrarVenda} produtos={produtos} clientes={clientes} />
       </Card>
     </div>
   );

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { faixaVencimento } from "@/lib/planos";
+import { ehAniversarioDeCasa } from "@/lib/aniversario";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
@@ -82,6 +83,10 @@ export async function dadosPainel(revendedorId: string) {
   const baseRetencao = naoCancelados.length + canceladosMes;
   const taxaRetencao = baseRetencao > 0 ? (naoCancelados.length / baseRetencao) * 100 : 100;
 
+  const aniversariantes = naoCancelados
+    .map((c) => ({ cliente: c, ...ehAniversarioDeCasa(c.criadoEm, agora) }))
+    .filter((a) => a.ehAniversario);
+
   return {
     receitaRecorrente,
     receitaApar,
@@ -96,6 +101,7 @@ export async function dadosPainel(revendedorId: string) {
     vencidos,
     canceladosMes,
     taxaRetencao,
+    aniversariantes,
     produtosBaixoEstoque,
     temClientes: clientes.length > 0,
   };

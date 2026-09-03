@@ -227,9 +227,24 @@ model Cliente {
 
   renovacoes Renovacao[]
   pagamentos Pagamento[]
+  vendas     Venda[]
+  cobrancas  Cobranca[]
 
   @@index([revendedorId, status])
   @@index([revendedorId, vencimento])
+}
+
+// Registro de cada vez que uma mensagem de cobrança é enviada pro cliente
+// pelo WhatsApp — usado só pra calcular a pontualidade (quantas cobranças
+// foram precisas por pagamento recebido).
+model Cobranca {
+  id        String @id @default(cuid())
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  modelo    String
+  criadoEm  DateTime @default(now())
+
+  @@index([clienteId, criadoEm])
 }
 
 model Renovacao {
@@ -273,6 +288,8 @@ model Venda {
   revendedor     Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   produtoId      String
   produto        Produto @relation(fields: [produtoId], references: [id])
+  clienteId      String?
+  cliente        Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   quantidade      Int
   valorUnitario   Float
@@ -325,15 +342,16 @@ model Interessado {
 }
 
 model FechamentoMes {
-  id           String @id @default(cuid())
-  revendedorId String
-  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
-  ano          Int
-  mes          Int
-  receita      Float
-  custo        Float
-  lucro        Float
-  fechadoEm    DateTime @default(now())
+  id             String @id @default(cuid())
+  revendedorId   String
+  revendedor     Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  ano            Int
+  mes            Int
+  receita        Float
+  custo          Float
+  lucro          Float
+  clientesAtivos Int @default(0)
+  fechadoEm      DateTime @default(now())
 
   @@unique([revendedorId, ano, mes])
 }

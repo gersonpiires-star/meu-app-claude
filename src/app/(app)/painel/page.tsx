@@ -3,8 +3,9 @@ import { exigirRevendedor } from "@/lib/sessao";
 import { dadosPainel } from "@/lib/dados";
 import { brl, brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL } from "@/lib/planos";
-import { linkWhatsApp, MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
+import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { RegistrarCobrancaLink } from "./registrar-cobranca-link";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -70,6 +71,24 @@ export default async function PainelPage() {
         />
       </div>
 
+      {dados.aniversariantes.length > 0 ? (
+        <Card>
+          <h2 className="mb-3 text-sm font-bold text-text">Aniversário de casa 🎉</h2>
+          <div className="flex flex-col gap-2">
+            {dados.aniversariantes.map(({ cliente, anos }) => (
+              <div key={cliente.id} className="flex items-center justify-between text-sm">
+                <Link href={`/clientes/${cliente.id}`} className="text-text-muted hover:text-accent">
+                  {cliente.nome}
+                </Link>
+                <Badge tone="accent">
+                  {anos} ano{anos === 1 ? "" : "s"} de casa
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       {dados.produtosBaixoEstoque.length > 0 ? (
         <Card>
           <div className="mb-3 flex items-center justify-between">
@@ -124,11 +143,16 @@ export default async function PainelPage() {
                     </p>
                   </div>
                   {cliente.whatsapp ? (
-                    <a href={linkWhatsApp(cliente.whatsapp, mensagem)} target="_blank" rel="noreferrer">
+                    <RegistrarCobrancaLink
+                      clienteId={cliente.id}
+                      whatsapp={cliente.whatsapp}
+                      mensagem={mensagem}
+                      modelo={vencido ? "Vencido" : "Lembrete"}
+                    >
                       <Button variant="whatsapp" className="whitespace-nowrap">
                         Cobrar agora
                       </Button>
-                    </a>
+                    </RegistrarCobrancaLink>
                   ) : null}
                 </div>
               );

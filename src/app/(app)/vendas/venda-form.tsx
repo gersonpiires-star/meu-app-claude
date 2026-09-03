@@ -8,9 +8,11 @@ const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de 
 export function VendaForm({
   acao,
   produtos,
+  clientes = [],
 }: {
   acao: (formData: FormData) => Promise<void>;
   produtos: { id: string; modelo: string }[];
+  clientes?: { id: string; nome: string }[];
 }) {
   const [pendente, iniciarTransicao] = useTransition();
 
@@ -24,6 +26,17 @@ export function VendaForm({
           {produtos.map((p) => (
             <option key={p.id} value={p.id}>
               {p.modelo}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Cliente (opcional)">
+        <Select name="clienteId" defaultValue="">
+          <option value="">Venda avulsa — sem cliente</option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
             </option>
           ))}
         </Select>

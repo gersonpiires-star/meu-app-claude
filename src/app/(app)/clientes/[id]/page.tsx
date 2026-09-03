@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { brl, dataPorExtenso, iniciais } from "@/lib/format";
 import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 import { mesclarModelos } from "@/lib/mensagens";
+import { faixaPontualidade } from "@/lib/pontualidade";
 import { Badge, Button, Card } from "@/components/ui";
 import { renovarCliente, cancelarCliente, excluirCliente, corrigirVencimento, aplicarReajusteCliente } from "../actions";
 import { ReajusteForm } from "./reajuste-form";
@@ -42,7 +43,12 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const [cliente, chaves, overridesModelos] = await Promise.all([
     prisma.cliente.findUnique({
       where: { id, revendedorId: revendedor.id },
-      include: { servico: true, renovacoes: { orderBy: { data: "desc" } } },
+      include: {
+        servico: true,
+        renovacoes: { orderBy: { data: "desc" } },
+        vendas: true,
+        _count: { select: { cobrancas: true } },
+      },
     }),
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
@@ -51,9 +57,12 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const modelos = mesclarModelos(overridesModelos);
 
   const faixa = faixaVencimento(cliente.vencimento);
-  const jaRendeu = cliente.renovacoes.reduce((a, r) => a + r.valor, 0);
+  const ltvRenovacoes = cliente.renovacoes.reduce((a, r) => a + r.valor, 0);
+  const ltvVendas = cliente.vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
+  const jaRendeu = ltvRenovacoes + ltvVendas;
   const cancelado = cliente.status === "CANCELADO";
   const clienteNovo = ehClienteNovo(cliente.criadoEm);
+  const pontualidade = faixaPontualidade(cliente._count.cobrancas, cliente.renovacoes.length);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
@@ -94,6 +103,19 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
               {faixa === "VENCIDO" ? "Vencido" : faixa === "ATE_5_DIAS" ? "Vencendo" : "Em dia"}
             </Badge>
           )}
+          {pontualidade.faixa !== "SEM_HISTORICO" ? (
+            <Badge
+              tone={
+                pontualidade.faixa === "PAGA_SOZINHO" || pontualidade.faixa === "PAGA_NA_LEMBRANCA"
+                  ? "success"
+                  : pontualidade.faixa === "PRECISA_INSISTIR"
+                    ? "warning"
+                    : "danger"
+              }
+            >
+              {pontualidade.label}
+            </Badge>
+          ) : null}
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -128,6 +150,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Já rendeu</p>
             <p className="mt-0.5 font-semibold text-accent">{brl(jaRendeu)}</p>
+            {ltvVendas > 0 ? <p className="text-xs text-text-dim">Inclui {brl(ltvVendas)} em aparelhos</p> : null}
           </div>
         </div>
 
@@ -155,6 +178,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Falar com o cliente</h2>
         <MensagemWhatsApp
+          clienteId={id}
           whatsapp={cliente.whatsapp}
           chaves={chaves}
           modelos={modelos}

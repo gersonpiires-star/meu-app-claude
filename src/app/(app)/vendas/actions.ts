@@ -8,6 +8,7 @@ import { exigirRevendedor } from "@/lib/sessao";
 
 const vendaSchema = z.object({
   produtoId: z.string().min(1, "Selecione um produto"),
+  clienteId: z.string().trim().optional(),
   quantidade: z.coerce.number().int().min(1),
   valorUnitario: z.coerce.number().min(0),
   formaPagamento: z.string().trim().min(1, "Informe a forma de pagamento"),
@@ -23,6 +24,7 @@ export async function registrarVenda(formData: FormData) {
       data: {
         revendedorId: revendedor.id,
         produtoId: dados.produtoId,
+        clienteId: dados.clienteId || null,
         quantidade: dados.quantidade,
         valorUnitario: dados.valorUnitario,
         formaPagamento: dados.formaPagamento,
