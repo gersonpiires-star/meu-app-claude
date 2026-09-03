@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, fmtTelefone, iniciais } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
+import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
+import { CobrarBotao } from "./cobrar-botao";
 
 const ABAS = [
   { chave: "todos", label: "Todos" },
@@ -43,11 +45,14 @@ export default async function ClientesPage({
   const revendedor = await exigirRevendedor();
   const { aba = "ativos" } = await searchParams;
 
-  const clientes = await prisma.cliente.findMany({
-    where: { revendedorId: revendedor.id },
-    include: { servico: true },
-    orderBy: { vencimento: "asc" },
-  });
+  const [clientes, cobradosHoje] = await Promise.all([
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id },
+      include: { servico: true },
+      orderBy: { vencimento: "asc" },
+    }),
+    cobradosHojePorCliente(revendedor.id),
+  ]);
 
   const filtrados = clientes.filter((c) => {
     if (aba === "cancelados") return c.status === "CANCELADO";
@@ -135,11 +140,7 @@ export default async function ClientesPage({
                   </span>
                   <span className="hidden md:flex md:gap-1.5">
                     {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
-                      <Link href={`/clientes/${cliente.id}/cobranca`} className="flex-1">
-                        <Button variant="ghost" className="w-full">
-                          Cobrar
-                        </Button>
-                      </Link>
+                      <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="flex-1" />
                     ) : null}
                     {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="flex-1" /> : null}
                   </span>
@@ -164,11 +165,7 @@ export default async function ClientesPage({
                     {cliente.status !== "CANCELADO" ? (
                       <div className="flex gap-2 pl-12">
                         {cliente.whatsapp ? (
-                          <Link href={`/clientes/${cliente.id}/cobranca`} className="flex-1">
-                            <Button variant="ghost" className="w-full">
-                              Cobrar
-                            </Button>
-                          </Link>
+                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="flex-1" />
                         ) : null}
                         <RenovarBotao clienteId={cliente.id} className="flex-1" />
                       </div>

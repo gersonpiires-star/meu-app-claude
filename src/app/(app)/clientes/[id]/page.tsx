@@ -17,6 +17,7 @@ import { CorrigirVencimento } from "./corrigir-vencimento";
 import { ConverterTesteBotao } from "./converter-teste-botao";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 import { RenovarBotao } from "../renovar-em-lote/renovar-botao";
+import { CobrarBotao } from "../cobrar-botao";
 
 type Tom = "neutral" | "danger" | "warning" | "success";
 
@@ -138,8 +139,6 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const hoje0 = new Date();
   hoje0.setHours(0, 0, 0, 0);
   const cobrancasHoje = cliente.cobrancas.filter((c) => c.criadoEm >= hoje0);
-  const cobradoHoje = cobrancasHoje.length > 0;
-  const cobrarLabel = cobradoHoje ? `Já cobrado hoje · ${horaCurta(cobrancasHoje[0].criadoEm)}` : "Cobrar no WhatsApp";
 
   const renovado = cliente.renovacoes.length > 0;
   const renTexto = renovado
@@ -211,7 +210,6 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         <InfoTile label="Telas" value={`${cliente.telas} tela${cliente.telas === 1 ? "" : "s"}`} />
         <InfoTile label="Vencimento" value={cliente.diaFixo ? `Dia ${cliente.diaFixo}` : "Pelo plano"} />
         <InfoTile label="Serviço" value={cliente.servico?.nome ?? "—"} />
-        <InfoTile label="Renovação" value={renTexto} span2 tom={renovado ? "success" : "neutral"} />
       </div>
 
       {clienteNovo ? (
@@ -354,14 +352,17 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         </Card>
       ) : null}
 
-      <Card>
-        <h2 className="mb-2 text-sm font-bold text-text">Histórico</h2>
-        <div className="flex flex-col">
+      <Card className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-text">Histórico</h2>
+          <span className={cx("text-xs font-semibold", renovado ? "text-accent" : "text-text-dim")}>{renTexto}</span>
+        </div>
+        <div className="flex max-h-72 flex-col overflow-y-auto">
           {historico.map((h, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0">
               <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", BARRA_COR[h.tom])} />
               <span className={cx("flex-1 text-sm", h.tom === "danger" ? "text-danger" : "text-text-muted")}>{h.label}</span>
-              <span className="text-xs text-text-dim">{h.data}</span>
+              <span className="shrink-0 text-xs text-text-dim">{h.data}</span>
             </div>
           ))}
         </div>
@@ -370,11 +371,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
       {!cancelado ? (
         <div className="flex flex-col gap-2">
           {cliente.whatsapp ? (
-            <Link href={`/clientes/${id}/cobranca`}>
-              <Button variant="whatsapp" className="w-full">
-                {cobrarLabel}
-              </Button>
-            </Link>
+            <CobrarBotao clienteId={id} cobradoEm={cobrancasHoje[0]?.criadoEm ?? null} label="Cobrar no WhatsApp" variant="whatsapp" />
           ) : (
             <Link href={`/clientes/${id}/editar`}>
               <Button variant="ghost" className="w-full">

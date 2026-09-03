@@ -4,7 +4,9 @@ import { dadosPainel } from "@/lib/dados";
 import { brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL } from "@/lib/planos";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
+import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
+import { CobrarBotao } from "../clientes/cobrar-botao";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -13,7 +15,7 @@ const MESES = [
 
 export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
-  const dados = await dadosPainel(revendedor.id);
+  const [dados, cobradosHoje] = await Promise.all([dadosPainel(revendedor.id), cobradosHojePorCliente(revendedor.id)]);
   const agora = new Date();
 
   return (
@@ -177,11 +179,13 @@ export default async function PainelPage() {
                 </div>
                 <div className="flex shrink-0 gap-2">
                   {cliente.whatsapp ? (
-                    <Link href={`/clientes/${cliente.id}/cobranca`}>
-                      <Button variant="whatsapp" className="whitespace-nowrap">
-                        Cobrar agora
-                      </Button>
-                    </Link>
+                    <CobrarBotao
+                      clienteId={cliente.id}
+                      cobradoEm={cobradosHoje.get(cliente.id) ?? null}
+                      label="Cobrar agora"
+                      variant="whatsapp"
+                      className="whitespace-nowrap"
+                    />
                   ) : null}
                   <RenovarBotao clienteId={cliente.id} className="whitespace-nowrap" />
                 </div>
