@@ -17,9 +17,16 @@ export function CobrarBotao({
 }) {
   if (cobradoEm) {
     return (
-      <Button variant="ghost" disabled className={cx("w-full whitespace-nowrap", className)}>
-        Já cobrado hoje · {horaCurta(cobradoEm)}
-      </Button>
+      <button
+        type="button"
+        disabled
+        className={cx(
+          "inline-flex w-full items-center justify-center rounded-xl border border-accent-strong bg-transparent px-4 py-2.5 text-sm font-semibold text-accent disabled:cursor-not-allowed",
+          className
+        )}
+      >
+        ✓ {horaCurta(cobradoEm)}
+      </button>
     );
   }
 

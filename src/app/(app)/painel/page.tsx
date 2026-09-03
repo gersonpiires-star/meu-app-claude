@@ -44,7 +44,7 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-[1.7fr_1fr_1fr_1fr_1fr]">
+      <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-[1.7fr_1fr_1fr_1fr_1fr]">
         <Card className="col-span-2 flex flex-col gap-2.5 bg-gradient-to-br from-accent-soft to-surface md:col-span-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Entrou no mês</span>
@@ -88,26 +88,26 @@ export default async function PainelPage() {
           </div>
         </Card>
 
-        <Link href="/clientes?aba=ativos">
-          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+        <Link href="/clientes?aba=ativos" className="flex">
+          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
             <span className="text-xl font-bold text-text">{dados.ativos}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
           </Card>
         </Link>
-        <Link href="/clientes?aba=atencao">
-          <Card className="flex flex-col gap-0.5 p-3! border-warning-border bg-warning-bg hover:brightness-110">
+        <Link href="/clientes?aba=atencao" className="flex">
+          <Card className="flex flex-1 flex-col justify-center gap-0.5 border-warning-border bg-warning-bg hover:brightness-110">
             <span className="text-xl font-bold text-warning">{dados.vencendo.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">Vencendo</span>
           </Card>
         </Link>
-        <Link href="/clientes?aba=atencao">
-          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+        <Link href="/clientes?aba=atencao" className="flex">
+          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
             <span className="text-xl font-bold text-text">{dados.vencidos.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vencidos</span>
           </Card>
         </Link>
-        <Link href="/plataformas">
-          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+        <Link href="/plataformas" className="flex">
+          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
             <span className={`text-xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
               {dados.saldoCreditos}
             </span>
