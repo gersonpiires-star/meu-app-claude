@@ -89,25 +89,25 @@ export default async function PainelPage() {
         </Card>
 
         <Link href="/clientes?aba=ativos" className="flex">
-          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
+          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
             <span className="text-xl font-bold text-text">{dados.ativos}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
           </Card>
         </Link>
         <Link href="/clientes?aba=atencao" className="flex">
-          <Card className="flex flex-1 flex-col justify-center gap-0.5 border-warning-border bg-warning-bg hover:brightness-110">
+          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center border-warning-border bg-warning-bg hover:brightness-110">
             <span className="text-xl font-bold text-warning">{dados.vencendo.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">Vencendo</span>
           </Card>
         </Link>
         <Link href="/clientes?aba=atencao" className="flex">
-          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
+          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
             <span className="text-xl font-bold text-text">{dados.vencidos.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vencidos</span>
           </Card>
         </Link>
         <Link href="/plataformas" className="flex">
-          <Card className="flex flex-1 flex-col justify-center gap-0.5 hover:border-border-strong">
+          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
             <span className={`text-xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
               {dados.saldoCreditos}
             </span>
