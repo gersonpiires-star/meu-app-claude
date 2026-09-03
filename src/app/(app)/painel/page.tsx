@@ -6,6 +6,7 @@ import { PLANO_LABEL } from "@/lib/planos";
 import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, StatTile } from "@/components/ui";
 import { RegistrarCobrancaLink } from "./registrar-cobranca-link";
+import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -142,18 +143,21 @@ export default async function PainelPage() {
                       {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
                     </p>
                   </div>
-                  {cliente.whatsapp ? (
-                    <RegistrarCobrancaLink
-                      clienteId={cliente.id}
-                      whatsapp={cliente.whatsapp}
-                      mensagem={mensagem}
-                      modelo={vencido ? "Vencido" : "Lembrete"}
-                    >
-                      <Button variant="whatsapp" className="whitespace-nowrap">
-                        Cobrar agora
-                      </Button>
-                    </RegistrarCobrancaLink>
-                  ) : null}
+                  <div className="flex shrink-0 gap-2">
+                    {cliente.whatsapp ? (
+                      <RegistrarCobrancaLink
+                        clienteId={cliente.id}
+                        whatsapp={cliente.whatsapp}
+                        mensagem={mensagem}
+                        modelo={vencido ? "Vencido" : "Lembrete"}
+                      >
+                        <Button variant="whatsapp" className="whitespace-nowrap">
+                          Cobrar agora
+                        </Button>
+                      </RegistrarCobrancaLink>
+                    ) : null}
+                    <RenovarBotao clienteId={cliente.id} className="whitespace-nowrap" />
+                  </div>
                 </div>
               );
             })}

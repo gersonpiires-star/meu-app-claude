@@ -6,6 +6,7 @@ import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
 import { RegistrarCobrancaLink } from "../painel/registrar-cobranca-link";
+import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 
 const ABAS = [
   { chave: "todos", label: "Todos" },
@@ -100,7 +101,7 @@ export default async function ClientesPage({
       ) : (
         <Card className="p-0">
           {/* Desktop: tabela no padrão do app original (Cliente / WhatsApp / Plano · App / Vencimento / Valor / Status / Cobrar) */}
-          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_100px] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
+          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
             <span>Cliente</span>
             <span>WhatsApp</span>
             <span>Plano · App</span>
@@ -123,7 +124,7 @@ export default async function ClientesPage({
               });
 
               return (
-                <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_100px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
+                <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
                   {/* Desktop */}
                   <Link href={`/clientes/${cliente.id}`} className="hidden min-w-0 items-center gap-3 md:flex">
                     <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold", AVATAR_TOM[estado.tom])}>
@@ -143,37 +144,59 @@ export default async function ClientesPage({
                   <span className="hidden md:block">
                     <Badge tone={estado.tom}>{estado.label}</Badge>
                   </span>
-                  <span className="hidden md:block">
+                  <span className="hidden md:flex md:gap-1.5">
                     {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
                       <RegistrarCobrancaLink
                         clienteId={cliente.id}
                         whatsapp={cliente.whatsapp}
                         mensagem={mensagem}
                         modelo={vencido ? "Vencido" : "Lembrete"}
+                        className="flex-1"
                       >
                         <Button variant="ghost" className="w-full">
                           Cobrar
                         </Button>
                       </RegistrarCobrancaLink>
                     ) : null}
+                    {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="flex-1" /> : null}
                   </span>
 
                   {/* Mobile */}
-                  <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 md:hidden">
-                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", AVATAR_TOM[estado.tom])}>
-                      {iniciais(cliente.nome)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
-                      <p className="truncate text-xs text-text-dim">
-                        {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-sm font-semibold text-text">{brl0(cliente.valorPlano)}</span>
-                      <Badge tone={estado.tom}>{estado.label}</Badge>
-                    </div>
-                  </Link>
+                  <div className="flex flex-col gap-2 px-4 py-3 md:hidden">
+                    <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3">
+                      <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", AVATAR_TOM[estado.tom])}>
+                        {iniciais(cliente.nome)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
+                        <p className="truncate text-xs text-text-dim">
+                          {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="text-sm font-semibold text-text">{brl0(cliente.valorPlano)}</span>
+                        <Badge tone={estado.tom}>{estado.label}</Badge>
+                      </div>
+                    </Link>
+                    {cliente.status !== "CANCELADO" ? (
+                      <div className="flex gap-2 pl-12">
+                        {cliente.whatsapp ? (
+                          <RegistrarCobrancaLink
+                            clienteId={cliente.id}
+                            whatsapp={cliente.whatsapp}
+                            mensagem={mensagem}
+                            modelo={vencido ? "Vencido" : "Lembrete"}
+                            className="flex-1"
+                          >
+                            <Button variant="ghost" className="w-full">
+                              Cobrar
+                            </Button>
+                          </RegistrarCobrancaLink>
+                        ) : null}
+                        <RenovarBotao clienteId={cliente.id} className="flex-1" />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
