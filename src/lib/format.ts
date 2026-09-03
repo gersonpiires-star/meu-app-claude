@@ -55,6 +55,18 @@ export function inicioDoDiaBr(referencia: Date = new Date()): Date {
   return new Date(`${ano}-${mes}-${dia}T03:00:00.000Z`);
 }
 
+// Constrói o instante UTC correspondente à meia-noite de um DD/MM/AAAA
+// digitado pelo revendedor, no fuso de Brasília — usar sempre que uma data
+// digitada vira um Date, senão ela desalinha com a exibição (que já usa
+// esse fuso) num servidor rodando em UTC: meia-noite de Brasília salva
+// como "meia-noite UTC" viraria o dia anterior ao ser exibida de volta.
+export function parseDataBr(texto?: string | null): Date | null {
+  if (!texto) return null;
+  const [dia, mes, ano] = texto.split("/").map(Number);
+  if (!dia || !mes || !ano) return null;
+  return new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0));
+}
+
 export function iniciais(nome: string): string {
   const partes = nome.replace(/\(.*?\)/g, "").trim().split(/\s+/);
   return ((partes[0]?.[0] ?? "?") + (partes[1]?.[0] ?? "")).toUpperCase();

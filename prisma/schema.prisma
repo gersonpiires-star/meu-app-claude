@@ -98,6 +98,7 @@ model Revendedor {
   produtos   Produto[]
   vendas     Venda[]
   avisos     Aviso[]
+  interessados   InteressadoCliente[]
   fechamentosMes FechamentoMes[]
   pagamentos     Pagamento[]
   plataformas    Plataforma[]
@@ -356,6 +357,24 @@ model Interessado {
   observacao  String?
   convertido  Boolean  @default(false)
   criadoEm    DateTime @default(now())
+}
+
+// Leads do próprio revendedor — pessoas interessadas em virar clientes
+// dele (diferente de Interessado, que é lead de assinatura do GestorPro).
+model InteressadoCliente {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
+  nome       String
+  whatsapp   String
+  interesse  String?
+  retornarEm DateTime?
+  observacao String?
+  convertido Boolean  @default(false)
+  criadoEm   DateTime @default(now())
+
+  @@index([revendedorId, convertido])
 }
 
 model FechamentoMes {

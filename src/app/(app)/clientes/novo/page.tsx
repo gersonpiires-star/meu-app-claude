@@ -5,12 +5,19 @@ import { Card } from "@/components/ui";
 import { ClienteForm } from "../cliente-form";
 import { criarCliente } from "../actions";
 
-export default async function NovoClientePage() {
+export default async function NovoClientePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nome?: string; whatsapp?: string; servico?: string }>;
+}) {
   const revendedor = await exigirRevendedor();
-  const servicos = await prisma.servico.findMany({
-    where: { revendedorId: revendedor.id },
-    select: { nome: true },
-  });
+  const [servicos, params] = await Promise.all([
+    prisma.servico.findMany({
+      where: { revendedorId: revendedor.id },
+      select: { nome: true },
+    }),
+    searchParams,
+  ]);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
@@ -19,7 +26,11 @@ export default async function NovoClientePage() {
       </Link>
       <h1 className="text-lg font-bold text-text">Cadastrar cliente</h1>
       <Card>
-        <ClienteForm acao={criarCliente} servicosExistentes={servicos.map((s) => s.nome)} />
+        <ClienteForm
+          acao={criarCliente}
+          servicosExistentes={servicos.map((s) => s.nome)}
+          valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servico: params.servico }}
+        />
       </Card>
     </div>
   );

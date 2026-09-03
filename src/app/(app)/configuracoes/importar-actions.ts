@@ -111,17 +111,24 @@ const importSchema = z.object({
   }),
 });
 
+// Meia-noite de Brasília do dia informado, como instante UTC — evita que a
+// data importada apareça um dia antes ao ser exibida (o app formata tudo no
+// fuso de Brasília, mas o servidor roda em UTC).
+function meiaNoiteBr(dia: number, mes: number, ano: number): Date {
+  return new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0));
+}
+
 function parseData(texto?: string): Date {
   if (!texto) return new Date();
 
   if (texto.includes("/")) {
     const [dia, mes, ano] = texto.split("/").map(Number);
-    if (dia && mes && ano) return new Date(ano, mes - 1, dia);
+    if (dia && mes && ano) return meiaNoiteBr(dia, mes, ano);
   }
 
   if (texto.includes("-")) {
     const [ano, mes, dia] = texto.split("-").map(Number);
-    if (dia && mes && ano) return new Date(ano, mes - 1, dia);
+    if (dia && mes && ano) return meiaNoiteBr(dia, mes, ano);
   }
 
   return new Date();

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { PLANO_MESES, faixaVencimento } from "@/lib/planos";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { saldoTotalCreditos } from "@/lib/plataformas";
+import { inicioDoDiaBr } from "@/lib/format";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
@@ -36,7 +37,10 @@ export async function dadosPainel(revendedorId: string) {
   const agora = new Date();
   const { inicio, fim } = limitesDoMes(agora);
 
-  const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes, creditos] = await Promise.all([
+  const amanha = new Date(inicioDoDiaBr(agora));
+  amanha.setDate(amanha.getDate() + 1);
+
+  const [clientes, renovacoesMes, vendasMes, custosMedios, canceladosMes, creditos, leadsParaRetornar] = await Promise.all([
     prisma.cliente.findMany({
       where: { revendedorId },
       include: { servico: true },
@@ -54,6 +58,10 @@ export async function dadosPainel(revendedorId: string) {
       where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } },
     }),
     saldoTotalCreditos(revendedorId),
+    prisma.interessadoCliente.findMany({
+      where: { revendedorId, convertido: false, retornarEm: { lt: amanha } },
+      orderBy: { retornarEm: "asc" },
+    }),
   ]);
 
   const receitaRecorrente = renovacoesMes.reduce((a, r) => a + r.valor, 0);
@@ -114,5 +122,6 @@ export async function dadosPainel(revendedorId: string) {
     temClientes: clientes.length > 0,
     saldoCreditos: creditos.saldo,
     creditosBaixos: creditos.baixo,
+    leadsParaRetornar,
   };
 }

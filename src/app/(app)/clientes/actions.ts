@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { registrarLog } from "@/lib/log";
-import { brl } from "@/lib/format";
+import { brl, parseDataBr } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
@@ -225,12 +225,12 @@ export async function cancelarCliente(id: string, formData: FormData) {
 export async function corrigirVencimento(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const texto = String(formData.get("vencimento") ?? "");
-  const [dia, mes, ano] = texto.split("/").map(Number);
-  if (!dia || !mes || !ano) return;
+  const novoVencimento = parseDataBr(texto);
+  if (!novoVencimento) return;
 
   const cliente = await prisma.cliente.update({
     where: { id, revendedorId: revendedor.id },
-    data: { vencimento: new Date(ano, mes - 1, dia) },
+    data: { vencimento: novoVencimento },
   });
 
   await registrarLog(revendedor.id, "cliente.corrigir_vencimento", `Alterou o vencimento de ${cliente.nome} para ${texto}`);

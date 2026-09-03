@@ -3,6 +3,7 @@ import { exigirRevendedor } from "@/lib/sessao";
 import { dadosPainel } from "@/lib/dados";
 import { brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL } from "@/lib/planos";
+import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
@@ -115,6 +116,46 @@ export default async function PainelPage() {
           </Card>
         </Link>
       </div>
+
+      {dados.leadsParaRetornar.length > 0 ? (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Interessados pra retornar</h2>
+            <Link href="/interessados" className="text-xs font-semibold text-accent">
+              Ver todos
+            </Link>
+          </div>
+          <div className="flex flex-col divide-y divide-border">
+            {dados.leadsParaRetornar.map((lead) => {
+              const atrasado = lead.retornarEm! < new Date(new Date().setHours(0, 0, 0, 0));
+              return (
+                <div key={lead.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-text">{lead.nome}</p>
+                    <p className="text-xs text-text-dim">
+                      {lead.interesse ?? "—"} · retorno {dataCurta(lead.retornarEm!)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {atrasado ? <Badge tone="danger">Atrasado</Badge> : <Badge tone="warning">Hoje</Badge>}
+                    {lead.whatsapp ? (
+                      <a
+                        href={linkWhatsApp(lead.whatsapp, `Olá ${lead.nome.split(" ")[0]}, tudo bem? Passando pra saber se ficou alguma dúvida.`)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Button variant="whatsapp" className="whitespace-nowrap">
+                          Chamar
+                        </Button>
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ) : null}
 
       {dados.aniversariantes.length > 0 ? (
         <Card>

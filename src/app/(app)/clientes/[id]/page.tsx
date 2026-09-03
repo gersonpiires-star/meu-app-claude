@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, brl0, dataCurta, dataHora, dataPorExtenso, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
+import { brl, brl0, dataCurta, dataHora, dataPorExtenso, fmtTelefone, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { MODELOS_COMUNICADO, mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { faixaPontualidade } from "@/lib/pontualidade";
@@ -180,7 +180,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         <div className="min-w-0">
           <h1 className="truncate text-lg font-bold text-text">{cliente.nome}</h1>
           <Badge tone={estado.tom}>
-            {estado.label} · {cliente.whatsapp ?? "sem WhatsApp"}
+            {estado.label} · {cliente.whatsapp ? fmtTelefone(cliente.whatsapp) : "sem WhatsApp"}
           </Badge>
         </div>
       </div>
