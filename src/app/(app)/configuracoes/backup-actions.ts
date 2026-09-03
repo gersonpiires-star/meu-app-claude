@@ -13,8 +13,10 @@ export async function restaurarBackup(
     return { ok: false, erro: 'Digite exatamente "RESTAURAR" para confirmar.' };
   }
 
-  const texto = String(formData.get("json") ?? "").trim();
-  if (!texto) return { ok: false, erro: "Cole o conteúdo do backup primeiro." };
+  const campo = formData.get("json");
+  if (!campo) return { ok: false, erro: "Selecione o arquivo de backup primeiro." };
+  const texto = (typeof campo === "string" ? campo : await campo.text()).trim();
+  if (!texto) return { ok: false, erro: "O arquivo selecionado está vazio." };
 
   let bruto: {
     dados?: {

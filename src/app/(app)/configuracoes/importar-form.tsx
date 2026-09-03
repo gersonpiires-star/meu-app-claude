@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Textarea } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { CampoArquivo } from "@/components/campo-arquivo";
 import { importarDadosAntigos } from "./importar-actions";
 
 export function ImportarForm() {
@@ -28,10 +29,10 @@ export function ImportarForm() {
       }
     >
       <p className="text-sm text-text-muted">
-        Cole abaixo o conteúdo do arquivo de backup/exportação do seu app anterior (JSON). Isso cria
-        seus clientes, produtos, vendas e histórico de renovações aqui no GestorPro.
+        Escolha o arquivo de backup/exportação (JSON) do seu app anterior. Isso cria seus clientes,
+        produtos, vendas e histórico de renovações aqui no GestorPro.
       </p>
-      <Textarea name="json" placeholder='{"app": "...", "dados": {...}}' className="min-h-48 font-mono text-xs" />
+      <CampoArquivo name="json" accept=".json,application/json" required />
       {resultado ? (
         <p className={resultado.ok ? "text-sm text-accent" : "text-sm text-danger"}>{resultado.texto}</p>
       ) : null}

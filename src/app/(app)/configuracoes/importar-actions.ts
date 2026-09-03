@@ -107,8 +107,10 @@ export async function importarDadosAntigos(
   formData: FormData
 ): Promise<{ ok: true; resumo: string } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
-  const texto = String(formData.get("json") ?? "").trim();
-  if (!texto) return { ok: false, erro: "Cole o conteúdo do arquivo de backup primeiro." };
+  const campo = formData.get("json");
+  if (!campo) return { ok: false, erro: "Selecione o arquivo de backup primeiro." };
+  const texto = (typeof campo === "string" ? campo : await campo.text()).trim();
+  if (!texto) return { ok: false, erro: "O arquivo selecionado está vazio." };
 
   let bruto: unknown;
   try {

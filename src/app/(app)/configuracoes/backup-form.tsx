@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { CampoArquivo } from "@/components/campo-arquivo";
 import { restaurarBackup } from "./backup-actions";
 
 export function BackupForm({ podeRestaurar = true }: { podeRestaurar?: boolean }) {
@@ -41,7 +42,7 @@ export function BackupForm({ podeRestaurar = true }: { podeRestaurar?: boolean }
           <p className="text-xs font-semibold text-danger">
             Restaurar substitui tudo o que está no app agora. Baixe um backup antes, por segurança.
           </p>
-          <Textarea name="json" placeholder="Cole aqui o conteúdo do backup" className="min-h-32 font-mono text-xs" />
+          <CampoArquivo name="json" accept=".json,application/json" required />
           <Field label='Digite "RESTAURAR" para confirmar'>
             <Input name="confirmacao" placeholder="RESTAURAR" />
           </Field>
