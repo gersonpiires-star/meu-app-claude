@@ -15,6 +15,11 @@ import { ExcluirBotao } from "./excluir-botao";
 import { LinkPagamento } from "./link-pagamento";
 import { CorrigirVencimento } from "./corrigir-vencimento";
 
+function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
+  const dias = Math.floor((ate.getTime() - criadoEm.getTime()) / 86400000);
+  return dias <= 7;
+}
+
 function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
   const meses = Math.max(
     0,
@@ -48,6 +53,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const faixa = faixaVencimento(cliente.vencimento);
   const jaRendeu = cliente.renovacoes.reduce((a, r) => a + r.valor, 0);
   const cancelado = cliente.status === "CANCELADO";
+  const clienteNovo = ehClienteNovo(cliente.criadoEm);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
@@ -81,7 +87,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <Badge tone="neutral">Saiu em {cliente.motivoSaidaData ? dataPorExtenso(cliente.motivoSaidaData) : "—"}</Badge>
           ) : cliente.testeGratis ? (
             <Badge tone="warning">Cliente em teste grátis</Badge>
-          ) : cliente.renovacoes.length === 0 ? (
+          ) : clienteNovo ? (
             <Badge tone="accent">Cliente novo</Badge>
           ) : (
             <Badge tone={faixa === "VENCIDO" ? "danger" : faixa === "ATE_5_DIAS" ? "warning" : "success"}>
@@ -92,7 +98,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Próximo vencimento</p>
               {!cancelado ? <CorrigirVencimento vencimentoAtual={cliente.vencimento} acao={corrigirVencimento.bind(null, id)} /> : null}
             </div>
@@ -112,7 +118,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <p className="mt-0.5 font-semibold text-text">{cliente.servico?.nome ?? "—"}</p>
           </div>
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Plano</p>
               {!cancelado ? <ReajusteForm valorAtual={cliente.valorPlano} acao={aplicarReajusteCliente.bind(null, id)} /> : null}
             </div>
