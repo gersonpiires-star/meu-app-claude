@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Revendedor" ADD COLUMN     "margemPadrao" DOUBLE PRECISION NOT NULL DEFAULT 30;

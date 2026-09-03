@@ -39,10 +39,10 @@ export default async function RelatorioPage({
     }),
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" }, vencimento: { gte: inicioMesAtual, lt: fimMesAtual } },
-      select: { vencimento: true },
+      select: { nome: true, vencimento: true },
     }),
   ]);
-  const celulasCalendario = gradeDoMes(clientesDoMesAtual.map((c) => c.vencimento), agora);
+  const celulasCalendario = gradeDoMes(clientesDoMesAtual, agora);
 
   const gruposRenovMap = new Map<string, GrupoRenovacao>();
   for (const r of dados.renovacoes) {

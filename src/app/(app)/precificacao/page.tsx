@@ -22,6 +22,7 @@ export default async function PrecificacaoPage() {
           cobrancaTelaExtra: s.cobrancaTelaExtra,
         }))}
         plataformas={plataformas.map((p) => ({ id: p.id, nome: p.nome }))}
+        margemPadrao={revendedor.margemPadrao}
       />
     </div>
   );

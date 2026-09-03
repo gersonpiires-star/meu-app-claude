@@ -26,3 +26,16 @@ export async function atualizarConfigServico(servicoId: string, formData: FormDa
 
   revalidatePath("/precificacao");
 }
+
+export async function salvarMargemPadrao(margemPadrao: number) {
+  const revendedor = await exigirRevendedor();
+  const margem = Math.min(95, Math.max(0, margemPadrao));
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { margemPadrao: margem },
+  });
+
+  revalidatePath("/precificacao");
+  revalidatePath("/vendas/nova");
+}

@@ -8,9 +8,11 @@ import { AppsTab } from "./apps-tab";
 export function PrecificacaoTabs({
   servicos,
   plataformas,
+  margemPadrao,
 }: {
   servicos: { id: string; nome: string; plataformaId: string | null; custoCredito: number | null; cobrancaTelaExtra: number | null }[];
   plataformas: { id: string; nome: string }[];
+  margemPadrao: number;
 }) {
   const [aba, setAba] = useState<"maq" | "apps">("maq");
 
@@ -33,7 +35,7 @@ export function PrecificacaoTabs({
         </button>
       </div>
 
-      {aba === "maq" ? <MaquininhaCalc /> : <AppsTab servicos={servicos} plataformas={plataformas} />}
+      {aba === "maq" ? <MaquininhaCalc margemInicial={margemPadrao} /> : <AppsTab servicos={servicos} plataformas={plataformas} />}
     </div>
   );
 }

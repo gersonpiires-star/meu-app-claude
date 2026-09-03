@@ -89,6 +89,10 @@ model Revendedor {
   // número de dias. Null/0 = desligado (nunca cancela sozinho).
   diasParaCancelarAutomatico Int?
 
+  // Margem de lucro padrão (%) usada pra sugerir o preço de venda de
+  // aparelhos a partir do custo médio de compra (Precificação · Maquininha).
+  margemPadrao Float @default(30)
+
   servicos   Servico[]
   clientes   Cliente[]
   produtos   Produto[]
