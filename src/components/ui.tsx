@@ -47,30 +47,33 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={cx(inputStyles, className)} {...rest} />;
 }
 
-type ButtonVariant = "primary" | "ghost" | "danger" | "whatsapp";
+type ButtonVariant = "primary" | "ghost" | "danger" | "whatsapp" | "outline";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: "bg-accent text-bg-deep hover:brightness-110",
   ghost: "border border-border-strong text-text hover:bg-surface-2",
   danger: "bg-danger text-bg-deep hover:brightness-110",
   whatsapp: "bg-whatsapp text-bg-deep hover:brightness-110",
+  outline: "border border-accent-strong bg-transparent text-accent",
 };
+
+// Exportado pra estilizar um <Link> como botão sem aninhar <button> dentro
+// de <a> — aninhado, o <a> fica sem padding/borda próprios e desequilibra
+// a divisão de largura quando ele é um irmão flex-1 de outro botão.
+export function buttonClassName(variant: ButtonVariant = "primary", className?: string) {
+  return cx(
+    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+    variantStyles[variant],
+    className
+  );
+}
 
 export function Button({
   variant = "primary",
   className,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
-  return (
-    <button
-      className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
-        variantStyles[variant],
-        className
-      )}
-      {...rest}
-    />
-  );
+  return <button className={buttonClassName(variant, className)} {...rest} />;
 }
 
 type BadgeTone = "neutral" | "accent" | "warning" | "danger" | "success";

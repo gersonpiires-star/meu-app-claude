@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui";
+import { Button, cx } from "@/components/ui";
 import { renovarComPlanoAtual } from "./actions";
 
 export function RenovarBotao({
@@ -22,7 +22,7 @@ export function RenovarBotao({
 
   if (feito) {
     return (
-      <Button variant="ghost" className={className} disabled>
+      <Button variant="ghost" className={cx("w-full min-w-0 whitespace-nowrap", className)} disabled>
         {labelFeito}
       </Button>
     );
@@ -31,7 +31,7 @@ export function RenovarBotao({
   return (
     <Button
       variant="ghost"
-      className={className}
+      className={cx("w-full min-w-0 whitespace-nowrap", className)}
       disabled={pendente}
       onClick={() =>
         iniciarTransicao(async () => {

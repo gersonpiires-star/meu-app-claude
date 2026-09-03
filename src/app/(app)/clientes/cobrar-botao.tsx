@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, cx } from "@/components/ui";
+import { Button, buttonClassName, cx } from "@/components/ui";
 import { horaCurta } from "@/lib/format";
 
 export function CobrarBotao({
@@ -17,24 +17,15 @@ export function CobrarBotao({
 }) {
   if (cobradoEm) {
     return (
-      <button
-        type="button"
-        disabled
-        className={cx(
-          "inline-flex w-full items-center justify-center rounded-xl border border-accent-strong bg-transparent px-4 py-2.5 text-sm font-semibold text-accent disabled:cursor-not-allowed",
-          className
-        )}
-      >
+      <Button variant="outline" disabled className={cx("w-full min-w-0 whitespace-nowrap", className)}>
         ✓ {horaCurta(cobradoEm)}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <Link href={`/clientes/${clienteId}/cobranca`} className={className}>
-      <Button variant={variant} className="w-full whitespace-nowrap">
-        {label}
-      </Button>
+    <Link href={`/clientes/${clienteId}/cobranca`} className={buttonClassName(variant, cx("min-w-0 whitespace-nowrap", className))}>
+      {label}
     </Link>
   );
 }
