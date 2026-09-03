@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { dadosPainel } from "@/lib/dados";
-import { brl, brl0, dataCurta } from "@/lib/format";
+import { brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL } from "@/lib/planos";
-import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
-import { RegistrarCobrancaLink } from "./registrar-cobranca-link";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 
 const MESES = [
@@ -89,26 +87,26 @@ export default async function PainelPage() {
         </Card>
 
         <Link href="/clientes?aba=ativos">
-          <Card className="flex flex-col gap-1 p-4! hover:border-border-strong">
-            <span className="text-2xl font-bold text-text">{dados.ativos}</span>
+          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+            <span className="text-xl font-bold text-text">{dados.ativos}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
           </Card>
         </Link>
         <Link href="/clientes?aba=atencao">
-          <Card className="flex flex-col gap-1 p-4! border-warning-border bg-warning-bg hover:brightness-110">
-            <span className="text-2xl font-bold text-warning">{dados.vencendo.length}</span>
+          <Card className="flex flex-col gap-0.5 p-3! border-warning-border bg-warning-bg hover:brightness-110">
+            <span className="text-xl font-bold text-warning">{dados.vencendo.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">Vencendo</span>
           </Card>
         </Link>
         <Link href="/clientes?aba=atencao">
-          <Card className="flex flex-col gap-1 p-4! hover:border-border-strong">
-            <span className="text-2xl font-bold text-text">{dados.vencidos.length}</span>
+          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+            <span className="text-xl font-bold text-text">{dados.vencidos.length}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vencidos</span>
           </Card>
         </Link>
         <Link href="/plataformas">
-          <Card className="flex flex-col gap-1 p-4! hover:border-border-strong">
-            <span className={`text-2xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
+          <Card className="flex flex-col gap-0.5 p-3! hover:border-border-strong">
+            <span className={`text-xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
               {dados.saldoCreditos}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Créditos</span>
@@ -167,44 +165,28 @@ export default async function PainelPage() {
           <EmptyState>Nenhum cliente vencendo nos próximos dias.</EmptyState>
         ) : (
           <div className="flex flex-col divide-y divide-border">
-            {[...dados.vencidos, ...dados.vencendo].map((cliente) => {
-              const vencido = cliente.vencimento < new Date();
-              const mensagem = preencherModelo(MODELOS_COBRANCA[vencido ? "Vencido" : "Lembrete"], {
-                nome: cliente.nome,
-                app: cliente.servico?.nome ?? "",
-                plano: PLANO_LABEL[cliente.plano],
-                vencimento: dataCurta(cliente.vencimento),
-                prazo: vencido ? "vencido" : "a vencer",
-                valor: brl(cliente.valorPlano),
-              });
-              return (
-                <div key={cliente.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <Link href={`/clientes/${cliente.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
-                      {cliente.nome}
-                    </Link>
-                    <p className="text-xs text-text-dim">
-                      {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    {cliente.whatsapp ? (
-                      <RegistrarCobrancaLink
-                        clienteId={cliente.id}
-                        whatsapp={cliente.whatsapp}
-                        mensagem={mensagem}
-                        modelo={vencido ? "Vencido" : "Lembrete"}
-                      >
-                        <Button variant="whatsapp" className="whitespace-nowrap">
-                          Cobrar agora
-                        </Button>
-                      </RegistrarCobrancaLink>
-                    ) : null}
-                    <RenovarBotao clienteId={cliente.id} className="whitespace-nowrap" />
-                  </div>
+            {[...dados.vencidos, ...dados.vencendo].map((cliente) => (
+              <div key={cliente.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <Link href={`/clientes/${cliente.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                    {cliente.nome}
+                  </Link>
+                  <p className="text-xs text-text-dim">
+                    {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
+                  </p>
                 </div>
-              );
-            })}
+                <div className="flex shrink-0 gap-2">
+                  {cliente.whatsapp ? (
+                    <Link href={`/clientes/${cliente.id}/cobranca`}>
+                      <Button variant="whatsapp" className="whitespace-nowrap">
+                        Cobrar agora
+                      </Button>
+                    </Link>
+                  ) : null}
+                  <RenovarBotao clienteId={cliente.id} className="whitespace-nowrap" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>

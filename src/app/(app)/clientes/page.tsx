@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl, brl0, dataCurta, fmtTelefone, iniciais } from "@/lib/format";
+import { brl0, dataCurta, fmtTelefone, iniciais } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
-import { MODELOS_COBRANCA, preencherModelo } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
-import { RegistrarCobrancaLink } from "../painel/registrar-cobranca-link";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 
 const ABAS = [
@@ -113,15 +111,6 @@ export default async function ClientesPage({
           <div className="flex flex-col divide-y divide-border">
             {filtrados.map((cliente) => {
               const estado = estadoCliente(cliente.status, cliente.vencimento);
-              const vencido = cliente.vencimento < new Date();
-              const mensagem = preencherModelo(MODELOS_COBRANCA[vencido ? "Vencido" : "Lembrete"], {
-                nome: cliente.nome,
-                app: cliente.servico?.nome ?? "",
-                plano: PLANO_LABEL[cliente.plano],
-                vencimento: dataCurta(cliente.vencimento),
-                prazo: vencido ? "vencido" : "a vencer",
-                valor: brl(cliente.valorPlano),
-              });
 
               return (
                 <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
@@ -146,17 +135,11 @@ export default async function ClientesPage({
                   </span>
                   <span className="hidden md:flex md:gap-1.5">
                     {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
-                      <RegistrarCobrancaLink
-                        clienteId={cliente.id}
-                        whatsapp={cliente.whatsapp}
-                        mensagem={mensagem}
-                        modelo={vencido ? "Vencido" : "Lembrete"}
-                        className="flex-1"
-                      >
+                      <Link href={`/clientes/${cliente.id}/cobranca`} className="flex-1">
                         <Button variant="ghost" className="w-full">
                           Cobrar
                         </Button>
-                      </RegistrarCobrancaLink>
+                      </Link>
                     ) : null}
                     {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="flex-1" /> : null}
                   </span>
@@ -181,17 +164,11 @@ export default async function ClientesPage({
                     {cliente.status !== "CANCELADO" ? (
                       <div className="flex gap-2 pl-12">
                         {cliente.whatsapp ? (
-                          <RegistrarCobrancaLink
-                            clienteId={cliente.id}
-                            whatsapp={cliente.whatsapp}
-                            mensagem={mensagem}
-                            modelo={vencido ? "Vencido" : "Lembrete"}
-                            className="flex-1"
-                          >
+                          <Link href={`/clientes/${cliente.id}/cobranca`} className="flex-1">
                             <Button variant="ghost" className="w-full">
                               Cobrar
                             </Button>
-                          </RegistrarCobrancaLink>
+                          </Link>
                         ) : null}
                         <RenovarBotao clienteId={cliente.id} className="flex-1" />
                       </div>
