@@ -3,9 +3,14 @@ import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
 import { brl, dataCurta } from "@/lib/format";
+import { linkWhatsApp } from "@/lib/mensagens";
 import { Button, Card, EmptyState, StatTile } from "@/components/ui";
 import { vincularClienteVenda } from "./actions";
 import { VincularCliente } from "./vincular-cliente";
+
+function mensagemRecibo(nome: string, produto: string, valor: number): string {
+  return `Olá ${nome}, tudo bem?\n\nSegue o comprovante da compra do seu ${produto}! 📱\n\nValor: ${brl(valor)}\n\nQualquer dúvida, é só me chamar aqui.`;
+}
 
 export default async function VendasPage({
   searchParams,
@@ -43,13 +48,38 @@ export default async function VendasPage({
       </div>
 
       {vendaRecemCriada?.cliente ? (
-        <Card className="flex flex-wrap items-center justify-between gap-3 border-accent-strong bg-accent-soft/40">
-          <p className="text-sm text-text">
-            Venda pra <strong>{vendaRecemCriada.cliente.nome}</strong> registrada — já dá pra emitir o recibo.
-          </p>
-          <a href={`/api/vendas/${vendaRecemCriada.id}/recibo`} target="_blank" rel="noopener noreferrer">
-            <Button variant="ghost">Baixar recibo em PDF</Button>
-          </a>
+        <Card className="flex flex-col gap-2 border-accent-strong bg-accent-soft/40">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-text">
+              Venda pra <strong>{vendaRecemCriada.cliente.nome}</strong> registrada — já dá pra emitir o recibo.
+            </p>
+            <div className="flex gap-2">
+              <a href={`/api/vendas/${vendaRecemCriada.id}/recibo`} target="_blank" rel="noopener noreferrer">
+                <Button variant="ghost">Baixar recibo em PDF</Button>
+              </a>
+              {vendaRecemCriada.cliente.whatsapp ? (
+                <a
+                  href={linkWhatsApp(
+                    vendaRecemCriada.cliente.whatsapp,
+                    mensagemRecibo(
+                      vendaRecemCriada.cliente.nome,
+                      vendaRecemCriada.produto.modelo,
+                      vendaRecemCriada.quantidade * vendaRecemCriada.valorUnitario
+                    )
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="whatsapp">Enviar no WhatsApp</Button>
+                </a>
+              ) : null}
+            </div>
+          </div>
+          {vendaRecemCriada.cliente.whatsapp ? (
+            <p className="text-[11px] text-text-dim">
+              O WhatsApp não deixa anexar arquivo pelo link — baixe o recibo antes e anexe ele na conversa que abrir.
+            </p>
+          ) : null}
         </Card>
       ) : null}
 
@@ -79,9 +109,21 @@ export default async function VendasPage({
                 <span className="text-text-muted">{venda.quantidade}</span>
                 <span className="font-semibold text-accent">{brl(venda.quantidade * venda.valorUnitario)}</span>
                 {venda.cliente ? (
-                  <a href={`/api/vendas/${venda.id}/recibo`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent hover:underline">
-                    Recibo
-                  </a>
+                  <div className="flex items-center gap-2.5">
+                    <a href={`/api/vendas/${venda.id}/recibo`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent hover:underline">
+                      Recibo
+                    </a>
+                    {venda.cliente.whatsapp ? (
+                      <a
+                        href={linkWhatsApp(venda.cliente.whatsapp, mensagemRecibo(venda.cliente.nome, venda.produto.modelo, venda.quantidade * venda.valorUnitario))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-whatsapp hover:underline"
+                      >
+                        Enviar
+                      </a>
+                    ) : null}
+                  </div>
                 ) : (
                   <VincularCliente vendaId={venda.id} clientes={clientes} acao={vincularClienteVenda} />
                 )}
