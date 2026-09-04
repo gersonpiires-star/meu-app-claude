@@ -15,6 +15,8 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
     include: {
       servicos: true,
       _count: { select: { clientes: true, vendas: true } },
+      indicadoPor: { select: { id: true, nome: true } },
+      indicados: { select: { id: true, nome: true, statusAssinatura: true } },
     },
   });
   if (!revendedor || revendedor.papel !== "REVENDEDOR") notFound();
@@ -83,6 +85,50 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
         </p>
         <AcoesAcesso revendedorId={revendedor.id} />
       </Card>
+
+      {revendedor.statusAssinatura === "CANCELADO" ? (
+        <Card className="border-warning-border bg-warning-bg/30">
+          <h2 className="mb-1 text-sm font-bold text-warning">Cancelou a assinatura</h2>
+          <p className="text-xs text-text-dim">
+            {revendedor.canceladoEm ? `Em ${dataPorExtenso(revendedor.canceladoEm)}` : ""}
+          </p>
+          <p className="mt-2 text-sm text-text-muted">
+            {revendedor.motivoCancelamento || "Não informou o motivo."}
+          </p>
+        </Card>
+      ) : null}
+
+      {revendedor.indicadoPor || revendedor.indicados.length > 0 ? (
+        <Card>
+          {revendedor.indicadoPor ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-text-dim">Indicado por</span>
+              <Link href={`/admin/assinantes/${revendedor.indicadoPor.id}`} className="text-sm font-semibold text-accent hover:underline">
+                {revendedor.indicadoPor.nome}
+              </Link>
+            </div>
+          ) : null}
+          {revendedor.indicados.length > 0 ? (
+            <div className={revendedor.indicadoPor ? "mt-3 border-t border-border pt-3" : ""}>
+              <p className="mb-2 text-xs text-text-dim">
+                Indicou {revendedor.indicados.length} pessoa{revendedor.indicados.length === 1 ? "" : "s"}
+              </p>
+              <div className="flex flex-col divide-y divide-border">
+                {revendedor.indicados.map((i) => (
+                  <Link
+                    key={i.id}
+                    href={`/admin/assinantes/${i.id}`}
+                    className="flex items-center justify-between gap-3 py-1.5 text-sm hover:text-accent"
+                  >
+                    <span className="truncate text-text-muted">{i.nome}</span>
+                    <Badge tone={i.statusAssinatura === "ATIVO" ? "accent" : "neutral"}>{i.statusAssinatura}</Badge>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
     </div>
   );
 }

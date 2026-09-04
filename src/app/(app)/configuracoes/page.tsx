@@ -7,12 +7,21 @@ import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
 import { BackupForm } from "./backup-form";
 import { NotificacoesPush } from "./notificacoes-push";
+import { LinkIndicacao } from "./link-indicacao";
+import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
+
+function baseUrl() {
+  return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
 
 export default async function ConfiguracoesPage() {
   const revendedor = await exigirRevendedor();
   const ehFuncionario = await souFuncionario();
   const configurado = Boolean(revendedor.mpAccessToken);
-  const chaves = await prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } });
+  const [chaves, indicadosCount] = await Promise.all([
+    prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
+    prisma.revendedor.count({ where: { indicadoPorId: revendedor.id } }),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
@@ -145,6 +154,27 @@ export default async function ConfiguracoesPage() {
         <h2 className="mb-3 text-sm font-bold text-text">Trazer dados de outro sistema</h2>
         <ImportarForm />
       </Card>
+
+      {ehFuncionario ? null : (
+        <Card>
+          <h2 className="mb-1 text-sm font-bold text-text">Indique o GestorPro</h2>
+          <p className="mb-3 text-sm text-text-dim">
+            Compartilhe seu link — quem se cadastrar por ele fica marcado como indicado por você.
+            {indicadosCount > 0
+              ? ` Você já indicou ${indicadosCount} pessoa${indicadosCount === 1 ? "" : "s"}.`
+              : ""}
+          </p>
+          <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
+        </Card>
+      )}
+
+      {ehFuncionario ? null : (
+        <Card>
+          <h2 className="mb-1 text-sm font-bold text-text">Cancelar assinatura</h2>
+          <p className="mb-3 text-sm text-text-dim">Se decidir sair, seus dados continuam guardados.</p>
+          <CancelarAssinaturaForm />
+        </Card>
+      )}
     </div>
   );
 }

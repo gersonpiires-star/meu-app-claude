@@ -38,6 +38,24 @@ export async function removerCredenciaisMP() {
   revalidatePath("/configuracoes");
 }
 
+export async function cancelarAssinatura(formData: FormData) {
+  const revendedor = await exigirDono();
+  const motivo = String(formData.get("motivo") ?? "").trim();
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { statusAssinatura: "CANCELADO", motivoCancelamento: motivo || null, canceladoEm: new Date() },
+  });
+
+  await registrarLog(
+    revendedor.id,
+    "assinatura.cancelar",
+    `Cancelou a assinatura${motivo ? ` — motivo: ${motivo}` : ""}`
+  );
+
+  revalidatePath("/configuracoes");
+}
+
 export async function salvarSuspensaoAutomatica(formData: FormData) {
   const revendedor = await exigirRevendedor();
   const texto = String(formData.get("diasParaCancelarAutomatico") ?? "").trim();

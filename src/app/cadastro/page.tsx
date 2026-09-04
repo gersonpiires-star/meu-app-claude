@@ -4,9 +4,14 @@ import { auth } from "@/lib/auth";
 import { Card } from "@/components/ui";
 import { SignupForm } from "./signup-form";
 
-export default async function CadastroPage() {
+export default async function CadastroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
   const session = await auth();
   if (session?.user) redirect("/");
+  const { ref } = await searchParams;
 
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
@@ -32,7 +37,7 @@ export default async function CadastroPage() {
             </span>
           </div>
 
-          <SignupForm />
+          <SignupForm indicadoPorId={ref} />
         </Card>
       </div>
     </main>
