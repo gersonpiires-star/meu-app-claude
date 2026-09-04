@@ -3,12 +3,12 @@ import type { Prisma } from "@/generated/prisma/client";
 import { PLANO_MESES, faixaVencimento } from "@/lib/planos";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { saldoTotalCreditos } from "@/lib/plataformas";
-import { diaCivilBr, inicioDoDiaBr } from "@/lib/format";
+import { diaCivilBr, inicioDoDiaBr, brMidnightUTC } from "@/lib/format";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const { ano, mes } = diaCivilBr(referencia);
-  const inicio = new Date(ano, mes, 1);
-  const fim = new Date(ano, mes + 1, 1);
+  const inicio = brMidnightUTC(ano, mes, 1);
+  const fim = brMidnightUTC(ano, mes + 1, 1);
   return { inicio, fim };
 }
 
@@ -102,8 +102,8 @@ export async function dadosPainel(revendedorId: string) {
   const vencidos = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO");
 
   const { ano: anoAgora, mes: mesAgora } = diaCivilBr(agora);
-  const proximoMes = new Date(anoAgora, mesAgora + 1, 1);
-  const depoisDoProximoMes = new Date(anoAgora, mesAgora + 2, 1);
+  const proximoMes = brMidnightUTC(anoAgora, mesAgora + 1, 1);
+  const depoisDoProximoMes = brMidnightUTC(anoAgora, mesAgora + 2, 1);
   const venceProxMes = naoCancelados.filter((c) => c.vencimento >= proximoMes && c.vencimento < depoisDoProximoMes);
   const projReceitaProxMes = venceProxMes.reduce((a, c) => a + c.valorPlano, 0);
   const projCustoProxMes = venceProxMes.reduce(

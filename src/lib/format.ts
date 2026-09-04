@@ -80,6 +80,18 @@ export function parseDataBr(texto?: string | null): Date | null {
   return new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0));
 }
 
+// Mesma construção de parseDataBr, mas a partir de ano/mês(0-indexado)/dia já
+// numéricos (o formato que diaCivilBr devolve) — pra montar limites de
+// mês/dia que vão direto pra uma query no banco. NUNCA use `new Date(ano,
+// mes, dia)` puro pra isso: aquilo monta meia-noite no fuso do servidor, que
+// em produção é UTC — quando esse instante volta pra diaCivilBr(), ele cai
+// às 21h do dia anterior em Brasília, e um "dia 1 do mês" vira o mês
+// anterior inteiro. Foi exatamente esse desvio que fazia o Relatório mostrar
+// vendas do mês errado.
+export function brMidnightUTC(ano: number, mes: number, dia: number): Date {
+  return new Date(Date.UTC(ano, mes, dia, 3, 0, 0));
+}
+
 export function iniciais(nome: string): string {
   const partes = nome.replace(/\(.*?\)/g, "").trim().split(/\s+/);
   return ((partes[0]?.[0] ?? "?") + (partes[1]?.[0] ?? "")).toUpperCase();

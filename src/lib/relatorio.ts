@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { custoMedioProdutos, limitesDoMes } from "@/lib/dados";
-import { diaCivilBr } from "@/lib/format";
+import { custoMedioProdutos } from "@/lib/dados";
+import { diaCivilBr, brMidnightUTC } from "@/lib/format";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const agora = new Date();
@@ -10,8 +10,15 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const custos = await custoMedioProdutos(revendedorId);
 
   for (let i = quantidade - 1; i >= 0; i--) {
+    // Normaliza (ano, mes - i) pra virada de ano — essa conta é só
+    // aritmética local (não vira instante comparado a nada), então tanto
+    // faz o fuso do servidor aqui; os limites de busca é que precisam do
+    // instante certo em Brasília, por isso usam brMidnightUTC abaixo.
     const referencia = new Date(agoraCivil.ano, agoraCivil.mes - i, 1);
-    const { inicio, fim } = limitesDoMes(referencia);
+    const ano = referencia.getFullYear();
+    const mes = referencia.getMonth();
+    const inicio = brMidnightUTC(ano, mes, 1);
+    const fim = brMidnightUTC(ano, mes + 1, 1);
 
     const [renovacoes, vendas] = await Promise.all([
       prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
@@ -26,15 +33,19 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
     const receita = receitaRenov + receitaVendas;
     const custo = custoRenov + custoVendas;
 
-    meses.push({ ano: referencia.getFullYear(), mes: referencia.getMonth(), receita, custo, lucro: receita - custo });
+    meses.push({ ano, mes, receita, custo, lucro: receita - custo });
   }
 
   return meses;
 }
 
 export async function dadosMes(revendedorId: string, ano: number, mes: number) {
-  const referencia = new Date(ano, mes, 1);
-  const { inicio, fim } = limitesDoMes(referencia);
+  // Nunca `new Date(ano, mes, 1)` aqui: isso monta meia-noite no fuso do
+  // servidor (UTC em produção), que caindo de volta em Brasília é 21h do
+  // dia anterior — um "mês 1" vira o mês anterior inteiro na busca abaixo.
+  // brMidnightUTC monta o instante certo direto, sem passar por essa volta.
+  const inicio = brMidnightUTC(ano, mes, 1);
+  const fim = brMidnightUTC(ano, mes + 1, 1);
   const custos = await custoMedioProdutos(revendedorId);
 
   const [renovacoes, vendas, cancelados] = await Promise.all([
@@ -87,8 +98,8 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
 export async function proximoMes(revendedorId: string) {
   const agora = new Date();
   const { ano, mes } = diaCivilBr(agora);
-  const proximo = new Date(ano, mes + 1, 1);
-  const depois = new Date(ano, mes + 2, 1);
+  const proximo = brMidnightUTC(ano, mes + 1, 1);
+  const depois = brMidnightUTC(ano, mes + 2, 1);
 
   const vencendo = await prisma.cliente.findMany({
     where: { revendedorId, status: { not: "CANCELADO" }, vencimento: { gte: proximo, lt: depois } },
