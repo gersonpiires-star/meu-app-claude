@@ -95,7 +95,7 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
           Status atual: <strong className="text-text">{revendedor.statusAssinatura}</strong>
           {revendedor.assinaturaVence ? ` · vence em ${dataPorExtenso(revendedor.assinaturaVence)}` : ""}
         </p>
-        {revendedor.statusAssinatura === "ATIVO" ? (
+        {plano || ultimoPagamento ? (
           <div className="mb-3 grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface-2 p-3 text-sm">
             <div>
               <p className="text-[11px] uppercase tracking-wider text-text-dim">Plano</p>

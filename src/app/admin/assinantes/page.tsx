@@ -138,14 +138,14 @@ export default async function AssinantesPage({
             {filtrados.map((a) => {
               const estado = statusInfo(a);
               const ultimoPagamento = a.pagamentos[0];
+              // Plano/valor vêm do último pagamento aprovado, independente do status
+              // atual — pausar ou cancelar não apaga o que o assinante já pagou, então
+              // a lista continua mostrando o plano/valor dele em vez de "—".
               const plano =
-                a.statusAssinatura === "ATIVO"
-                  ? (a.planoAssinatura ?? (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : null))
-                  : a.statusAssinatura === "TRIAL"
-                    ? "TRIAL"
-                    : null;
+                a.planoAssinatura ??
+                (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : a.statusAssinatura === "TRIAL" ? "TRIAL" : null);
               const vencimento = a.statusAssinatura === "TRIAL" ? a.trialFim : a.assinaturaVence;
-              const valor = a.statusAssinatura === "ATIVO" && ultimoPagamento ? brl0(ultimoPagamento.valor) : "—";
+              const valor = ultimoPagamento ? brl0(ultimoPagamento.valor) : "—";
               const chamarLink =
                 a.statusAssinatura === "TRIAL" && a.whatsapp
                   ? linkNutricaoWhatsapp(a.whatsapp, a.nome, a._count.clientes > 0)
