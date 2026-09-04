@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SairButton } from "@/components/sair-button";
+import { LogoMark } from "@/components/logo-mark";
 import { cx } from "@/components/ui";
 
 const ITENS = [
@@ -28,7 +29,7 @@ export function NavShell({
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
         <div className="mb-6 flex items-center gap-2 px-1">
-          <div className="h-8 w-8 rounded-lg bg-accent" />
+          <LogoMark className="h-8 w-8" />
           <span className="text-sm font-bold">GestorPro</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
@@ -97,7 +98,7 @@ export function NavShell({
       <div className="flex flex-1 flex-col pb-16 md:pb-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-accent" />
+            <LogoMark className="h-7 w-7" />
             <span className="text-sm font-bold">GestorPro</span>
           </div>
           <div className="flex items-center gap-3">
