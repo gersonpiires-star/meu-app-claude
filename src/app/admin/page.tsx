@@ -3,6 +3,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { dadosAdmin, dadosCrescimento } from "@/lib/dados-admin";
 import { brl0, dataCurta } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
+import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, StatTile } from "@/components/ui";
 
 const MESES = [
@@ -88,7 +89,7 @@ export default async function AdminPainelPage() {
                     </p>
                   </div>
                   {r.whatsapp ? (
-                    <a href={`https://wa.me/${r.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+                    <a href={linkWhatsApp(r.whatsapp)} target="_blank" rel="noreferrer">
                       <Badge tone={dias <= 0 ? "danger" : "warning"}>Chamar</Badge>
                     </a>
                   ) : null}
@@ -169,7 +170,7 @@ export default async function AdminPainelPage() {
                       </p>
                     </div>
                     {r.whatsapp ? (
-                      <a href={`https://wa.me/${r.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+                      <a href={linkWhatsApp(r.whatsapp)} target="_blank" rel="noreferrer">
                         <Badge tone="accent">Chamar</Badge>
                       </a>
                     ) : null}

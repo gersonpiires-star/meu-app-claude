@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataPorExtenso } from "@/lib/format";
+import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card } from "@/components/ui";
 import { AcoesAcesso } from "../acoes-acesso";
 
@@ -36,7 +37,7 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
           </div>
           {revendedor.whatsapp ? (
             <a
-              href={`https://wa.me/${revendedor.whatsapp.replace(/\D/g, "")}`}
+              href={linkWhatsApp(revendedor.whatsapp)}
               target="_blank"
               rel="noreferrer"
               className="whitespace-nowrap rounded-xl bg-whatsapp px-3 py-2 text-xs font-semibold text-bg-deep"

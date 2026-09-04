@@ -2,6 +2,7 @@ import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataCurta, diaCivilBr } from "@/lib/format";
+import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card, EmptyState, Input } from "@/components/ui";
 
 function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
@@ -30,7 +31,7 @@ function linkNutricaoWhatsapp(whatsapp: string, nome: string, temClientes: boole
   const texto = temClientes
     ? `Oi ${primeiroNome}! Vi que você já começou a usar o GestorPro. Ficou alguma dúvida ou posso ajudar em algo?`
     : `Oi ${primeiroNome}! Notei que você criou sua conta no GestorPro mas ainda não cadastrou nenhum cliente. Posso te ajudar a começar?`;
-  return `https://wa.me/${whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
+  return linkWhatsApp(whatsapp, texto);
 }
 
 export default async function AssinantesPage({
