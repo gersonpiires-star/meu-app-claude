@@ -5,11 +5,11 @@ import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 
-// Encaixa a linha do anexo (chave Pix / link) logo abaixo da linha "Valor…"
-// do modelo — se o modelo não tiver essa linha (ex: Livre), cai no final.
-function inserirAposValor(texto: string, linha: string): string {
+// Encaixa uma linha extra logo abaixo da primeira linha do modelo que
+// começa com `marcador` (ex: "valor", "válido") — se não achar, cai no final.
+function inserirApos(texto: string, marcador: string, linha: string): string {
   const linhas = texto.split("\n");
-  const idx = linhas.findIndex((l) => l.trim().toLowerCase().startsWith("valor"));
+  const idx = linhas.findIndex((l) => l.trim().toLowerCase().startsWith(marcador));
   if (idx === -1) return `${texto}\n\n${linha}`;
   linhas.splice(idx + 1, 0, linha);
   return linhas.join("\n");
@@ -37,6 +37,7 @@ export function MensagemWhatsApp({
   const [mensagem, setMensagem] = useState(() => preencherModelo(MODELOS[Object.keys(MODELOS)[0]] ?? "", dados));
   const [chaveId, setChaveId] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [incluirRecibo, setIncluirRecibo] = useState(true);
 
   if (!whatsapp) {
     return <p className="text-sm text-text-dim">Cadastre o WhatsApp do cliente para enviar mensagens.</p>;
@@ -51,7 +52,10 @@ export function MensagemWhatsApp({
       : chaveSelecionada
         ? `Chave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
         : null;
-  const mensagemFinal = linhaAnexo ? inserirAposValor(mensagem, linhaAnexo) : mensagem;
+  let mensagemFinal = linhaAnexo ? inserirApos(mensagem, "valor", linhaAnexo) : mensagem;
+  if (ehRenovacao && ultimaRenovacaoId && incluirRecibo) {
+    mensagemFinal = inserirApos(mensagemFinal, "válido", "📄 Segue o recibo dessa renovação em anexo.");
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -81,17 +85,30 @@ export function MensagemWhatsApp({
       </Field>
 
       {ehRenovacao ? (
-        <div className="-mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="-mt-2 flex flex-col gap-2">
           <p className="text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
           {ultimaRenovacaoId ? (
-            <a
-              href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold text-accent hover:underline"
-            >
-              Baixar recibo em PDF ↓
-            </a>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-text-dim">
+                <input
+                  type="checkbox"
+                  checked={incluirRecibo}
+                  onChange={(e) => setIncluirRecibo(e.target.checked)}
+                  className="h-4 w-4 rounded border-border-strong accent-accent"
+                />
+                Enviar recibo em PDF junto
+              </label>
+              {incluirRecibo ? (
+                <a
+                  href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-accent hover:underline"
+                >
+                  Baixar recibo em PDF ↓
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : chaves.length > 0 || linkPagamento ? (
@@ -138,7 +155,7 @@ export function MensagemWhatsApp({
           {copiado ? "Copiado!" : "Copiar"}
         </Button>
       </div>
-      {ehRenovacao && ultimaRenovacaoId ? (
+      {ehRenovacao && ultimaRenovacaoId && incluirRecibo ? (
         <p className="-mt-1 text-[11px] text-text-dim">
           O WhatsApp não deixa anexar arquivo pelo link — baixe o recibo antes e anexe ele na conversa que abrir.
         </p>
