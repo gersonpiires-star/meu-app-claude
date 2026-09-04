@@ -106,7 +106,7 @@ export default async function VendasPage({
         <EmptyState>Nenhuma venda registrada ainda.</EmptyState>
       ) : (
         <Card className="p-0">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+          <div className="grid grid-cols-[48px_1fr_120px_32px_92px_150px] gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
             <span>Data</span>
             <span>Produto</span>
             <span>Cliente</span>
@@ -116,7 +116,7 @@ export default async function VendasPage({
           </div>
           <div className="flex flex-col divide-y divide-border">
             {vendas.map((venda) => (
-              <div key={venda.id} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-3 px-4 py-3 text-sm">
+              <div key={venda.id} className="grid grid-cols-[48px_1fr_120px_32px_92px_150px] items-center gap-3 px-4 py-3 text-sm">
                 <span className="text-text-dim">{dataCurta(venda.data)}</span>
                 <span className="truncate text-text">{venda.produto.modelo}</span>
                 <span className="truncate text-text-muted">{venda.cliente?.nome ?? "Venda avulsa"}</span>

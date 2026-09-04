@@ -105,6 +105,11 @@ model Revendedor {
   motivoCancelamento String?
   canceladoEm        DateTime?
 
+  // Até quando o revendedor já leu os comunicados da Administração
+  // GestorPro (Aviso com destino TODOS_REVENDEDORES) — qualquer aviso
+  // criado depois disso conta como não lido no sininho de notificação.
+  avisosLidosAte DateTime?
+
   // Indicação entre revendedores (programa de indicação do próprio
   // GestorPro) — quem trouxe esse revendedor pra plataforma.
   indicadoPorId String?
