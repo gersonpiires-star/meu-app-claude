@@ -152,7 +152,7 @@ export default async function ConfiguracoesPage() {
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Trazer dados de outro sistema</h2>
-        <ImportarForm />
+        <ImportarForm podeZerar={!ehFuncionario} />
       </Card>
 
       {ehFuncionario ? null : (

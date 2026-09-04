@@ -4,7 +4,8 @@ import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
+import { registrarLog } from "@/lib/log";
 import { dataHora } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
@@ -144,6 +145,17 @@ export async function importarDadosAntigos(
   const texto = (typeof campo === "string" ? campo : await campo.text()).trim();
   if (!texto) return { ok: false, erro: "O arquivo selecionado está vazio." };
 
+  const zerarAntes = formData.get("zerarAntes") === "on";
+  if (zerarAntes) {
+    if (await souFuncionario()) {
+      return { ok: false, erro: "Só o dono da conta pode apagar os dados atuais." };
+    }
+    const confirmacaoZerar = String(formData.get("confirmacaoZerar") ?? "");
+    if (confirmacaoZerar !== "ZERAR") {
+      return { ok: false, erro: 'Digite exatamente "ZERAR" para confirmar que quer apagar os dados atuais.' };
+    }
+  }
+
   let bruto: unknown;
   try {
     bruto = JSON.parse(texto);
@@ -173,11 +185,14 @@ export async function importarDadosAntigos(
   }
 
   try {
-    const resultado = await importar({ revendedorId: revendedor.id, clientes, modelos, vendas, recebimentos, plataformas, apps });
+    const resultado = await importar({ revendedorId: revendedor.id, clientes, modelos, vendas, recebimentos, plataformas, apps, zerarAntes });
     if (resultado.ok) {
       await prisma.importacaoAntiga.create({
         data: { revendedorId: revendedor.id, hash, resumo: resultado.resumo },
       });
+      if (zerarAntes) {
+        await registrarLog(revendedor.id, "dados.zerar_importar", `Apagou todos os dados atuais e importou o arquivo antigo — ${resultado.resumo}`);
+      }
     }
     return resultado;
   } catch (erro) {
@@ -194,6 +209,7 @@ async function importar({
   recebimentos,
   plataformas,
   apps,
+  zerarAntes,
 }: {
   revendedorId: string;
   clientes: z.infer<typeof clienteAntigoSchema>[];
@@ -202,6 +218,7 @@ async function importar({
   recebimentos: z.infer<typeof recebimentoAntigoSchema>[];
   plataformas: z.infer<typeof plataformaAntigaSchema>[];
   apps: z.infer<typeof appAntigoSchema>[];
+  zerarAntes: boolean;
 }): Promise<{ ok: true; resumo: string } | { ok: false; erro: string }> {
   // Tudo roda numa única transação — se algo no meio do caminho falhar (ex:
   // um produto com nome repetido, que colide com a restrição de unicidade),
@@ -209,6 +226,21 @@ async function importar({
   // reportar erro no fim, como acontecia antes.
   const resumo = await prisma.$transaction(
     async (tx) => {
+      // Zerar acontece na mesma transação da importação: se algo abaixo
+      // falhar, os deletes também desfazem — nunca fica com a conta vazia e
+      // a importação pela metade.
+      if (zerarAntes) {
+        await tx.renovacao.deleteMany({ where: { cliente: { revendedorId } } });
+        await tx.movimentoEstoque.deleteMany({ where: { produto: { revendedorId } } });
+        await tx.venda.deleteMany({ where: { revendedorId } });
+        await tx.cliente.deleteMany({ where: { revendedorId } });
+        await tx.produto.deleteMany({ where: { revendedorId } });
+        await tx.lotePlataforma.deleteMany({ where: { plataforma: { revendedorId } } });
+        await tx.plataforma.deleteMany({ where: { revendedorId } });
+        await tx.chavePix.deleteMany({ where: { revendedorId } });
+        await tx.servico.deleteMany({ where: { revendedorId } });
+      }
+
       const servicoIdPorNome = new Map<string, string>();
       const clienteIdAntigoParaNovo = new Map<number, string>();
       const produtoIdAntigoParaNovo = new Map<number, string>();
