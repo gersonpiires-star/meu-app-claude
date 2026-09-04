@@ -11,6 +11,30 @@ const schema = z.object({
   mpPublicKey: z.string().trim().optional(),
 });
 
+const perfilSchema = z.object({
+  nome: z.string().trim().min(2, "Informe seu nome completo"),
+  whatsapp: z.string().trim().min(8, "Informe um WhatsApp válido"),
+});
+
+export async function salvarPerfil(formData: FormData): Promise<{ erro: string } | undefined> {
+  const revendedor = await exigirDono();
+  const parsed = perfilSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+
+  const whatsapp = parsed.data.whatsapp.replace(/\D/g, "");
+  if (whatsapp.length < 10) return { erro: "Informe um WhatsApp válido, com DDD." };
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { nome: parsed.data.nome, whatsapp },
+  });
+
+  await registrarLog(revendedor.id, "config.perfil", "Atualizou nome/WhatsApp da conta");
+
+  revalidatePath("/configuracoes");
+  revalidatePath("/painel");
+}
+
 export async function salvarCredenciaisMP(formData: FormData) {
   const revendedor = await exigirDono();
   const dados = schema.parse(Object.fromEntries(formData));

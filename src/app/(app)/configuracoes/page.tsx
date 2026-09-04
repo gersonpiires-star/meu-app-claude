@@ -3,6 +3,7 @@ import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
 import { salvarCredenciaisMP, salvarSuspensaoAutomatica } from "./actions";
+import { PerfilForm } from "./perfil-form";
 import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
 import { BackupForm } from "./backup-form";
@@ -26,6 +27,13 @@ export default async function ConfiguracoesPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
       <h1 className="text-lg font-bold text-text">Configurações</h1>
+
+      {ehFuncionario ? null : (
+        <Card>
+          <h2 className="mb-3 text-sm font-bold text-text">Seus dados</h2>
+          <PerfilForm nome={revendedor.nome} whatsapp={revendedor.whatsapp} />
+        </Card>
+      )}
 
       {ehFuncionario ? null : (
         <Card>
