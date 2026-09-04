@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { custoMedioProdutos } from "@/lib/dados";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
+import { PLANO_MESES } from "@/lib/planos";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const agora = new Date();
@@ -103,11 +104,20 @@ export async function proximoMes(revendedorId: string) {
 
   const vencendo = await prisma.cliente.findMany({
     where: { revendedorId, status: { not: "CANCELADO" }, vencimento: { gte: proximo, lt: depois } },
+    include: { servico: true },
   });
+
+  // "Lucro previsto" precisa descontar o custo — a mesma conta que
+  // dadosPainel() já faz pro card do Painel. Sem isso, esse card mostrava a
+  // receita bruta com o rótulo de lucro, e os dois números nunca batiam.
+  const previsto = vencendo.reduce((a, c) => {
+    const custo = PLANO_MESES[c.plano] * (c.servico?.custoCredito ?? 0);
+    return a + (c.valorPlano - custo);
+  }, 0);
 
   return {
     referencia: proximo,
     quantidade: vencendo.length,
-    previsto: vencendo.reduce((a, c) => a + c.valorPlano, 0),
+    previsto,
   };
 }
