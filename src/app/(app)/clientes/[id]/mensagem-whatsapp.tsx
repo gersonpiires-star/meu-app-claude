@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
 import { CompartilharRecibo } from "@/components/compartilhar-recibo";
+import { BaixarReciboLink } from "@/components/baixar-recibo";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 
 // Encaixa uma linha extra logo abaixo da primeira linha do modelo que
@@ -101,14 +102,12 @@ export function MensagemWhatsApp({
               </label>
               {incluirRecibo ? (
                 <div className="flex flex-wrap items-center gap-3">
-                  <a
-                    href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-accent hover:underline"
+                  <BaixarReciboLink
+                    reciboUrl={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
+                    nomeArquivo={`recibo-${dados.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
                   >
                     Baixar recibo em PDF ↓
-                  </a>
+                  </BaixarReciboLink>
                   <CompartilharRecibo
                     reciboUrl={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
                     nomeArquivo={`recibo-${dados.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}

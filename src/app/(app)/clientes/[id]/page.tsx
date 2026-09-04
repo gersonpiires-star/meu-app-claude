@@ -18,6 +18,7 @@ import { ConverterTesteBotao } from "./converter-teste-botao";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 import { RenovarBotao } from "../renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "../cobrar-botao";
+import { BaixarReciboLink } from "@/components/baixar-recibo";
 
 type Tom = "neutral" | "danger" | "warning" | "success";
 
@@ -405,9 +406,11 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
               <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", BARRA_COR[h.tom])} />
               <span className={cx("flex-1 text-sm", h.tom === "danger" ? "text-danger" : "text-text-muted")}>{h.label}</span>
               {h.href ? (
-                <a href={h.href} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-semibold text-accent hover:underline">
-                  Recibo
-                </a>
+                <BaixarReciboLink
+                  reciboUrl={h.href}
+                  nomeArquivo={`recibo-${cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+                  className="shrink-0"
+                />
               ) : null}
               <span className="shrink-0 text-xs text-text-dim">{h.data}</span>
             </div>

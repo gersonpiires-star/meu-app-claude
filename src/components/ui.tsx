@@ -47,7 +47,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={cx(inputStyles, className)} {...rest} />;
 }
 
-type ButtonVariant = "primary" | "ghost" | "danger" | "whatsapp" | "outline";
+export type ButtonVariant = "primary" | "ghost" | "danger" | "whatsapp" | "outline";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: "bg-accent text-bg-deep hover:brightness-110",

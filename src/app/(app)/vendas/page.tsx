@@ -6,6 +6,7 @@ import { brl, dataCurta } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Button, Card, EmptyState, StatTile } from "@/components/ui";
 import { CompartilharRecibo } from "@/components/compartilhar-recibo";
+import { BaixarRecibo, BaixarReciboLink } from "@/components/baixar-recibo";
 import { vincularClienteVenda } from "./actions";
 import { VincularCliente } from "./vincular-cliente";
 
@@ -54,10 +55,11 @@ export default async function VendasPage({
             <p className="text-sm text-text">
               Venda pra <strong>{vendaRecemCriada.cliente.nome}</strong> registrada — já dá pra emitir o recibo.
             </p>
-            <div className="flex gap-2">
-              <a href={`/api/vendas/${vendaRecemCriada.id}/recibo`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost">Baixar recibo em PDF</Button>
-              </a>
+            <div className="flex flex-wrap gap-2">
+              <BaixarRecibo
+                reciboUrl={`/api/vendas/${vendaRecemCriada.id}/recibo`}
+                nomeArquivo={`recibo-${vendaRecemCriada.cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+              />
               {vendaRecemCriada.cliente.whatsapp ? (
                 <a
                   href={linkWhatsApp(
@@ -122,9 +124,10 @@ export default async function VendasPage({
                 <span className="font-semibold text-accent">{brl(venda.quantidade * venda.valorUnitario)}</span>
                 {venda.cliente ? (
                   <div className="flex items-center gap-2.5">
-                    <a href={`/api/vendas/${venda.id}/recibo`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent hover:underline">
-                      Recibo
-                    </a>
+                    <BaixarReciboLink
+                      reciboUrl={`/api/vendas/${venda.id}/recibo`}
+                      nomeArquivo={`recibo-${venda.cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+                    />
                     {venda.cliente.whatsapp ? (
                       <a
                         href={linkWhatsApp(venda.cliente.whatsapp, mensagemRecibo(venda.cliente.nome, venda.produto.modelo, venda.quantidade * venda.valorUnitario))}
