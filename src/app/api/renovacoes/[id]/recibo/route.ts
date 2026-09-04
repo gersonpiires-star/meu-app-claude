@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return new NextResponse(Buffer.from(bytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="recibo-${renovacao.cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf"`,
+      "Content-Disposition": `attachment; filename="recibo-${renovacao.cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf"`,
     },
   });
 }
