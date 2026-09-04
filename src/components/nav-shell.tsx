@@ -90,6 +90,14 @@ export function NavShell({
         >
           Precificação
         </Link>
+        <a
+          href="/manual-revendedor.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-text-muted transition hover:bg-surface-2 hover:text-text"
+        >
+          Manual do app
+        </a>
         {ehAdmin ? (
           <Link
             href="/admin"
@@ -120,6 +128,14 @@ export function NavShell({
             <Link href="/configuracoes" className="text-xs font-semibold text-text-dim">
               Config.
             </Link>
+            <a
+              href="/manual-revendedor.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-text-dim"
+            >
+              Manual
+            </a>
             <SairButton />
           </div>
         </header>
