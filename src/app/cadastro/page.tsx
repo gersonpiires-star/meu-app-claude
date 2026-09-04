@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { Card } from "@/components/ui";
 import { LogoMark } from "@/components/logo-mark";
 import { SignupForm } from "./signup-form";
@@ -10,8 +8,11 @@ export default async function CadastroPage({
 }: {
   searchParams: Promise<{ ref?: string }>;
 }) {
-  const session = await auth();
-  if (session?.user) redirect("/");
+  // Sem checar sessão aqui de propósito: quem abre um link de indicação
+  // (/cadastro?ref=...) pode já estar logado numa outra conta (inclusive
+  // o próprio revendedor testando o link dele) — precisa ver o formulário
+  // mesmo assim. Criar a conta já loga como o usuário novo por conta
+  // própria (ver signup-form.tsx), então não precisa bloquear o acesso aqui.
   const { ref } = await searchParams;
 
   return (
