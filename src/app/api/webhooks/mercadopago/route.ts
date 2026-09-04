@@ -173,10 +173,34 @@ export async function POST(request: Request) {
             testeGratis: false,
           },
         });
+        // Avisa o revendedor no sininho (e por push) que o cliente pagou
+        // sozinho pelo link — a tela do cliente já atualiza automaticamente,
+        // mas sem isso o revendedor só descobre se for conferir na mão.
+        await tx.notificacaoPagamento.create({
+          data: {
+            revendedorId: pagamento.revendedorId,
+            clienteId: cliente.id,
+            clienteNome: cliente.nome,
+            valor: pagamento.valor,
+          },
+        });
       }
     }
     return { jaProcessado: false };
   });
+
+  if (!resultado.jaProcessado && pagamento.tipo === "RENOVACAO" && pagamento.cliente) {
+    for (const inscricao of pagamento.revendedor.pushSubscriptions) {
+      const manter = await enviarPush(inscricao, {
+        titulo: "Pagamento recebido",
+        corpo: `${pagamento.cliente.nome} pagou a renovação pelo link — já está tudo atualizado.`,
+        url: `/clientes/${pagamento.cliente.id}`,
+      });
+      if (!manter) {
+        await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true, ignorado: resultado.jaProcessado ? "já processado" : undefined });
 }

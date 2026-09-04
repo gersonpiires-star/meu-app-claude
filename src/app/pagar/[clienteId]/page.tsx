@@ -18,7 +18,7 @@ export default async function PagarPage({ params }: { params: Promise<{ clienteI
   const faixa = faixaVencimento(cliente.vencimento);
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center bg-bg px-4 py-10 text-text">
+    <main className="flex min-h-dvh flex-1 items-center justify-center bg-bg px-4 py-10 text-text">
       <Card className="w-full max-w-sm">
         <p className="text-center text-xs font-semibold uppercase tracking-wider text-text-dim">
           {cliente.revendedor.nome}

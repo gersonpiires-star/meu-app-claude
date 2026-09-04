@@ -44,7 +44,7 @@ export default async function RetornoAssinaturaPage({
   const info = TEXTO_STATUS[pagamento.status] ?? TEXTO_STATUS.PENDENTE;
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
+    <main className="flex min-h-dvh flex-1 items-center justify-center px-4 py-10">
       <Card className="w-full max-w-sm text-center">
         <Badge tone={info.badge}>{pagamento.status}</Badge>
         <h1 className="mt-3 text-lg font-bold text-text">{info.titulo}</h1>

@@ -40,7 +40,7 @@ export default async function RetornoPagamentoClientePage({
   const info = TEXTO_STATUS[pagamento.status] ?? TEXTO_STATUS.PENDENTE;
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center bg-bg px-4 py-10 text-text">
+    <main className="flex min-h-dvh flex-1 items-center justify-center bg-bg px-4 py-10 text-text">
       <Card className="w-full max-w-sm text-center">
         <Badge tone={info.badge}>{pagamento.status}</Badge>
         <h1 className="mt-3 text-lg font-bold text-text">{info.titulo}</h1>

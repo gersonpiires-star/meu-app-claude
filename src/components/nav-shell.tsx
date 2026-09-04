@@ -6,7 +6,7 @@ import { SairButton } from "@/components/sair-button";
 import { LogoMark } from "@/components/logo-mark";
 import { NotificacoesAvisos } from "@/components/notificacoes-avisos";
 import { cx } from "@/components/ui";
-import type { AvisoRevendedor } from "@/lib/avisos";
+import type { NotificacaoRevendedor } from "@/lib/avisos";
 
 const ITENS = [
   { href: "/painel", label: "Painel" },
@@ -19,27 +19,27 @@ const ITENS = [
 export function NavShell({
   nome,
   ehAdmin = false,
-  avisos = [],
-  avisosNaoLidos = 0,
+  notificacoes = [],
+  notificacoesNaoLidas = 0,
   children,
 }: {
   nome: string;
   ehAdmin?: boolean;
-  avisos?: AvisoRevendedor[];
-  avisosNaoLidos?: number;
+  notificacoes?: NotificacaoRevendedor[];
+  notificacoesNaoLidas?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-full flex-1 flex-col md:flex-row">
+    <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
         <div className="mb-6 flex items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">
             <LogoMark className="h-8 w-8" />
             <span className="text-sm font-bold">GestorPro</span>
           </div>
-          <NotificacoesAvisos avisos={avisos} naoLidos={avisosNaoLidos} />
+          <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {ITENS.map((item) => (
@@ -104,14 +104,14 @@ export function NavShell({
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex flex-1 flex-col md:pb-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:hidden">
           <div className="flex items-center gap-2">
             <LogoMark className="h-7 w-7" />
             <span className="text-sm font-bold">GestorPro</span>
           </div>
           <div className="flex items-center gap-2">
-            <NotificacoesAvisos avisos={avisos} naoLidos={avisosNaoLidos} />
+            <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
             {ehAdmin ? (
               <Link href="/admin" className="text-xs font-semibold text-accent">
                 Admin
@@ -126,7 +126,11 @@ export function NavShell({
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+        {/* sticky, não fixed — "fixed" no mobile se ancora no viewport "de
+        layout" (o maior, contando a área da barra de endereço do
+        navegador), não no que está realmente visível. Isso fazia essa
+        barra flutuar bem abaixo da tela em vez de grudar no rodapé. */}
+        <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
           {ITENS.map((item) => (
             <Link
               key={item.href}

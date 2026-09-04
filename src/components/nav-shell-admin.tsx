@@ -17,7 +17,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-full flex-1 flex-col md:flex-row">
+    <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
       <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
         <div className="mb-6 flex items-center gap-2 px-1">
           <LogoMark className="h-8 w-8" />
@@ -52,7 +52,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex flex-1 flex-col md:pb-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:hidden">
           <span className="text-sm font-bold">GestorPro · Admin</span>
           <div className="flex items-center gap-3">
@@ -65,7 +65,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+        <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
           {ITENS.map((item) => (
             <Link
               key={item.href}

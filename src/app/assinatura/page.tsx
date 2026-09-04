@@ -31,7 +31,7 @@ export default async function AssinaturaPage({
   const { erroCupom } = await searchParams;
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
+    <main className="flex min-h-dvh flex-1 items-center justify-center px-4 py-10">
       <div className="w-full max-w-xl">
         <div className="mb-5 text-center">
           <h1 className="text-2xl font-bold text-text">Liberar tudo no GestorPro</h1>

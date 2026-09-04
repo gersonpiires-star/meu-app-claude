@@ -10,7 +10,7 @@ export default async function EntrarPage() {
   if (session) redirect("/");
 
   return (
-    <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
+    <main className="flex min-h-dvh flex-1 items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-bg-deep">

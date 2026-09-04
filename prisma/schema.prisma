@@ -130,6 +130,7 @@ model Revendedor {
   funcionarios    Funcionario[]
   pushSubscriptions PushSubscription[]
   logsAtividade   LogAtividade[]
+  notificacoesPagamento NotificacaoPagamento[]
   importacoesAntigas ImportacaoAntiga[]
 }
 
@@ -279,9 +280,25 @@ model Cliente {
   vendas        Venda[]
   cobrancas     Cobranca[]
   avisosEnviados AvisoEnvio[]
+  notificacoesPagamento NotificacaoPagamento[]
 
   @@index([revendedorId, status])
   @@index([revendedorId, vencimento])
+}
+
+// Avisa o revendedor no sininho do painel quando um cliente paga sozinho
+// pelo link de autoatendimento (/pagar/[clienteId]) — mesmo a tela do
+// cliente já atualizando sozinha, sem isso o revendedor só percebe o
+// pagamento se for conferir manualmente.
+model NotificacaoPagamento {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  clienteId    String?
+  cliente      Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNome  String
+  valor        Float
+  criadoEm     DateTime @default(now())
 }
 
 // Marca quando um cliente recebeu um determinado modelo de aviso em massa,

@@ -39,9 +39,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-bg text-text">
+      {/* 100dvh (não h-full/min-h-full em cascata) porque no Chrome mobile a
+      barra de endereço que aparece/some faz o navegador reportar uma altura
+      de "layout viewport" maior que a área realmente visível — com % em
+      cascata (html 100% → body 100% → ...) o body às vezes ficava do
+      tamanho do conteúdo em vez de esticar, sobrando um vão enorme antes do
+      rodapé fixo. dvh mede a altura visível de verdade, sem depender da
+      cascata de porcentagens. */}
+      <body className="min-h-dvh flex flex-col bg-bg text-text">
         <Providers>{children}</Providers>
       </body>
     </html>

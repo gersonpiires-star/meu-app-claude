@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
-import { dataPorExtenso } from "@/lib/format";
+import { dataPorExtenso, brl0 } from "@/lib/format";
 import { marcarAvisosLidos } from "@/app/(app)/avisos-actions";
 import { cx } from "@/components/ui";
-import type { AvisoRevendedor } from "@/lib/avisos";
+import type { NotificacaoRevendedor } from "@/lib/avisos";
 
 const LARGURA_PAINEL = 320;
 const MARGEM = 8;
@@ -23,7 +24,51 @@ function IconeSino({ className }: { className?: string }) {
   );
 }
 
-export function NotificacoesAvisos({ avisos, naoLidos, className }: { avisos: AvisoRevendedor[]; naoLidos: number; className?: string }) {
+function ItemNotificacao({ item }: { item: NotificacaoRevendedor }) {
+  const conteudo =
+    item.tipo === "COMUNICADO" ? (
+      <>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold text-text">{item.titulo}</p>
+          {!item.lido ? <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
+        </div>
+        <p className="mt-1 whitespace-pre-wrap text-xs text-text-muted">{item.mensagem}</p>
+      </>
+    ) : (
+      <>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold text-text">💰 Pagamento recebido</p>
+          {!item.lido ? <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
+        </div>
+        <p className="mt-1 text-xs text-text-muted">
+          {item.clienteNome} pagou {brl0(item.valor)} pelo link — a renovação já foi registrada.
+        </p>
+      </>
+    );
+
+  return (
+    <div className="px-4 py-3">
+      {item.tipo === "PAGAMENTO" && item.clienteId ? (
+        <Link href={`/clientes/${item.clienteId}`} className="block hover:opacity-90">
+          {conteudo}
+        </Link>
+      ) : (
+        conteudo
+      )}
+      <p className="mt-1.5 text-[11px] text-text-dim">{dataPorExtenso(item.criadoEm)}</p>
+    </div>
+  );
+}
+
+export function NotificacoesAvisos({
+  notificacoes,
+  naoLidos,
+  className,
+}: {
+  notificacoes: NotificacaoRevendedor[];
+  naoLidos: number;
+  className?: string;
+}) {
   const botaoRef = useRef<HTMLButtonElement>(null);
   const [posicao, setPosicao] = useState<{ top: number; left: number } | null>(null);
   const [naoLidosLocal, setNaoLidosLocal] = useState(naoLidos);
@@ -53,7 +98,7 @@ export function NotificacoesAvisos({ avisos, naoLidos, className }: { avisos: Av
       <button
         ref={botaoRef}
         onClick={() => (aberto ? setPosicao(null) : abrir())}
-        aria-label="Comunicados"
+        aria-label="Notificações"
         className="relative z-50 flex h-8 w-8 items-center justify-center rounded-lg text-text-dim transition hover:bg-surface-2 hover:text-text"
       >
         <IconeSino className="h-5 w-5" />
@@ -72,23 +117,16 @@ export function NotificacoesAvisos({ avisos, naoLidos, className }: { avisos: Av
             className="fixed z-50 flex max-h-96 max-w-[85vw] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
           >
             <div className="border-b border-border px-4 py-3">
-              <p className="text-sm font-bold text-text">Comunicados</p>
-              <p className="text-xs text-text-dim">Avisos da Administração GestorPro</p>
+              <p className="text-sm font-bold text-text">Notificações</p>
+              <p className="text-xs text-text-dim">Comunicados e pagamentos recebidos pelo link</p>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {avisos.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-text-dim">Nenhum comunicado ainda.</p>
+              {notificacoes.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-text-dim">Nenhuma notificação ainda.</p>
               ) : (
                 <div className="flex flex-col divide-y divide-border">
-                  {avisos.map((aviso) => (
-                    <div key={aviso.id} className="px-4 py-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-text">{aviso.titulo}</p>
-                        {!aviso.lido ? <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
-                      </div>
-                      <p className="mt-1 whitespace-pre-wrap text-xs text-text-muted">{aviso.mensagem}</p>
-                      <p className="mt-1.5 text-[11px] text-text-dim">{dataPorExtenso(aviso.criadoEm)}</p>
-                    </div>
+                  {notificacoes.map((item) => (
+                    <ItemNotificacao key={`${item.tipo}-${item.id}`} item={item} />
                   ))}
                 </div>
               )}
