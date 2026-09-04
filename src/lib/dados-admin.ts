@@ -90,3 +90,100 @@ export async function dadosAdmin() {
     proximoMes,
   };
 }
+
+// Funil de vendas do próprio GestorPro (leads → trial → pago), quem são os
+// trials mais engajados (uso real, não só tempo restante), e a coorte de
+// retenção de quem virou pagante — tudo pra ajudar a vender/reter melhor,
+// não pra operar o dia a dia dos assinantes (isso já é dadosAdmin).
+export async function dadosCrescimento() {
+  const [totalInteressados, interessadosConvertidos, revendedores, pagamentosAprovados, cancelamentosRecentes] = await Promise.all([
+    prisma.interessado.count(),
+    prisma.interessado.count({ where: { convertido: true } }),
+    prisma.revendedor.findMany({
+      where: { papel: "REVENDEDOR" },
+      select: {
+        id: true,
+        nome: true,
+        whatsapp: true,
+        criadoEm: true,
+        statusAssinatura: true,
+        trialFim: true,
+        _count: { select: { clientes: true, vendas: true } },
+      },
+    }),
+    prisma.pagamento.findMany({
+      where: { tipo: "ASSINATURA", status: "APROVADO" },
+      select: { revendedorId: true, atualizadoEm: true },
+      orderBy: { atualizadoEm: "asc" },
+    }),
+    prisma.revendedor.findMany({
+      where: { papel: "REVENDEDOR", statusAssinatura: "CANCELADO" },
+      orderBy: { canceladoEm: "desc" },
+      take: 8,
+      select: { id: true, nome: true, motivoCancelamento: true, canceladoEm: true },
+    }),
+  ]);
+
+  const taxaConversaoInteressados = totalInteressados > 0 ? (interessadosConvertidos / totalInteressados) * 100 : 0;
+
+  // Primeiro pagamento de assinatura aprovado de cada revendedor = quando
+  // ele virou pagante (a lista já vem ordenada por atualizadoEm asc).
+  const primeiraConversao = new Map<string, Date>();
+  for (const p of pagamentosAprovados) {
+    if (!primeiraConversao.has(p.revendedorId)) primeiraConversao.set(p.revendedorId, p.atualizadoEm);
+  }
+
+  const totalRevendedores = revendedores.length;
+  const convertidos = primeiraConversao.size;
+  const taxaConversaoTrial = totalRevendedores > 0 ? (convertidos / totalRevendedores) * 100 : 0;
+
+  const diasParaConverter: number[] = [];
+  const histogramaMap = new Map<number, number>();
+  for (const r of revendedores) {
+    const dataConversao = primeiraConversao.get(r.id);
+    if (!dataConversao) continue;
+    const dias = Math.max(0, Math.round((dataConversao.getTime() - r.criadoEm.getTime()) / 86400000));
+    diasParaConverter.push(dias);
+    const bucket = Math.min(dias, 7);
+    histogramaMap.set(bucket, (histogramaMap.get(bucket) ?? 0) + 1);
+  }
+  const diaMedioConversao =
+    diasParaConverter.length > 0 ? diasParaConverter.reduce((a, b) => a + b, 0) / diasParaConverter.length : null;
+  const histogramaDias = Array.from({ length: 8 }, (_, dia) => ({ dia, quantidade: histogramaMap.get(dia) ?? 0 }));
+
+  const agora = new Date();
+  const trialsEngajados = revendedores
+    .filter((r) => r.statusAssinatura === "TRIAL" && r.trialFim > agora && (r._count.clientes > 0 || r._count.vendas > 0))
+    .sort((a, b) => b._count.clientes + b._count.vendas - (a._count.clientes + a._count.vendas))
+    .slice(0, 10);
+
+  const cohortMap = new Map<string, { ano: number; mes: number; total: number; aindaAtivos: number }>();
+  for (const r of revendedores) {
+    const dataConversao = primeiraConversao.get(r.id);
+    if (!dataConversao) continue;
+    const { ano, mes } = diaCivilBr(dataConversao);
+    const chave = `${ano}-${mes}`;
+    const atual = cohortMap.get(chave) ?? { ano, mes, total: 0, aindaAtivos: 0 };
+    atual.total += 1;
+    if (r.statusAssinatura === "ATIVO") atual.aindaAtivos += 1;
+    cohortMap.set(chave, atual);
+  }
+  const coorte = [...cohortMap.values()]
+    .sort((a, b) => b.ano - a.ano || b.mes - a.mes)
+    .slice(0, 12)
+    .map((c) => ({ ...c, retencaoPct: c.total > 0 ? (c.aindaAtivos / c.total) * 100 : 0 }));
+
+  return {
+    totalInteressados,
+    interessadosConvertidos,
+    taxaConversaoInteressados,
+    totalRevendedores,
+    convertidos,
+    taxaConversaoTrial,
+    diaMedioConversao,
+    histogramaDias,
+    trialsEngajados,
+    coorte,
+    cancelamentosRecentes,
+  };
+}

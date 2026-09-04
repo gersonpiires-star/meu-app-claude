@@ -64,6 +64,11 @@ enum StatusPagamento {
   CANCELADO
 }
 
+enum TipoCupom {
+  PERCENTUAL
+  FIXO
+}
+
 model Revendedor {
   id        String   @id @default(cuid())
   nome      String
@@ -92,6 +97,18 @@ model Revendedor {
   // Margem de lucro padrão (%) usada pra sugerir o preço de venda de
   // aparelhos a partir do custo médio de compra (Precificação · Maquininha).
   margemPadrao Float @default(30)
+
+  // Motivo que o revendedor deu ao cancelar a própria assinatura do
+  // GestorPro (não confundir com Cliente.motivoSaida, que é dele saindo
+  // de um cliente dele).
+  motivoCancelamento String?
+  canceladoEm        DateTime?
+
+  // Indicação entre revendedores (programa de indicação do próprio
+  // GestorPro) — quem trouxe esse revendedor pra plataforma.
+  indicadoPorId String?
+  indicadoPor   Revendedor?  @relation("IndicacaoRevendedor", fields: [indicadoPorId], references: [id], onDelete: SetNull)
+  indicados     Revendedor[] @relation("IndicacaoRevendedor")
 
   servicos   Servico[]
   clientes   Cliente[]
@@ -435,8 +452,30 @@ model Pagamento {
   mpPreferenceId String? @unique
   mpPaymentId    String? @unique
 
+  cupomId String?
+  cupom   Cupom?  @relation(fields: [cupomId], references: [id], onDelete: SetNull)
+
   criadoEm    DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   @@index([revendedorId, status])
+}
+
+// Cupom de desconto pra assinatura do GestorPro (não é dos clientes do
+// revendedor — é o admin vendendo o próprio GestorPro).
+model Cupom {
+  id     String @id @default(cuid())
+  codigo String @unique
+
+  tipo  TipoCupom
+  valor Float // percentual (0-100) se tipo=PERCENTUAL, ou reais se tipo=FIXO
+
+  ativo      Boolean   @default(true)
+  validoAte  DateTime?
+  usoMaximo  Int?
+  usosCount  Int       @default(0)
+
+  criadoEm DateTime @default(now())
+
+  pagamentos Pagamento[]
 }
