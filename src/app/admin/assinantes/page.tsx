@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dataCurta } from "@/lib/format";
+import { dataCurta, diaCivilBr } from "@/lib/format";
 import { Badge, Card, EmptyState, Input } from "@/components/ui";
 
 function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
@@ -9,11 +9,28 @@ function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; ass
   if (revendedor.statusAssinatura === "ATIVO") {
     return <Badge tone="accent">Ativo</Badge>;
   }
+  if (revendedor.statusAssinatura === "CANCELADO") {
+    return <Badge tone="neutral">Cancelado</Badge>;
+  }
   if (revendedor.statusAssinatura === "TRIAL") {
     const dias = Math.max(0, Math.ceil((revendedor.trialFim.getTime() - agora.getTime()) / 86400000));
     return <Badge tone={dias > 0 ? "neutral" : "danger"}>{dias > 0 ? `+${dias}d trial` : "Trial expirado"}</Badge>;
   }
   return <Badge tone="danger">Pausado</Badge>;
+}
+
+function diaDoTrial(criadoEm: Date): number {
+  const c = diaCivilBr(criadoEm);
+  const h = diaCivilBr(new Date());
+  return Math.round((new Date(h.ano, h.mes, h.dia).getTime() - new Date(c.ano, c.mes, c.dia).getTime()) / 86400000) + 1;
+}
+
+function linkNutricaoWhatsapp(whatsapp: string, nome: string, temClientes: boolean) {
+  const primeiroNome = nome.split(" ")[0];
+  const texto = temClientes
+    ? `Oi ${primeiroNome}! Vi que você já começou a usar o GestorPro. Ficou alguma dúvida ou posso ajudar em algo?`
+    : `Oi ${primeiroNome}! Notei que você criou sua conta no GestorPro mas ainda não cadastrou nenhum cliente. Posso te ajudar a começar?`;
+  return `https://wa.me/${whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
 }
 
 export default async function AssinantesPage({
@@ -58,20 +75,24 @@ export default async function AssinantesPage({
         <Card className="p-0">
           <div className="flex flex-col divide-y divide-border">
             {revendedores.map((a) => (
-              <Link
-                key={a.id}
-                href={`/admin/assinantes/${a.id}`}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2"
-              >
-                <div className="min-w-0">
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2">
+                <Link href={`/admin/assinantes/${a.id}`} className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-text">{a.nome}</p>
                   <p className="truncate text-xs text-text-dim">
                     CPF {a.cpf || "—"} · desde {dataCurta(a.criadoEm)} ·{" "}
                     {a._count.clientes === 0 ? "criou a conta mas nunca chegou a usar o app" : `${a._count.clientes} clientes`}
+                    {a.statusAssinatura === "TRIAL" ? ` · dia ${diaDoTrial(a.criadoEm)} do trial` : ""}
                   </p>
+                </Link>
+                <div className="flex items-center gap-2">
+                  {a.statusAssinatura === "TRIAL" && a.whatsapp ? (
+                    <a href={linkNutricaoWhatsapp(a.whatsapp, a.nome, a._count.clientes > 0)} target="_blank" rel="noreferrer">
+                      <Badge tone="accent">Chamar</Badge>
+                    </a>
+                  ) : null}
+                  {statusBadge(a)}
                 </div>
-                {statusBadge(a)}
-              </Link>
+              </div>
             ))}
           </div>
         </Card>

@@ -5,10 +5,50 @@ import { enviarPush } from "@/lib/push";
 import { dadosMes } from "@/lib/relatorio";
 import { diaCivilBr } from "@/lib/format";
 
-// Disparado uma vez por dia pelo Cron da Vercel (ver vercel.json). Faz duas
-// coisas de manhã, por revendedor: aplica a suspensão automática de quem
-// ficou vencido além do prazo configurado, e manda um push resumindo quem
-// está vencendo/vencido pra quem ativou o lembrete em Configurações.
+function diasEntreCivil(de: Date, ate: Date): number {
+  const d = diaCivilBr(de);
+  const a = diaCivilBr(ate);
+  return Math.round((new Date(a.ano, a.mes, a.dia).getTime() - new Date(d.ano, d.mes, d.dia).getTime()) / 86400000);
+}
+
+// Mensagens de nutrição do trial — só nos dias 1, 3 e 6 (trial dura 7 dias),
+// pra ajudar quem está testando a converter, sem virar spam.
+function mensagemNutricaoTrial(diasDeTrial: number, totalClientes: number): { titulo: string; corpo: string; url: string } | null {
+  if (diasDeTrial === 1) {
+    return {
+      titulo: "Bem-vindo ao GestorPro!",
+      corpo:
+        totalClientes > 0
+          ? "Você já começou! Continue cadastrando seus clientes pra ver tudo funcionando."
+          : "Cadastre seu primeiro cliente — leva 1 minuto e você já sente como o app funciona.",
+      url: "/clientes/novo",
+    };
+  }
+  if (diasDeTrial === 3) {
+    return {
+      titulo: "Como está indo o teste?",
+      corpo:
+        totalClientes > 0
+          ? `Você já tem ${totalClientes} cliente${totalClientes === 1 ? "" : "s"} cadastrado${totalClientes === 1 ? "" : "s"}. Dá uma olhada no Relatório pra ver sua receita projetada.`
+          : "Ainda não cadastrou nenhum cliente? Cadastre agora e organize sua revenda em minutos.",
+      url: totalClientes > 0 ? "/relatorio" : "/clientes/novo",
+    };
+  }
+  if (diasDeTrial === 6) {
+    return {
+      titulo: "Seu trial termina amanhã",
+      corpo: "Gostou do GestorPro? Assine agora pra não perder o acesso aos seus dados.",
+      url: "/assinatura",
+    };
+  }
+  return null;
+}
+
+// Disparado uma vez por dia pelo Cron da Vercel (ver vercel.json). Faz
+// várias coisas de manhã, por revendedor: aplica a suspensão automática de
+// quem ficou vencido além do prazo configurado, manda um push resumindo
+// quem está vencendo/vencido pra quem ativou o lembrete em Configurações,
+// e nutre quem está em trial nos dias-chave pra ajudar a converter.
 export async function GET(req: NextRequest) {
   const segredo = process.env.CRON_SECRET;
   if (segredo && req.headers.get("authorization") !== `Bearer ${segredo}`) {
@@ -37,6 +77,7 @@ export async function GET(req: NextRequest) {
   let suspensos = 0;
   let notificados = 0;
   let fechados = 0;
+  let nutridos = 0;
 
   for (const revendedor of revendedores) {
     const clientes = await prisma.cliente.findMany({
@@ -84,6 +125,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (revendedor.pushSubscriptions.length === 0) continue;
+
+    if (revendedor.statusAssinatura === "TRIAL") {
+      const mensagem = mensagemNutricaoTrial(diasEntreCivil(revendedor.criadoEm, agora), clientes.length);
+      if (mensagem) {
+        for (const inscricao of revendedor.pushSubscriptions) {
+          const manter = await enviarPush(inscricao, mensagem);
+          if (!manter) await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+          nutridos++;
+        }
+      }
+    }
 
     const emRisco = clientes.filter((c) => {
       const faixa = faixaVencimento(c.vencimento, agora);
@@ -152,5 +204,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin, fechados });
+  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin, fechados, nutridos });
 }
