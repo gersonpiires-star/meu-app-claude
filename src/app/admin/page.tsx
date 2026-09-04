@@ -66,7 +66,7 @@ export default async function AdminPainelPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Assinantes" value={String(dados.total)} tone="accent" />
+        <StatTile label="Contas criadas" value={String(dados.total)} />
         <StatTile label="Em trial" value={String(dados.trial)} />
         <StatTile label="Ativos" value={String(dados.ativos)} tone="accent" />
         <StatTile label="Pausados" value={String(dados.pausados)} tone="warning" />
@@ -107,8 +107,8 @@ export default async function AdminPainelPage() {
             <h2 className="mb-3 text-sm font-bold text-text">Funil — de lead a assinante pago</h2>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl border border-border bg-surface-2 p-3">
-                <p className="text-xl font-bold text-text">{crescimento.totalInteressados}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Interessados</p>
+                <p className="text-xl font-bold text-text">{crescimento.trialsVencidosSemConverter.length}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Trial vencido</p>
               </div>
               <div className="rounded-xl border border-border bg-surface-2 p-3">
                 <p className="text-xl font-bold text-text">{crescimento.totalRevendedores}</p>
@@ -120,9 +120,6 @@ export default async function AdminPainelPage() {
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-dim">
-              <span>
-                Interessado → conta: <strong className="text-text">{crescimento.taxaConversaoInteressados.toFixed(0)}%</strong>
-              </span>
               <span>
                 Trial → pago: <strong className="text-text">{crescimento.taxaConversaoTrial.toFixed(0)}%</strong>
               </span>
@@ -152,6 +149,39 @@ export default async function AdminPainelPage() {
               </div>
             ) : null}
           </Card>
+
+          {crescimento.trialsVencidosSemConverter.length > 0 ? (
+            <Card>
+              <h2 className="mb-1 text-sm font-bold text-text">Trial vencido — não converteu</h2>
+              <p className="mb-3 text-xs text-text-dim">
+                O teste grátis acabou e ainda não assinaram. Bom momento pra tentar fidelizar com uma mensagem.
+              </p>
+              <div className="flex flex-col divide-y divide-border">
+                {crescimento.trialsVencidosSemConverter.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                        {r.nome}
+                      </Link>
+                      <p className="text-xs text-text-dim">trial venceu em {dataCurta(r.trialFim)}</p>
+                    </div>
+                    {r.whatsapp ? (
+                      <a
+                        href={linkWhatsApp(
+                          r.whatsapp,
+                          `Oi ${r.nome.split(" ")[0]}! Seu período de teste do GestorPro venceu. Vamos renovar? Posso te ajudar a assinar agora.`
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Badge tone="warning">Chamar</Badge>
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
 
           {crescimento.trialsEngajados.length > 0 ? (
             <Card>

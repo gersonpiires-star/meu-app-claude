@@ -137,7 +137,11 @@ export async function POST(request: Request) {
 
       await tx.revendedor.update({
         where: { id: pagamento.revendedorId },
-        data: { statusAssinatura: "ATIVO", assinaturaVence: vence },
+        data: {
+          statusAssinatura: "ATIVO",
+          assinaturaVence: vence,
+          planoAssinatura: meses >= 12 ? "ANUAL" : "MENSAL",
+        },
       });
 
       // Só conta o uso do cupom quando o pagamento realmente aprova — um

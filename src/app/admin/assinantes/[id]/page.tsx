@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dataPorExtenso } from "@/lib/format";
+import { dataPorExtenso, brl0 } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card } from "@/components/ui";
 import { AcoesAcesso } from "../acoes-acesso";
+
+const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", ANUAL: "Anual" };
 
 export default async function AssinanteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   await exigirAdmin();
@@ -18,9 +20,18 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
       _count: { select: { clientes: true, vendas: true } },
       indicadoPor: { select: { id: true, nome: true } },
       indicados: { select: { id: true, nome: true, statusAssinatura: true } },
+      pagamentos: {
+        where: { tipo: "ASSINATURA", status: "APROVADO" },
+        orderBy: { criadoEm: "desc" },
+        take: 1,
+        select: { valor: true, meses: true },
+      },
     },
   });
   if (!revendedor || revendedor.papel !== "REVENDEDOR") notFound();
+
+  const ultimoPagamento = revendedor.pagamentos[0];
+  const plano = revendedor.planoAssinatura ?? (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : null);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
@@ -84,7 +95,24 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
           Status atual: <strong className="text-text">{revendedor.statusAssinatura}</strong>
           {revendedor.assinaturaVence ? ` · vence em ${dataPorExtenso(revendedor.assinaturaVence)}` : ""}
         </p>
-        <AcoesAcesso revendedorId={revendedor.id} />
+        {revendedor.statusAssinatura === "ATIVO" ? (
+          <div className="mb-3 grid grid-cols-2 gap-3 rounded-xl border border-border bg-surface-2 p-3 text-sm">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-text-dim">Plano</p>
+              <p className="font-semibold text-text">{plano ? PLANO_LABEL[plano] : "—"}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-text-dim">Valor pago</p>
+              <p className="font-semibold text-text">{ultimoPagamento ? brl0(ultimoPagamento.valor) : "—"}</p>
+            </div>
+          </div>
+        ) : null}
+        {revendedor.statusAssinatura === "PAUSADO" ? (
+          <p className="mb-3 rounded-xl border border-warning-border bg-warning-bg/30 px-3 py-2 text-sm text-warning">
+            Motivo da pausa: {revendedor.motivoPausa || "Não informado."}
+          </p>
+        ) : null}
+        <AcoesAcesso revendedorId={revendedor.id} statusAssinatura={revendedor.statusAssinatura} />
       </Card>
 
       {revendedor.statusAssinatura === "CANCELADO" ? (

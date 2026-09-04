@@ -1,4 +1,4 @@
-import { exigirRevendedor, acessoLiberado } from "@/lib/sessao";
+import { exigirRevendedor, acessoLiberado, motivoBloqueio } from "@/lib/sessao";
 import { NavShell } from "@/components/nav-shell";
 import { AcessoPausado } from "@/components/acesso-pausado";
 import { InactivityLogout } from "@/components/inactivity-logout";
@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ehAdmin = revendedor.papel === "ADMIN";
 
   if (!ehAdmin && !acessoLiberado(revendedor)) {
-    return <AcessoPausado nome={revendedor.nome} />;
+    return <AcessoPausado nome={revendedor.nome} motivo={motivoBloqueio(revendedor)} />;
   }
 
   return (

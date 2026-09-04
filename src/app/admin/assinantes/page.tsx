@@ -1,23 +1,43 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dataCurta, diaCivilBr } from "@/lib/format";
+import { brl0, dataCurta, diaCivilBr, fmtTelefone, iniciais } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Card, EmptyState, Input } from "@/components/ui";
+import { Badge, Card, EmptyState, Input, cx } from "@/components/ui";
 
-function statusBadge(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
+const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", ANUAL: "Anual" };
+
+const ABAS = [
+  { chave: "assinantes", label: "Assinantes" },
+  { chave: "trial", label: "Em trial" },
+  { chave: "pausados", label: "Pausados" },
+  { chave: "cancelados", label: "Cancelados" },
+  { chave: "todos", label: "Todos" },
+] as const;
+
+type Tom = "neutral" | "danger" | "warning" | "success" | "accent";
+
+const AVATAR_TOM: Record<Tom, string> = {
+  neutral: "bg-surface-2 text-text-muted",
+  danger: "bg-danger-bg text-danger",
+  warning: "bg-warning-bg text-warning",
+  success: "bg-accent-soft text-accent",
+  accent: "bg-accent-soft text-accent",
+};
+
+function statusInfo(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }): {
+  tom: Tom;
+  label: string;
+} {
   const agora = new Date();
   if (revendedor.statusAssinatura === "ATIVO") {
-    return <Badge tone="accent">Ativo</Badge>;
+    const venceu = revendedor.assinaturaVence && revendedor.assinaturaVence <= agora;
+    return venceu ? { tom: "danger", label: "Plano vencido" } : { tom: "success", label: "Ativo" };
   }
-  if (revendedor.statusAssinatura === "CANCELADO") {
-    return <Badge tone="neutral">Cancelado</Badge>;
-  }
-  if (revendedor.statusAssinatura === "TRIAL") {
-    const dias = Math.max(0, Math.ceil((revendedor.trialFim.getTime() - agora.getTime()) / 86400000));
-    return <Badge tone={dias > 0 ? "neutral" : "danger"}>{dias > 0 ? `+${dias}d trial` : "Trial expirado"}</Badge>;
-  }
-  return <Badge tone="danger">Pausado</Badge>;
+  if (revendedor.statusAssinatura === "CANCELADO") return { tom: "neutral", label: "Cancelado" };
+  if (revendedor.statusAssinatura === "PAUSADO") return { tom: "warning", label: "Pausado" };
+  const dias = Math.max(0, Math.ceil((revendedor.trialFim.getTime() - agora.getTime()) / 86400000));
+  return dias > 0 ? { tom: "neutral", label: `+${dias}d trial` } : { tom: "danger", label: "Trial expirado" };
 }
 
 function diaDoTrial(criadoEm: Date): number {
@@ -37,10 +57,10 @@ function linkNutricaoWhatsapp(whatsapp: string, nome: string, temClientes: boole
 export default async function AssinantesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; aba?: string }>;
 }) {
   await exigirAdmin();
-  const { q } = await searchParams;
+  const { q, aba = "assinantes" } = await searchParams;
   const busca = q?.trim();
 
   const revendedores = await prisma.revendedor.findMany({
@@ -57,7 +77,23 @@ export default async function AssinantesPage({
         : {}),
     },
     orderBy: { criadoEm: "desc" },
-    include: { _count: { select: { clientes: true } } },
+    include: {
+      _count: { select: { clientes: true } },
+      pagamentos: {
+        where: { tipo: "ASSINATURA", status: "APROVADO" },
+        orderBy: { criadoEm: "desc" },
+        take: 1,
+        select: { valor: true, meses: true },
+      },
+    },
+  });
+
+  const filtrados = revendedores.filter((r) => {
+    if (aba === "assinantes") return r.statusAssinatura === "ATIVO";
+    if (aba === "trial") return r.statusAssinatura === "TRIAL";
+    if (aba === "pausados") return r.statusAssinatura === "PAUSADO";
+    if (aba === "cancelados") return r.statusAssinatura === "CANCELADO";
+    return true;
   });
 
   return (
@@ -65,36 +101,110 @@ export default async function AssinantesPage({
       <h1 className="text-lg font-bold text-text">Assinantes</h1>
 
       <form action="/admin/assinantes" method="get">
+        <input type="hidden" name="aba" value={aba} />
         <Input name="q" defaultValue={busca ?? ""} placeholder="Buscar por nome, e-mail ou CPF" />
       </form>
 
-      {revendedores.length === 0 ? (
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-border-strong p-1 text-sm">
+        {ABAS.map((item) => (
+          <Link
+            key={item.chave}
+            href={`/admin/assinantes?aba=${item.chave}${busca ? `&q=${encodeURIComponent(busca)}` : ""}`}
+            className={cx(
+              "whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold",
+              aba === item.chave ? "bg-accent-soft text-accent" : "text-text-dim hover:text-text"
+            )}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+
+      {filtrados.length === 0 ? (
         <EmptyState>
-          {busca ? "Nenhum assinante encontrado com essa busca." : "Nenhuma conta ainda. Elas aparecem aqui assim que alguém se cadastrar."}
+          {busca ? "Nenhum assinante encontrado com essa busca." : "Ninguém nesta lista ainda."}
         </EmptyState>
       ) : (
         <Card className="p-0">
+          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_0.9fr_1.1fr_0.9fr_1fr] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
+            <span>Cliente</span>
+            <span>WhatsApp</span>
+            <span>Plano</span>
+            <span>Vencimento</span>
+            <span>Valor</span>
+            <span>Status</span>
+          </div>
           <div className="flex flex-col divide-y divide-border">
-            {revendedores.map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-surface-2">
-                <Link href={`/admin/assinantes/${a.id}`} className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-text">{a.nome}</p>
-                  <p className="truncate text-xs text-text-dim">
-                    CPF {a.cpf || "—"} · desde {dataCurta(a.criadoEm)} ·{" "}
-                    {a._count.clientes === 0 ? "criou a conta mas nunca chegou a usar o app" : `${a._count.clientes} clientes`}
-                    {a.statusAssinatura === "TRIAL" ? ` · dia ${diaDoTrial(a.criadoEm)} do trial` : ""}
-                  </p>
-                </Link>
-                <div className="flex items-center gap-2">
-                  {a.statusAssinatura === "TRIAL" && a.whatsapp ? (
-                    <a href={linkNutricaoWhatsapp(a.whatsapp, a.nome, a._count.clientes > 0)} target="_blank" rel="noreferrer">
-                      <Badge tone="accent">Chamar</Badge>
-                    </a>
-                  ) : null}
-                  {statusBadge(a)}
+            {filtrados.map((a) => {
+              const estado = statusInfo(a);
+              const ultimoPagamento = a.pagamentos[0];
+              const plano =
+                a.statusAssinatura === "ATIVO"
+                  ? (a.planoAssinatura ?? (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : null))
+                  : a.statusAssinatura === "TRIAL"
+                    ? "TRIAL"
+                    : null;
+              const vencimento = a.statusAssinatura === "TRIAL" ? a.trialFim : a.assinaturaVence;
+              const valor = a.statusAssinatura === "ATIVO" && ultimoPagamento ? brl0(ultimoPagamento.valor) : "—";
+              const chamarLink =
+                a.statusAssinatura === "TRIAL" && a.whatsapp
+                  ? linkNutricaoWhatsapp(a.whatsapp, a.nome, a._count.clientes > 0)
+                  : a.whatsapp
+                    ? linkWhatsApp(a.whatsapp)
+                    : null;
+
+              return (
+                <div
+                  key={a.id}
+                  className="md:grid md:grid-cols-[1.9fr_1.2fr_0.9fr_1.1fr_0.9fr_1fr] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2"
+                >
+                  {/* Desktop */}
+                  <Link href={`/admin/assinantes/${a.id}`} className="hidden min-w-0 items-center gap-3 md:flex">
+                    <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold", AVATAR_TOM[estado.tom])}>
+                      {iniciais(a.nome)}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-text">{a.nome}</span>
+                      {a.statusAssinatura === "TRIAL" ? (
+                        <span className="block text-[11px] text-text-dim">dia {diaDoTrial(a.criadoEm)} do trial</span>
+                      ) : null}
+                    </div>
+                  </Link>
+                  <span className="hidden truncate text-xs text-text-muted md:block">{a.whatsapp ? fmtTelefone(a.whatsapp) : "—"}</span>
+                  <span className="hidden truncate text-xs text-text-muted md:block">
+                    {plano === "TRIAL" ? "Trial" : plano ? PLANO_LABEL[plano] : "—"}
+                  </span>
+                  <span className="hidden truncate text-xs text-text-muted md:block">{vencimento ? dataCurta(vencimento) : "—"}</span>
+                  <span className="hidden text-sm font-semibold text-text md:block">{valor}</span>
+                  <div className="hidden md:flex md:items-center md:justify-between md:gap-2">
+                    <Badge tone={estado.tom}>{estado.label}</Badge>
+                    {chamarLink ? (
+                      <a href={chamarLink} target="_blank" rel="noreferrer">
+                        <Badge tone="accent">Chamar</Badge>
+                      </a>
+                    ) : null}
+                  </div>
+
+                  {/* Mobile */}
+                  <Link href={`/admin/assinantes/${a.id}`} className="flex items-center gap-3 px-4 py-3 md:hidden">
+                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", AVATAR_TOM[estado.tom])}>
+                      {iniciais(a.nome)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-text">{a.nome}</p>
+                      <p className="truncate text-xs text-text-dim">
+                        {plano === "TRIAL" ? "Trial" : plano ? PLANO_LABEL[plano] : "—"}
+                        {vencimento ? ` · vence ${dataCurta(vencimento)}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-text">{valor}</span>
+                      <Badge tone={estado.tom}>{estado.label}</Badge>
+                    </div>
+                  </Link>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}

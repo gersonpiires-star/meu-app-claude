@@ -84,6 +84,7 @@ model Revendedor {
   trialFim           DateTime
   assinaturaVence    DateTime?
   pausadoEm          DateTime?
+  motivoPausa        String?
 
   // Credenciais próprias do Mercado Pago do revendedor, para receber
   // pagamentos de renovação de seus clientes direto na conta dele.

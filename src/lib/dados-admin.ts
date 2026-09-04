@@ -157,6 +157,14 @@ export async function dadosCrescimento() {
     .sort((a, b) => b._count.clientes + b._count.vendas - (a._count.clientes + a._count.vendas))
     .slice(0, 10);
 
+  // Trial que venceu e nunca converteu (nenhum pagamento de assinatura
+  // aprovado) — mesma situação de um "interessado" que esfriou: dá pra
+  // tentar reconquistar com uma mensagem de renovação.
+  const trialsVencidosSemConverter = revendedores
+    .filter((r) => r.statusAssinatura === "TRIAL" && r.trialFim <= agora && !primeiraConversao.has(r.id))
+    .sort((a, b) => b.trialFim.getTime() - a.trialFim.getTime())
+    .slice(0, 10);
+
   const cohortMap = new Map<string, { ano: number; mes: number; total: number; aindaAtivos: number }>();
   for (const r of revendedores) {
     const dataConversao = primeiraConversao.get(r.id);
@@ -183,6 +191,7 @@ export async function dadosCrescimento() {
     diaMedioConversao,
     histogramaDias,
     trialsEngajados,
+    trialsVencidosSemConverter,
     coorte,
     cancelamentosRecentes,
   };

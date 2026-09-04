@@ -72,3 +72,14 @@ export function acessoLiberado(revendedor: { statusAssinatura: string; trialFim:
   }
   return false;
 }
+
+// Por que o acesso está bloqueado — usado só pra escolher a mensagem certa
+// (pausado pela administração vs. plano/trial vencido, que pede renovação).
+// Os dados do revendedor nunca são apagados em nenhum desses casos: o
+// bloqueio é só de acesso à tela, tudo que ele salvou continua no banco.
+export function motivoBloqueio(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
+  if (revendedor.statusAssinatura === "PAUSADO") return "PAUSADO" as const;
+  if (revendedor.statusAssinatura === "CANCELADO") return "CANCELADO" as const;
+  if (revendedor.statusAssinatura === "TRIAL") return "TRIAL_VENCIDO" as const;
+  return "ASSINATURA_VENCIDA" as const;
+}
