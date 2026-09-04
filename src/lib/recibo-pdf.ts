@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, LineCapStyle, type PDFPage } from "pdf-lib";
 import { dataHora, fmtTelefone } from "@/lib/format";
 
 const NAVY = rgb(0.039, 0.145, 0.188);
@@ -7,6 +7,26 @@ const TEAL_DEEP = rgb(0.114, 0.416, 0.439);
 const GRAY_LABEL = rgb(0.55, 0.58, 0.6);
 const GRAY_LINE = rgb(0.88, 0.89, 0.9);
 const WHITE = rgb(1, 1, 1);
+
+// A marca "Ciclo" do app: um anel de 300° (arco de renovação) com um ponto
+// terminal onde ele "para" — o mesmo desenho do LogoMark em SVG, só que
+// aqui via stroke-dasharray no círculo do pdf-lib (não tem <circle> parcial
+// nativo, então simula o arco com traço/vão em vez de traço contínuo).
+function desenharMarca(pagina: PDFPage, cx: number, cy: number, raio: number, espessura: number) {
+  const circunferencia = 2 * Math.PI * raio;
+  const solido = circunferencia * (300 / 360);
+  const vazio = circunferencia - solido;
+  pagina.drawCircle({
+    x: cx,
+    y: cy,
+    size: raio,
+    borderColor: TEAL,
+    borderWidth: espessura,
+    borderDashArray: [solido, vazio],
+    borderLineCap: LineCapStyle.Round,
+  });
+  pagina.drawCircle({ x: cx + raio, y: cy, size: espessura * 0.85, color: TEAL_DEEP });
+}
 
 // Layout compartilhado pelos recibos de renovação e de venda de aparelho —
 // mesma identidade visual (o negócio do revendedor em destaque, a marca do
@@ -42,8 +62,7 @@ export async function gerarReciboPdf({
   const logoR = 10;
   const logoCx = margin + logoR;
   const logoCy = y - logoR + 6;
-  pagina.drawCircle({ x: logoCx, y: logoCy, size: logoR, borderColor: TEAL, borderWidth: 2.8 });
-  pagina.drawCircle({ x: logoCx + logoR * 0.82, y: logoCy, size: 2.4, color: TEAL_DEEP });
+  desenharMarca(pagina, logoCx, logoCy, logoR, 3.2);
   pagina.drawText("GestorPro", { x: margin + logoR * 2 + 10, y: y - 6, size: 17, font: bold, color: NAVY });
   y -= 26;
   pagina.drawText(subtitulo, { x: margin, y, size: 9.5, font: regular, color: GRAY_LABEL });
@@ -83,8 +102,7 @@ export async function gerarReciboPdf({
 
   const cx = margin + 7;
   const cy = rodapeY - 2;
-  pagina.drawCircle({ x: cx, y: cy, size: 6, borderColor: TEAL, borderWidth: 1.6 });
-  pagina.drawCircle({ x: cx + 6, y: cy, size: 1.6, color: TEAL_DEEP });
+  desenharMarca(pagina, cx, cy, 6, 1.8);
   pagina.drawText("GestorPro", { x: cx + 16, y: rodapeY - 6, size: 9, font: bold, color: NAVY });
 
   pagina.drawText(`Recibo #${reciboId.slice(0, 8).toUpperCase()} · gerado em ${dataHora(new Date())}`, {
