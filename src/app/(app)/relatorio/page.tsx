@@ -10,7 +10,7 @@ import { GraficoMeses } from "./grafico-meses";
 import { CalendarioMes } from "./calendario-mes";
 import { RenovacoesPorServico, type GrupoRenovacao } from "./renovacoes-por-servico";
 import { VendasDetalhadas, type VendaDetalhe } from "./vendas-detalhadas";
-import { editarRenovacao } from "./actions";
+import { editarRenovacao, editarVenda } from "./actions";
 
 const MESES_NOME = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -75,6 +75,8 @@ export default async function RelatorioPage({
       detalhe: `${v.produto.modelo} · ${brl(bruto)} − ${brl(v.custoTotal + v.taxa)}`,
       liquidoTexto: brl(v.liquido),
       liquidoPositivo: v.liquido >= 0,
+      valorUnitario: v.valorUnitario,
+      custoUnitario: v.custoUnitario,
       linhas: [
         { rot: "Produto", val: v.produto.modelo },
         { rot: "Data", val: dataCurta(v.data) },
@@ -121,7 +123,7 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Vendas do mês</h2>
-        <VendasDetalhadas vendas={vendasDetalhadas} />
+        <VendasDetalhadas vendas={vendasDetalhadas} acao={editarVenda} podeEditar={!ehFuncionario} />
       </Card>
 
       <Card>

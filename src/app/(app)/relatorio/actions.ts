@@ -44,3 +44,39 @@ export async function editarRenovacao(
 
   return { ok: true };
 }
+
+// Mesma ideia da editarRenovacao acima, pra vendas de aparelho: o custo é
+// gravado por FIFO no momento da venda e nunca recalculado sozinho depois —
+// vendas feitas antes desse controle existir (ou importadas sem custo por
+// unidade) ficam com custo 0 até serem corrigidas manualmente aqui.
+export async function editarVenda(
+  vendaId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirDono();
+
+  const valorUnitario = Number(formData.get("valorUnitario"));
+  const custoUnitario = Number(formData.get("custoUnitario"));
+  if (!Number.isFinite(valorUnitario) || valorUnitario < 0) return { ok: false, erro: "Valor inválido." };
+  if (!Number.isFinite(custoUnitario) || custoUnitario < 0) return { ok: false, erro: "Custo inválido." };
+
+  const venda = await prisma.venda.findFirst({
+    where: { id: vendaId, revendedorId: revendedor.id },
+    include: { produto: true },
+  });
+  if (!venda) return { ok: false, erro: "Venda não encontrada." };
+
+  await prisma.venda.update({ where: { id: vendaId }, data: { valorUnitario, custoUnitario } });
+
+  await registrarLog(
+    revendedor.id,
+    "venda.editar",
+    `Corrigiu a venda de ${venda.produto.modelo} (${dataCurta(venda.data)}): valor/un ${venda.valorUnitario} → ${valorUnitario}, custo/un ${venda.custoUnitario} → ${custoUnitario}`
+  );
+
+  revalidatePath("/relatorio");
+  revalidatePath("/painel");
+  revalidatePath("/vendas");
+
+  return { ok: true };
+}
