@@ -142,13 +142,15 @@ export default async function ConfiguracoesPage() {
         </div>
       </Card>
 
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Chaves Pix</h2>
-        <p className="mb-3 text-sm text-text-dim">
-          Cadastre suas chaves pra anexar na mensagem de cobrança que vai pro cliente.
-        </p>
-        <ChavesPixForm chaves={chaves} />
-      </Card>
+      {ehFuncionario ? null : (
+        <Card>
+          <h2 className="mb-3 text-sm font-bold text-text">Chaves Pix</h2>
+          <p className="mb-3 text-sm text-text-dim">
+            Cadastre suas chaves pra anexar na mensagem de cobrança que vai pro cliente.
+          </p>
+          <ChavesPixForm chaves={chaves} />
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Backup em arquivo</h2>

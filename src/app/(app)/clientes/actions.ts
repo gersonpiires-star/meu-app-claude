@@ -15,7 +15,15 @@ const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
 const clienteSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do cliente"),
   cpf: z.string().trim().optional(),
-  whatsapp: z.string().trim().optional(),
+  // Guarda só os dígitos (mesmo padrão do whatsapp do revendedor) — sem
+  // isso um valor tipo "não tem" virava um link quebrado de WhatsApp
+  // (wa.me/ sem número) em qualquer lugar que manda mensagem pro cliente.
+  whatsapp: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v.replace(/\D/g, "") : ""))
+    .refine((v) => v === "" || v.length >= 10, "WhatsApp inválido — informe DDD + número"),
   servico: z.string().trim().optional(),
   telas: z.coerce.number().int().min(1).default(1),
   plano: planoSchema,

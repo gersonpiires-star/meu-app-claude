@@ -17,6 +17,7 @@ type ClienteFila = {
 export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
   const [fila, setFila] = useState(clientes);
   const [feitos, setFeitos] = useState(0);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (fila.length === 0) {
@@ -51,7 +52,12 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
             disabled={pendente}
             onClick={() =>
               iniciarTransicao(async () => {
-                await renovarComPlanoAtual(atual.id);
+                setErro(null);
+                const resultado = await renovarComPlanoAtual(atual.id);
+                if (resultado?.erro) {
+                  setErro(resultado.erro);
+                  return;
+                }
                 setFeitos((n) => n + 1);
                 setFila((f) => f.slice(1));
               })
@@ -59,6 +65,7 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
           >
             {pendente ? "Renovando…" : `Renovar ${atual.nome}`}
           </Button>
+          {erro ? <p className="text-center text-xs font-semibold text-danger">{erro}</p> : null}
           <div className="flex gap-2">
             <Button variant="ghost" className="flex-1" disabled={pendente} onClick={() => setFila((f) => f.slice(1))}>
               Pular este
@@ -76,8 +83,13 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
           disabled={pendente}
           onClick={() =>
             iniciarTransicao(async () => {
+              setErro(null);
               const ids = fila.map((c) => c.id);
-              await renovarVariosComPlanoAtual(ids);
+              const resultado = await renovarVariosComPlanoAtual(ids);
+              if (resultado?.erro) {
+                setErro(resultado.erro);
+                return;
+              }
               setFeitos((n) => n + ids.length);
               setFila([]);
             })

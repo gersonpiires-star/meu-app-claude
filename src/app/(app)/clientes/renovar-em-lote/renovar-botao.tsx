@@ -18,6 +18,7 @@ export function RenovarBotao({
   labelFeito?: string;
 }) {
   const [feito, setFeito] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (feito) {
@@ -29,18 +30,23 @@ export function RenovarBotao({
   }
 
   return (
-    <Button
-      variant="ghost"
-      className={cx("w-full whitespace-nowrap", className)}
-      disabled={pendente}
-      onClick={() =>
-        iniciarTransicao(async () => {
-          await renovarComPlanoAtual(clienteId);
-          setFeito(true);
-        })
-      }
-    >
-      {pendente ? labelPendente : label}
-    </Button>
+    <div className={cx("flex flex-col gap-1", className)}>
+      <Button
+        variant="ghost"
+        className="w-full whitespace-nowrap"
+        disabled={pendente}
+        onClick={() =>
+          iniciarTransicao(async () => {
+            setErro(null);
+            const resultado = await renovarComPlanoAtual(clienteId);
+            if (resultado?.erro) setErro(resultado.erro);
+            else setFeito(true);
+          })
+        }
+      >
+        {pendente ? labelPendente : label}
+      </Button>
+      {erro ? <p className="text-[10px] font-semibold text-danger">{erro}</p> : null}
+    </div>
   );
 }

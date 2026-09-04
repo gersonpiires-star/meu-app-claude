@@ -17,7 +17,9 @@ function serialParaData(serial: number): Date {
 function normalizarWhatsapp(tel?: string | null): string | null {
   if (!tel) return null;
   const digitos = tel.replace(/\D/g, "");
-  if (!digitos) return null;
+  // Menos de 10 dígitos não é um número válido (DDD + telefone) — dado sujo
+  // do app antigo (ex: "1", "-") virava link de WhatsApp quebrado.
+  if (digitos.length < 10) return null;
   return digitos.startsWith("55") ? digitos : `55${digitos}`;
 }
 

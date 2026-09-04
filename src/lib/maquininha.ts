@@ -16,7 +16,11 @@ export function taxaSugerida(parcelas: number, prazo: Prazo = 0): number {
   const n = Math.floor(parcelas) || 1;
   if (n <= 1) return 3.99;
   const linha = TAXAS.find((t) => t[0] === n);
-  return linha ? linha[prazo + 1] * 100 : 3.99;
+  if (linha) return linha[prazo + 1] * 100;
+  // Fora da tabela (mais de 18x, hoje não alcançável pela UI): usa a taxa
+  // da maior parcela conhecida em vez do valor de 1x — subestimar a taxa
+  // faria o revendedor cobrar barato demais e perder margem no cartão.
+  return TAXAS[TAXAS.length - 1][prazo + 1] * 100;
 }
 
 export function precoAVista(custo: number, margemPct: number): number {

@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, LineCapStyle, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, LineCapStyle, type PDFPage, type PDFFont } from "pdf-lib";
 import { dataHora, fmtTelefone } from "@/lib/format";
 
 const NAVY = rgb(0.039, 0.145, 0.188);
@@ -25,6 +25,18 @@ function desenharMarca(pagina: PDFPage, cx: number, cy: number, raio: number) {
     borderLineCap: LineCapStyle.Round,
   });
   pagina.drawCircle({ x: cx + raio, y: cy, size: raio * 0.25, color: TEAL_DEEP });
+}
+
+// Nome de cliente/produto vem de texto livre, sem limite de tamanho — sem
+// isso um nome comprido vaza pra fora da margem (pdf-lib não faz wrap nem
+// clipping automático). Corta com reticências no que couber na largura.
+function truncarTexto(font: PDFFont, texto: string, tamanho: number, larguraMax: number): string {
+  if (font.widthOfTextAtSize(texto, tamanho) <= larguraMax) return texto;
+  let corte = texto;
+  while (corte.length > 1 && font.widthOfTextAtSize(`${corte}…`, tamanho) > larguraMax) {
+    corte = corte.slice(0, -1);
+  }
+  return `${corte}…`;
 }
 
 // Layout compartilhado pelos recibos de renovação e de venda de aparelho —
@@ -54,6 +66,7 @@ export async function gerarReciboPdf({
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
 
   let y = height - 44;
+  const larguraUtil = width - margin * 2;
 
   // Cabeçalho leva a marca do GestorPro (o app que emite o recibo) — o nome
   // do revendedor vira uma linha de "emitido por" logo abaixo, não o
@@ -66,24 +79,25 @@ export async function gerarReciboPdf({
   y -= 26;
   pagina.drawText(subtitulo, { x: margin, y, size: 9.5, font: regular, color: GRAY_LABEL });
   y -= 14;
-  pagina.drawText(`Emitido por ${emitente.nome}`, { x: margin, y, size: 9, font: regular, color: GRAY_LABEL });
+  pagina.drawText(truncarTexto(regular, `Emitido por ${emitente.nome}`, 9, larguraUtil), { x: margin, y, size: 9, font: regular, color: GRAY_LABEL });
   y -= 14;
-  pagina.drawRectangle({ x: margin, y, width: width - margin * 2, height: 2.5, color: TEAL });
+  pagina.drawRectangle({ x: margin, y, width: larguraUtil, height: 2.5, color: TEAL });
   y -= 30;
 
   for (const { rotulo, valor } of campos) {
     pagina.drawText(rotulo.toUpperCase(), { x: margin, y, size: 8, font: bold, color: GRAY_LABEL });
     y -= 14;
-    pagina.drawText(valor, { x: margin, y, size: 12, font: regular, color: NAVY });
+    pagina.drawText(truncarTexto(regular, valor, 12, larguraUtil), { x: margin, y, size: 12, font: regular, color: NAVY });
     y -= 24;
   }
 
   y -= 6;
 
   const boxAltura = 56;
-  pagina.drawRectangle({ x: margin, y: y - boxAltura, width: width - margin * 2, height: boxAltura, color: NAVY });
+  const larguraDestaque = larguraUtil - 32;
+  pagina.drawRectangle({ x: margin, y: y - boxAltura, width: larguraUtil, height: boxAltura, color: NAVY });
   pagina.drawText(destaqueRotulo.toUpperCase(), { x: margin + 16, y: y - 20, size: 8.5, font: bold, color: TEAL });
-  pagina.drawText(destaqueValor, { x: margin + 16, y: y - 42, size: 20, font: bold, color: WHITE });
+  pagina.drawText(truncarTexto(bold, destaqueValor, 20, larguraDestaque), { x: margin + 16, y: y - 42, size: 20, font: bold, color: WHITE });
   y -= boxAltura + 28;
 
   if (emitente.whatsapp) {
