@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
 import { brl, dataCurta } from "@/lib/format";
 import { Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { vincularClienteVenda } from "./actions";
+import { VincularCliente } from "./vincular-cliente";
 
 export default async function VendasPage({
   searchParams,
@@ -14,11 +16,18 @@ export default async function VendasPage({
   const { inicio, fim } = limitesDoMes();
   const { recibo } = await searchParams;
 
-  const vendas = await prisma.venda.findMany({
-    where: { revendedorId: revendedor.id },
-    include: { produto: true, cliente: true },
-    orderBy: { data: "desc" },
-  });
+  const [vendas, clientes] = await Promise.all([
+    prisma.venda.findMany({
+      where: { revendedorId: revendedor.id },
+      include: { produto: true, cliente: true },
+      orderBy: { data: "desc" },
+    }),
+    prisma.cliente.findMany({
+      where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
+      orderBy: { nome: "asc" },
+      select: { id: true, nome: true },
+    }),
+  ]);
 
   const vendasNesteMes = vendas.filter((v) => v.data >= inicio && v.data < fim);
   const totalVendidoMes = vendasNesteMes.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
@@ -74,7 +83,7 @@ export default async function VendasPage({
                     Recibo
                   </a>
                 ) : (
-                  <span />
+                  <VincularCliente vendaId={venda.id} clientes={clientes} acao={vincularClienteVenda} />
                 )}
               </div>
             ))}

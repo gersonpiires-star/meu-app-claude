@@ -88,3 +88,19 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
   revalidatePath("/painel");
   redirect(dados.clienteId ? `/vendas?recibo=${vendaId}` : "/vendas");
 }
+
+// Vendas importadas do app antigo (ou registradas antes de o formulário
+// pedir cliente) não têm cliente associado — sem isso não dá pra emitir
+// recibo. Deixa vincular um cliente depois, direto na lista de Vendas.
+export async function vincularClienteVenda(vendaId: string, clienteId: string): Promise<{ erro: string } | undefined> {
+  const revendedor = await exigirRevendedor();
+
+  const venda = await prisma.venda.findUnique({ where: { id: vendaId } });
+  if (!venda || venda.revendedorId !== revendedor.id) return { erro: "Venda não encontrada." };
+
+  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+  if (!cliente || cliente.revendedorId !== revendedor.id) return { erro: "Cliente não encontrado." };
+
+  await prisma.venda.update({ where: { id: vendaId }, data: { clienteId } });
+  revalidatePath("/vendas");
+}
