@@ -1,7 +1,7 @@
 {
   "name": "GestorPro",
   "short_name": "GestorPro",
-  "description": "Gestão de clientes, vendas e estoque para revenda de IPTV/streaming",
+  "description": "Gestão de clientes, vendas e estoque para revenda de streaming",
   "display": "standalone",
   "start_url": "/",
   "background_color": "#0a2530",

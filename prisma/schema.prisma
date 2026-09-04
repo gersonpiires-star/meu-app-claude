@@ -1,4 +1,4 @@
-// Schema do GestorPro — gestão de revenda de IPTV/streaming
+// Schema do GestorPro — gestão de revenda de streaming
 // Multi-tenant: todo dado de negócio é escopado por revendedorId
 
 generator client {

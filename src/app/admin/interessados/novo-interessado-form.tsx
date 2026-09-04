@@ -32,7 +32,7 @@ export function NovoInteressadoForm() {
         </Field>
       </div>
       <Field label="Interesse">
-        <Input name="interesse" placeholder="Ex: quer revender IPTV" />
+        <Input name="interesse" placeholder="Ex: quer revender streaming" />
       </Field>
       <Field label="Retornar em (DD/MM/AAAA)">
         <Input type="date" name="retornarEm" />

@@ -1,6 +1,6 @@
 # GestorPro
 
-Sistema de gestão para revenda de IPTV/streaming: clientes, cobrança via WhatsApp e Mercado Pago, vendas de aparelhos, estoque e relatório financeiro. Multi-tenant (cada revendedor só vê os próprios dados) com um painel de administrador para quem opera o GestorPro como SaaS.
+Sistema de gestão para revenda de streaming: clientes, cobrança via WhatsApp e Mercado Pago, vendas de aparelhos, estoque e relatório financeiro. Multi-tenant (cada revendedor só vê os próprios dados) com um painel de administrador para quem opera o GestorPro como SaaS.
 
 ## Stack
 

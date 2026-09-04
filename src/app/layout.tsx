@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "GestorPro",
-  description: "Gestão de clientes, vendas e estoque para revenda de IPTV/streaming",
+  description: "Gestão de clientes, vendas e estoque para revenda de streaming",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
