@@ -22,7 +22,7 @@ export function RenovarBotao({
 
   if (feito) {
     return (
-      <Button variant="ghost" className={cx("w-full min-w-0 whitespace-nowrap", className)} disabled>
+      <Button variant="ghost" className={cx("w-full whitespace-nowrap", className)} disabled>
         {labelFeito}
       </Button>
     );
@@ -31,7 +31,7 @@ export function RenovarBotao({
   return (
     <Button
       variant="ghost"
-      className={cx("w-full min-w-0 whitespace-nowrap", className)}
+      className={cx("w-full whitespace-nowrap", className)}
       disabled={pendente}
       onClick={() =>
         iniciarTransicao(async () => {

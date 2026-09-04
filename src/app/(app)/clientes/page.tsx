@@ -158,9 +158,9 @@ export default async function ClientesPage({
                   </span>
                   <span className="hidden md:flex md:gap-1.5">
                     {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
-                      <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="flex-1" />
+                      <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
                     ) : null}
-                    {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="flex-1" /> : null}
+                    {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" /> : null}
                   </span>
 
                   {/* Mobile */}
@@ -183,9 +183,9 @@ export default async function ClientesPage({
                     {cliente.status !== "CANCELADO" ? (
                       <div className="flex gap-2 pl-12">
                         {cliente.whatsapp ? (
-                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="flex-1" />
+                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
                         ) : null}
-                        <RenovarBotao clienteId={cliente.id} className="flex-1" />
+                        <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
                       </div>
                     ) : null}
                   </div>

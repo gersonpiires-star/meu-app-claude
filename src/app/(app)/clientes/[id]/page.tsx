@@ -426,7 +426,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             custoCredito={cliente.servico?.custoCredito ?? 0}
           />
           <div className="flex gap-2">
-            <RenovarBotao clienteId={id} className="flex-1" label="Marcar como pago" labelFeito="✓ Pago" />
+            <RenovarBotao clienteId={id} className="min-w-0 flex-1" label="Marcar como pago" labelFeito="✓ Pago" />
             <CancelarForm acao={cancelarCliente.bind(null, id)} label="Marcar como inativo" className="flex-1" />
           </div>
         </div>

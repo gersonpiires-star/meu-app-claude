@@ -17,14 +17,14 @@ export function CobrarBotao({
 }) {
   if (cobradoEm) {
     return (
-      <Button variant="outline" disabled className={cx("w-full min-w-0 whitespace-nowrap", className)}>
+      <Button variant="outline" disabled className={cx("w-full whitespace-nowrap", className)}>
         ✓ {horaCurta(cobradoEm)}
       </Button>
     );
   }
 
   return (
-    <Link href={`/clientes/${clienteId}/cobranca`} className={buttonClassName(variant, cx("min-w-0 whitespace-nowrap", className))}>
+    <Link href={`/clientes/${clienteId}/cobranca`} className={buttonClassName(variant, cx("whitespace-nowrap", className))}>
       {label}
     </Link>
   );
