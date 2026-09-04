@@ -30,6 +30,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
   const produto = await prisma.produto.findUnique({ where: { id: dados.produtoId, revendedorId: revendedor.id } });
   if (!produto) return { erro: "Produto não encontrado." };
 
+  let vendaId = "";
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -50,7 +51,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
         // venda pra sempre, não recalculado depois se o custo médio mudar.
         const { custoUnitario } = await custoConsumoFifo(dados.produtoId, dados.quantidade, tx);
 
-        await tx.venda.create({
+        const venda = await tx.venda.create({
           data: {
             revendedorId: revendedor.id,
             produtoId: dados.produtoId,
@@ -62,6 +63,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
             taxaPercentual: dados.taxaPercentual,
           },
         });
+        vendaId = venda.id;
         await tx.movimentoEstoque.create({
           data: {
             produtoId: dados.produtoId,
@@ -84,5 +86,5 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
   revalidatePath("/vendas");
   revalidatePath("/estoque");
   revalidatePath("/painel");
-  redirect("/vendas");
+  redirect(dados.clienteId ? `/vendas?recibo=${vendaId}` : "/vendas");
 }
