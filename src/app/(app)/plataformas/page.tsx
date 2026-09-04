@@ -1,14 +1,15 @@
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { dadosPlataformas } from "@/lib/plataformas";
 import { brl } from "@/lib/format";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { NovaPlataformaForm } from "./nova-plataforma-form";
 import { LoteForm } from "./lote-form";
-import { adicionarLote } from "./actions";
+import { LoteItem } from "./lote-item";
+import { adicionarLote, editarLote } from "./actions";
 
 export default async function PlataformasPage() {
   const revendedor = await exigirRevendedor();
-  const plataformas = await dadosPlataformas(revendedor.id);
+  const [plataformas, ehFuncionario] = await Promise.all([dadosPlataformas(revendedor.id), souFuncionario()]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -56,6 +57,16 @@ export default async function PlataformasPage() {
                     <p className="font-semibold text-text">{brl(p.valorInvestido)}</p>
                   </div>
                 </div>
+
+                {p.lotes.length > 0 ? (
+                  <div className="mt-3 flex flex-col divide-y divide-border border-t border-border">
+                    {[...p.lotes]
+                      .sort((a, b) => b.data.getTime() - a.data.getTime())
+                      .map((l) => (
+                        <LoteItem key={l.id} lote={l} acao={editarLote} podeEditar={!ehFuncionario} />
+                      ))}
+                  </div>
+                ) : null}
 
                 <div className="mt-3 border-t border-border pt-3">
                   <LoteForm acao={adicionarLote.bind(null, p.id)} />
