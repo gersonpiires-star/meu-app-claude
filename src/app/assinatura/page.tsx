@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, Input } from "@/components/ui";
 import { iniciarPagamentoAssinatura } from "./actions";
 
 const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
@@ -11,8 +11,13 @@ function linkPix(plano: string) {
   return `https://wa.me/${WHATSAPP_SUPORTE}?text=${texto}`;
 }
 
-export default async function AssinaturaPage() {
+export default async function AssinaturaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erroCupom?: string }>;
+}) {
   const revendedor = await exigirRevendedor();
+  const { erroCupom } = await searchParams;
 
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
@@ -23,6 +28,12 @@ export default async function AssinaturaPage() {
             Sem limite de clientes e com todas as funções
           </p>
         </div>
+
+        {erroCupom ? (
+          <p className="mb-4 rounded-xl border border-danger-border bg-danger-bg/40 px-3 py-2 text-center text-sm text-danger">
+            {erroCupom}
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-4">
           <Card className="flex flex-col gap-1">
@@ -35,8 +46,10 @@ export default async function AssinaturaPage() {
               <span className="text-sm text-text-dim"> /mês</span>
             </div>
             {MP_DISPONIVEL ? (
-              <form action={iniciarPagamentoAssinatura.bind(null, "MENSAL")}>
-                <Button type="submit" className="mt-3 w-full">
+              <form action={iniciarPagamentoAssinatura} className="mt-3 flex flex-col gap-2">
+                <input type="hidden" name="plano" value="MENSAL" />
+                <Input name="cupomCodigo" placeholder="Cupom de desconto (opcional)" className="text-sm" />
+                <Button type="submit" className="w-full">
                   Pagar com Pix ou cartão
                 </Button>
               </form>
@@ -58,8 +71,10 @@ export default async function AssinaturaPage() {
               <span className="text-sm text-text-dim"> /mês</span>
             </div>
             {MP_DISPONIVEL ? (
-              <form action={iniciarPagamentoAssinatura.bind(null, "ANUAL")}>
-                <Button type="submit" className="mt-3 w-full">
+              <form action={iniciarPagamentoAssinatura} className="mt-3 flex flex-col gap-2">
+                <input type="hidden" name="plano" value="ANUAL" />
+                <Input name="cupomCodigo" placeholder="Cupom de desconto (opcional)" className="text-sm" />
+                <Button type="submit" className="w-full">
                   Pagar com Pix ou cartão
                 </Button>
               </form>

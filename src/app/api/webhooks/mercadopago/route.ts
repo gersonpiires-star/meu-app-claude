@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { calcularVencimento } from "@/lib/planos";
+import { enviarPush } from "@/lib/push";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
   const pagamento = await prisma.pagamento.findUnique({
     where: { id: pagamentoId },
-    include: { revendedor: true, cliente: true },
+    include: { revendedor: { include: { pushSubscriptions: true } }, cliente: true },
   });
   if (!pagamento) {
     return NextResponse.json({ ok: true, ignorado: "pagamento não encontrado" });
@@ -88,6 +89,23 @@ export async function POST(request: Request) {
       where: { id: pagamento.id },
       data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
     });
+
+    // Pagamento de assinatura recusado: avisa o próprio revendedor (não só
+    // o admin, que já recebe isso no resumo diário) com um link direto pra
+    // tentar de novo — sem isso ele só descobria quando o acesso pausasse.
+    if (novoStatus === "RECUSADO" && pagamento.tipo === "ASSINATURA") {
+      for (const inscricao of pagamento.revendedor.pushSubscriptions) {
+        const manter = await enviarPush(inscricao, {
+          titulo: "Pagamento não aprovado",
+          corpo: "Seu pagamento da assinatura do GestorPro não foi aprovado. Toque para tentar de novo.",
+          url: "/assinatura",
+        });
+        if (!manter) {
+          await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true });
   }
 
@@ -121,6 +139,12 @@ export async function POST(request: Request) {
         where: { id: pagamento.revendedorId },
         data: { statusAssinatura: "ATIVO", assinaturaVence: vence },
       });
+
+      // Só conta o uso do cupom quando o pagamento realmente aprova — um
+      // checkout abandonado não deveria consumir o limite de usos.
+      if (pagamento.cupomId) {
+        await tx.cupom.update({ where: { id: pagamento.cupomId }, data: { usosCount: { increment: 1 } } });
+      }
     } else if (pagamento.tipo === "RENOVACAO" && pagamento.clienteId && pagamento.plano) {
       const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId } });
       if (cliente) {
