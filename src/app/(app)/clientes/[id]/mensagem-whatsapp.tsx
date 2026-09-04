@@ -22,6 +22,7 @@ export function MensagemWhatsApp({
   chaves = [],
   modelos,
   linkPagamento = null,
+  ultimaRenovacaoId = null,
 }: {
   clienteId: string;
   whatsapp: string | null;
@@ -29,6 +30,7 @@ export function MensagemWhatsApp({
   chaves?: { id: string; tipo: string; valor: string }[];
   modelos: Record<string, string>;
   linkPagamento?: string | null;
+  ultimaRenovacaoId?: string | null;
 }) {
   const MODELOS = modelos;
   const [modelo, setModelo] = useState(Object.keys(MODELOS)[0]);
@@ -79,7 +81,19 @@ export function MensagemWhatsApp({
       </Field>
 
       {ehRenovacao ? (
-        <p className="-mt-2 text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
+        <div className="-mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
+          {ultimaRenovacaoId ? (
+            <a
+              href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-accent hover:underline"
+            >
+              Baixar recibo em PDF ↓
+            </a>
+          ) : null}
+        </div>
       ) : chaves.length > 0 || linkPagamento ? (
         <Field label="Anexar na mensagem (opcional)">
           <Select value={chaveId} onChange={(e) => setChaveId(e.target.value)}>
@@ -124,6 +138,11 @@ export function MensagemWhatsApp({
           {copiado ? "Copiado!" : "Copiar"}
         </Button>
       </div>
+      {ehRenovacao && ultimaRenovacaoId ? (
+        <p className="-mt-1 text-[11px] text-text-dim">
+          O WhatsApp não deixa anexar arquivo pelo link — baixe o recibo antes e anexe ele na conversa que abrir.
+        </p>
+      ) : null}
     </div>
   );
 }

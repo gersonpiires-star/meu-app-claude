@@ -149,10 +149,12 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
     : "Nenhuma renovação registrada";
 
   const historico = [
-    ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom })),
-    ...cliente.renovacoes.slice(0, 6).map((r) => ({ label: `Renovado — ${PLANO_LABEL[r.plano]}`, data: dataHora(r.data), tom: "success" as Tom })),
-    ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom })),
-    { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom },
+    ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom, href: null as string | null })),
+    ...cliente.renovacoes
+      .slice(0, 6)
+      .map((r) => ({ label: `Renovado — ${PLANO_LABEL[r.plano]}`, data: dataHora(r.data), tom: "success" as Tom, href: `/api/renovacoes/${r.id}/recibo` })),
+    ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom, href: null as string | null })),
+    { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom, href: null as string | null },
   ];
 
   const dadosMensagem = {
@@ -402,6 +404,11 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <div key={i} className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0">
               <span className={cx("h-1.5 w-1.5 shrink-0 rounded-full", BARRA_COR[h.tom])} />
               <span className={cx("flex-1 text-sm", h.tom === "danger" ? "text-danger" : "text-text-muted")}>{h.label}</span>
+              {h.href ? (
+                <a href={h.href} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-semibold text-accent hover:underline">
+                  Recibo
+                </a>
+              ) : null}
               <span className="shrink-0 text-xs text-text-dim">{h.data}</span>
             </div>
           ))}

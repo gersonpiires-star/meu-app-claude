@@ -12,13 +12,14 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
   const revendedor = await exigirRevendedor();
   const { id } = await params;
 
-  const [cliente, chaves, overridesModelos] = await Promise.all([
+  const [cliente, chaves, overridesModelos, ultimaRenovacao] = await Promise.all([
     prisma.cliente.findUnique({
       where: { id, revendedorId: revendedor.id },
       include: { servico: true },
     }),
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
+    prisma.renovacao.findFirst({ where: { clienteId: id }, orderBy: { data: "desc" } }),
   ]);
   if (!cliente) notFound();
   const modelos = mesclarModelos(overridesModelos);
@@ -43,6 +44,7 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
         chaves={chaves}
         modelos={modelos}
         linkPagamento={revendedor.mpAccessToken ? linkPagamentoCliente(id) : null}
+        ultimaRenovacaoId={ultimaRenovacao?.id ?? null}
         dados={{
           nome: cliente.nome,
           app: cliente.servico?.nome ?? "",
