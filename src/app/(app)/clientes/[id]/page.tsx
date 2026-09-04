@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl, brl0, dataCurta, dataHora, dataPorExtenso, diaCivilBr, fmtTelefone, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
-import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
+import { PLANO_LABEL, PLANO_MESES, diasParaVencer, faixaVencimento } from "@/lib/planos";
 import { MODELOS_COMUNICADO, mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { faixaPontualidade } from "@/lib/pontualidade";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
@@ -112,7 +112,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
         vendas: true,
         cobrancas: { orderBy: { criadoEm: "desc" }, take: 10 },
         indicadoPor: { select: { id: true, nome: true } },
-        indicados: { select: { id: true, nome: true, status: true, valorPlano: true }, orderBy: { nome: "asc" } },
+        indicados: { select: { id: true, nome: true, status: true, valorPlano: true, plano: true }, orderBy: { nome: "asc" } },
       },
     }),
     prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } }),
@@ -134,7 +134,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
   const clienteHaTexto = mesesCasa < 1 ? "Entrou este mês" : tempoDeCasa(cliente.criadoEm);
   const aniversario = ehAniversarioDeCasa(cliente.criadoEm);
   const indicadosAtivos = cliente.indicados.filter((i) => i.status !== "CANCELADO");
-  const receitaIndicados = indicadosAtivos.reduce((a, i) => a + i.valorPlano, 0);
+  const receitaIndicados = indicadosAtivos.reduce((a, i) => a + i.valorPlano / PLANO_MESES[i.plano], 0);
 
   const pendentes: string[] = [];
   if (!cliente.whatsapp) pendentes.push("WhatsApp incompleto — cobrança não funciona");
