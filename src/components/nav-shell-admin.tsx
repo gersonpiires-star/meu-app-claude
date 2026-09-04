@@ -52,8 +52,8 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col pb-16 md:pb-0">
-        <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
+      <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <header className="flex items-center justify-between border-b border-border bg-surface px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:hidden">
           <span className="text-sm font-bold">GestorPro · Admin</span>
           <div className="flex items-center gap-3">
             <Link href="/painel" className="text-xs font-semibold text-accent">
@@ -65,7 +65,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
           {ITENS.map((item) => (
             <Link
               key={item.href}
