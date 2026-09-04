@@ -349,6 +349,11 @@ model Venda {
 
   quantidade      Int
   valorUnitario   Float
+  // Custo real dos lotes consumidos por FIFO no momento da venda (não é
+  // recalculado depois) — mesma lógica de "grava e nunca reajusta sozinho"
+  // já usada em Renovacao.custo, pra relatórios de meses passados não
+  // mudarem se o custo médio do produto mudar depois.
+  custoUnitario   Float @default(0)
   formaPagamento  String
   taxaPercentual  Float @default(0)
   data            DateTime @default(now())

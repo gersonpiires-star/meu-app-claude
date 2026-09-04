@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { custoMedioProdutos } from "@/lib/dados";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
 import { PLANO_MESES } from "@/lib/planos";
 
@@ -7,8 +6,6 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
   const meses: { ano: number; mes: number; receita: number; custo: number; lucro: number }[] = [];
-
-  const custos = await custoMedioProdutos(revendedorId);
 
   for (let i = quantidade - 1; i >= 0; i--) {
     // Normaliza (ano, mes - i) pra virada de ano — essa conta é só
@@ -29,7 +26,7 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
     const receitaRenov = renovacoes.reduce((a, r) => a + r.valor, 0);
     const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
     const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
-    const custoVendas = vendas.reduce((a, v) => a + v.quantidade * (custos.get(v.produtoId)?.custoMedio ?? 0), 0);
+    const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
 
     const receita = receitaRenov + receitaVendas;
     const custo = custoRenov + custoVendas;
@@ -47,7 +44,6 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   // brMidnightUTC monta o instante certo direto, sem passar por essa volta.
   const inicio = brMidnightUTC(ano, mes, 1);
   const fim = brMidnightUTC(ano, mes + 1, 1);
-  const custos = await custoMedioProdutos(revendedorId);
 
   const [renovacoes, vendas, cancelados] = await Promise.all([
     prisma.renovacao.findMany({
@@ -67,7 +63,7 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   const receitaRenov = renovacoes.reduce((a, r) => a + r.valor, 0);
   const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
   const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
-  const custoVendas = vendas.reduce((a, v) => a + v.quantidade * (custos.get(v.produtoId)?.custoMedio ?? 0), 0);
+  const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
 
   const receita = receitaRenov + receitaVendas;
   const custo = custoRenov + custoVendas;
@@ -75,12 +71,11 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   const margem = receita > 0 ? (lucro / receita) * 100 : 0;
 
   const vendasComCusto = vendas.map((v) => {
-    const custoMedio = custos.get(v.produtoId)?.custoMedio ?? 0;
     const bruto = v.quantidade * v.valorUnitario;
     const taxa = bruto * (v.taxaPercentual / 100);
-    const custoTotal = v.quantidade * custoMedio;
+    const custoTotal = v.quantidade * v.custoUnitario;
     const liquido = bruto - taxa - custoTotal;
-    return { ...v, custoUnitario: custoMedio, custoTotal, taxa, liquido };
+    return { ...v, custoTotal, taxa, liquido };
   });
 
   return {

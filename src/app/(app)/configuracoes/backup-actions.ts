@@ -180,6 +180,9 @@ export async function restaurarBackup(
             clienteId: clienteIdAntigo ? clienteIdAntigoParaNovo.get(clienteIdAntigo) ?? null : null,
             quantidade: v.quantidade as number,
             valorUnitario: v.valorUnitario as number,
+            // Backups de antes desse campo existir não têm custoUnitario —
+            // cai pra 0 (mesmo tratamento já dado a outros campos novos).
+            custoUnitario: (v.custoUnitario as number) ?? 0,
             formaPagamento: (v.formaPagamento as string) ?? "Pix",
             taxaPercentual: (v.taxaPercentual as number) ?? 0,
             data: v.data ? new Date(v.data as string) : new Date(),

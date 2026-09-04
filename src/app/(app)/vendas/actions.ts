@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
-import { estoqueAtualProduto } from "@/lib/dados";
+import { estoqueAtualProduto, custoConsumoFifo } from "@/lib/dados";
 
 const vendaSchema = z.object({
   produtoId: z.string().min(1, "Selecione um produto"),
@@ -46,6 +46,10 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
           );
         }
 
+        // Custo real (FIFO) dos lotes que essa venda consome — gravado na
+        // venda pra sempre, não recalculado depois se o custo médio mudar.
+        const { custoUnitario } = await custoConsumoFifo(dados.produtoId, dados.quantidade, tx);
+
         await tx.venda.create({
           data: {
             revendedorId: revendedor.id,
@@ -53,6 +57,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
             clienteId: dados.clienteId || null,
             quantidade: dados.quantidade,
             valorUnitario: dados.valorUnitario,
+            custoUnitario,
             formaPagamento: dados.formaPagamento,
             taxaPercentual: dados.taxaPercentual,
           },
@@ -62,7 +67,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
             produtoId: dados.produtoId,
             tipo: "SAIDA",
             quantidade: dados.quantidade,
-            custoUnitario: 0,
+            custoUnitario,
           },
         });
       },

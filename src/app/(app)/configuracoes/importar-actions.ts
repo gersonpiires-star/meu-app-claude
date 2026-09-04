@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataHora } from "@/lib/format";
+import { consumirFifo, type Lote } from "@/lib/dados";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function serialParaData(serial: number): Date {
@@ -342,18 +343,53 @@ async function importar({
         produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
         quantidade: v.qtd,
         valorUnitario: v.unit,
+        custoUnitario: 0,
         formaPagamento: v.pagamento || "Pix",
         data: parseData(v.data),
       }));
+
+      // Simula o FIFO em memória, andando entradas e vendas do mesmo produto
+      // juntas em ordem cronológica — o app antigo não guardava o custo de
+      // cada venda, então o custo real é reconstruído a partir dos lotes de
+      // compra importados (o mesmo cálculo que uma venda nova faria).
+      const eventosPorProduto = new Map<
+        string,
+        { tipo: "ENTRADA" | "SAIDA"; quantidade: number; custoUnitario: number; data: Date; venda?: (typeof vendasData)[number] }[]
+      >();
+      for (const e of entradasData) {
+        const lista = eventosPorProduto.get(e.produtoId) ?? [];
+        lista.push({ tipo: "ENTRADA", quantidade: e.quantidade, custoUnitario: e.custoUnitario, data: e.data });
+        eventosPorProduto.set(e.produtoId, lista);
+      }
+      for (const v of vendasData) {
+        const lista = eventosPorProduto.get(v.produtoId) ?? [];
+        lista.push({ tipo: "SAIDA", quantidade: v.quantidade, custoUnitario: 0, data: v.data, venda: v });
+        eventosPorProduto.set(v.produtoId, lista);
+      }
+      const saidasCusto = new Map<(typeof vendasData)[number], number>();
+      for (const eventos of eventosPorProduto.values()) {
+        eventos.sort((a, b) => a.data.getTime() - b.data.getTime());
+        const fila: Lote[] = [];
+        for (const ev of eventos) {
+          if (ev.tipo === "ENTRADA") {
+            fila.push({ restante: ev.quantidade, custoUnitario: ev.custoUnitario });
+          } else {
+            const custoTotal = consumirFifo(fila, ev.quantidade);
+            if (ev.venda) saidasCusto.set(ev.venda, ev.quantidade > 0 ? custoTotal / ev.quantidade : 0);
+          }
+        }
+      }
+      for (const v of vendasData) v.custoUnitario = saidasCusto.get(v) ?? 0;
+
       if (vendasData.length > 0) await tx.venda.createMany({ data: vendasData });
       if (vendasValidas.length > 0) {
         await tx.movimentoEstoque.createMany({
-          data: vendasValidas.map((v) => ({
-            produtoId: produtoIdAntigoParaNovo.get(v.modeloId!)!,
+          data: vendasData.map((v) => ({
+            produtoId: v.produtoId,
             tipo: "SAIDA" as const,
-            quantidade: v.qtd,
-            custoUnitario: 0,
-            data: parseData(v.data),
+            quantidade: v.quantidade,
+            custoUnitario: v.custoUnitario,
+            data: v.data,
           })),
         });
       }

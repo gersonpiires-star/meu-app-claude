@@ -29,27 +29,91 @@ export async function estoqueAtualProduto(
   return (entradas._sum.quantidade ?? 0) - (saidas._sum.quantidade ?? 0);
 }
 
+export type Lote = { restante: number; custoUnitario: number };
+type MovimentoOrdenavel = { tipo: "ENTRADA" | "SAIDA"; quantidade: number; custoUnitario: number; data: Date; id: string };
+
+// Consome a fila de lotes (mais antigo primeiro) — usado tanto pra "andar" o
+// histórico até agora (deixando só os lotes ainda não vendidos) quanto pra
+// descobrir o custo real de uma venda nova, sem duplicar a lógica de FIFO.
+// Exportado porque a importação do app antigo (importar-actions.ts) também
+// precisa simular o consumo em memória ao gerar vendas em lote.
+export function consumirFifo(fila: Lote[], quantidade: number): number {
+  let falta = quantidade;
+  let custoTotal = 0;
+  while (falta > 0 && fila.length > 0) {
+    const lote = fila[0];
+    const consumido = Math.min(lote.restante, falta);
+    custoTotal += consumido * lote.custoUnitario;
+    lote.restante -= consumido;
+    falta -= consumido;
+    if (lote.restante <= 0) fila.shift();
+  }
+  return custoTotal;
+}
+
+// Reconstrói quais lotes de compra ainda não foram totalmente vendidos,
+// andando o histórico de movimentos em ordem cronológica e descontando cada
+// saída dos lotes mais antigos primeiro (FIFO) — a mesma ordem em que as
+// compras de fato vão sendo consumidas.
+function lotesAbertos(movimentos: MovimentoOrdenavel[]): Lote[] {
+  const ordenados = [...movimentos].sort((a, b) => a.data.getTime() - b.data.getTime() || a.id.localeCompare(b.id));
+  const fila: Lote[] = [];
+  for (const m of ordenados) {
+    if (m.tipo === "ENTRADA") {
+      if (m.quantidade > 0) fila.push({ restante: m.quantidade, custoUnitario: m.custoUnitario });
+    } else {
+      consumirFifo(fila, m.quantidade);
+    }
+  }
+  return fila;
+}
+
 export async function custoMedioProdutos(revendedorId: string) {
   const produtos = await prisma.produto.findMany({
     where: { revendedorId },
     include: { movimentos: true },
   });
 
-  const mapa = new Map<string, { custoMedio: number; atual: number; entradas: number; vendido: number }>();
+  const mapa = new Map<
+    string,
+    { custoMedio: number; proximoCusto: number; atual: number; entradas: number; vendido: number }
+  >();
   for (const produto of produtos) {
-    const entradas = produto.movimentos.filter((m) => m.tipo === "ENTRADA");
-    const saidas = produto.movimentos.filter((m) => m.tipo === "SAIDA");
-    const qtdEntrada = entradas.reduce((a, m) => a + m.quantidade, 0);
-    const qtdSaida = saidas.reduce((a, m) => a + m.quantidade, 0);
-    const custoTotal = entradas.reduce((a, m) => a + m.quantidade * m.custoUnitario, 0);
+    const qtdEntrada = produto.movimentos.filter((m) => m.tipo === "ENTRADA").reduce((a, m) => a + m.quantidade, 0);
+    const qtdSaida = produto.movimentos.filter((m) => m.tipo === "SAIDA").reduce((a, m) => a + m.quantidade, 0);
+
+    // custoMedio aqui é o custo médio só do estoque que ainda está parado —
+    // não da vida inteira do produto. Se um lote velho e barato já foi todo
+    // vendido, ele não conta mais pro custo do que sobrou.
+    const fila = lotesAbertos(produto.movimentos);
+    const atual = fila.reduce((a, l) => a + l.restante, 0);
+    const custoTotalAtual = fila.reduce((a, l) => a + l.restante * l.custoUnitario, 0);
+
     mapa.set(produto.id, {
-      custoMedio: qtdEntrada > 0 ? custoTotal / qtdEntrada : 0,
+      custoMedio: atual > 0 ? custoTotalAtual / atual : 0,
+      proximoCusto: fila[0]?.custoUnitario ?? 0,
       atual: qtdEntrada - qtdSaida,
       entradas: qtdEntrada,
       vendido: qtdSaida,
     });
   }
   return mapa;
+}
+
+// Custo real (FIFO) de vender `quantidade` unidades agora — consome os
+// lotes de compra mais antigos primeiro. Aceita um client de transação
+// opcional pra rodar no mesmo snapshot da checagem de estoque em
+// registrarVenda (vendas/actions.ts), evitando que duas vendas concorrentes
+// "vejam" os mesmos lotes ainda abertos.
+export async function custoConsumoFifo(
+  produtoId: string,
+  quantidade: number,
+  db: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<{ custoUnitario: number; custoTotal: number }> {
+  const movimentos = await db.movimentoEstoque.findMany({ where: { produtoId } });
+  const fila = lotesAbertos(movimentos);
+  const custoTotal = consumirFifo(fila, quantidade);
+  return { custoUnitario: quantidade > 0 ? custoTotal / quantidade : 0, custoTotal };
 }
 
 export async function dadosPainel(revendedorId: string) {
@@ -88,10 +152,7 @@ export async function dadosPainel(revendedorId: string) {
   const receitaRecorrente = renovacoesMes.reduce((a, r) => a + r.valor, 0);
   const custoRecorrente = renovacoesMes.reduce((a, r) => a + r.custo, 0);
   const receitaApar = vendasMes.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
-  const custoApar = vendasMes.reduce((a, v) => {
-    const custoMedio = custosMedios.get(v.produtoId)?.custoMedio ?? 0;
-    return a + v.quantidade * custoMedio;
-  }, 0);
+  const custoApar = vendasMes.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
 
   const receitaTotal = receitaRecorrente + receitaApar;
   const custoTotal = custoRecorrente + custoApar;

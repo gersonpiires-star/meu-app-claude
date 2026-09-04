@@ -22,9 +22,12 @@ export default async function NovaVendaPage() {
     custoMedioProdutos(revendedor.id),
   ]);
 
+  // Sugere o preço com base no custo do próximo lote a ser vendido (o mais
+  // antigo ainda em aberto) — é esse que o FIFO vai realmente consumir na
+  // próxima venda, não a média de tudo que já foi comprado.
   const produtosComCusto = produtos.map((p) => ({
     ...p,
-    custoMedio: custos.get(p.id)?.custoMedio ?? 0,
+    custoProximoLote: custos.get(p.id)?.proximoCusto ?? 0,
     estoqueAtual: custos.get(p.id)?.atual ?? 0,
   }));
 

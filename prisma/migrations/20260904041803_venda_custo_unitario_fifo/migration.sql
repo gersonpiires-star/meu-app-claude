@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Venda" ADD COLUMN     "custoUnitario" DOUBLE PRECISION NOT NULL DEFAULT 0;

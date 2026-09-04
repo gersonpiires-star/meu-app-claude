@@ -15,7 +15,7 @@ export function VendaForm({
   margemPadrao,
 }: {
   acao: (formData: FormData) => Promise<{ erro: string } | undefined>;
-  produtos: { id: string; modelo: string; custoMedio: number; estoqueAtual: number }[];
+  produtos: { id: string; modelo: string; custoProximoLote: number; estoqueAtual: number }[];
   clientes?: { id: string; nome: string }[];
   margemPadrao: number;
 }) {
@@ -56,8 +56,8 @@ export function VendaForm({
     setErro(null);
     if (valorEditadoManualmente) return;
     const produto = produtos.find((p) => p.id === id);
-    if (produto && produto.custoMedio > 0) {
-      setPrecoAlvo(Math.round(precoAVista(produto.custoMedio, margemPadrao) * 100) / 100);
+    if (produto && produto.custoProximoLote > 0) {
+      setPrecoAlvo(Math.round(precoAVista(produto.custoProximoLote, margemPadrao) * 100) / 100);
     }
   }
 
@@ -133,9 +133,9 @@ export function VendaForm({
           />
         </Field>
       </div>
-      {!valorEditadoManualmente && produtoId && produtos.find((p) => p.id === produtoId)?.custoMedio ? (
+      {!valorEditadoManualmente && produtoId && produtos.find((p) => p.id === produtoId)?.custoProximoLote ? (
         <p className="-mt-2 text-[11px] text-text-dim">
-          Sugerido pelo custo médio de compra + margem de {margemPadrao}% (ajuste em Precificação · Maquininha).
+          Sugerido pelo custo do próximo lote a vender + margem de {margemPadrao}% (ajuste em Precificação · Maquininha).
         </p>
       ) : null}
       {ehCartao ? (
