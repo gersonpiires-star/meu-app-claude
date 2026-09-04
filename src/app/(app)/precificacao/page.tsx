@@ -1,34 +1,23 @@
+import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
-import { prisma } from "@/lib/prisma";
-import { PrecificacaoTabs } from "./tabs";
+import { MaquininhaCalc } from "./maquininha-calc";
 
 export default async function PrecificacaoPage() {
   const revendedor = await exigirRevendedor();
 
-  const [servicos, plataformas] = await Promise.all([
-    prisma.servico.findMany({
-      where: { revendedorId: revendedor.id },
-      include: { _count: { select: { clientes: true } } },
-      orderBy: { nome: "asc" },
-    }),
-    prisma.plataforma.findMany({ where: { revendedorId: revendedor.id }, orderBy: { nome: "asc" } }),
-  ]);
-
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-lg font-bold text-text">Precificação</h1>
-      <PrecificacaoTabs
-        servicos={servicos.map((s) => ({
-          id: s.id,
-          nome: s.nome,
-          plataformaId: s.plataformaId,
-          custoCredito: s.custoCredito,
-          cobrancaTelaExtra: s.cobrancaTelaExtra,
-          totalClientes: s._count.clientes,
-        }))}
-        plataformas={plataformas.map((p) => ({ id: p.id, nome: p.nome }))}
-        margemPadrao={revendedor.margemPadrao}
-      />
+      <div>
+        <h1 className="text-lg font-bold text-text">Precificação</h1>
+        <p className="text-xs text-text-dim">
+          Preço e crédito dos apps agora ficam junto da plataforma —{" "}
+          <Link href="/plataformas" className="font-semibold text-accent hover:underline">
+            configure em Plataformas
+          </Link>
+          .
+        </p>
+      </div>
+      <MaquininhaCalc margemInicial={revendedor.margemPadrao} />
     </div>
   );
 }

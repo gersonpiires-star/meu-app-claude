@@ -14,34 +14,7 @@ type Servico = {
   totalClientes: number;
 };
 
-export function AppsTab({
-  servicos,
-  plataformas,
-}: {
-  servicos: Servico[];
-  plataformas: { id: string; nome: string }[];
-}) {
-  if (servicos.length === 0) {
-    return (
-      <Card>
-        <p className="text-sm text-text-dim">
-          Nenhum serviço cadastrado ainda — os serviços aparecem aqui assim que você cadastrar um cliente
-          com um serviço, ou cria eles direto ao cadastrar um cliente.
-        </p>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {servicos.map((s) => (
-        <LinhaServico key={s.id} servico={s} plataformas={plataformas} />
-      ))}
-    </div>
-  );
-}
-
-function LinhaServico({ servico, plataformas }: { servico: Servico; plataformas: { id: string; nome: string }[] }) {
+export function ServicoItem({ servico, plataformas }: { servico: Servico; plataformas: { id: string; nome: string }[] }) {
   const [editando, setEditando] = useState(false);
   const [plataformaId, setPlataformaId] = useState(servico.plataformaId ?? "");
   const [pendente, iniciarTransicao] = useTransition();
@@ -59,9 +32,7 @@ function LinhaServico({ servico, plataformas }: { servico: Servico; plataformas:
           <p className="text-xs font-semibold text-accent">
             {servico.cobrancaTelaExtra ? `Taxa de tela extra ${brl0(servico.cobrancaTelaExtra)}` : "Sem taxa por tela extra"}
           </p>
-          <p className={cx("text-xs font-semibold", plataformaAtual ? "text-accent" : "text-text-dim")}>
-            {plataformaAtual ? plataformaAtual.nome : "Sem plataforma"}
-          </p>
+          {!plataformaAtual ? <p className="text-xs font-semibold text-warning">Sem plataforma vinculada</p> : null}
         </div>
         <button
           type="button"

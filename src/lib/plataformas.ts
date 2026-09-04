@@ -1,4 +1,38 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
+
+// Confere se o app do cliente está vinculado a uma plataforma sem crédito
+// disponível, pra bloquear a renovação — usado tanto na renovação rápida
+// (renovar-em-lote) quanto na renovação com plano/valor customizados
+// (clientes/actions.ts). Aceita tanto o client normal quanto o `tx` de uma
+// transação, pra poder checar dentro do mesmo lock que grava a renovação.
+// App sem plataforma vinculada nunca bloqueia — a plataforma "em questão"
+// só existe quando o app está mesmo ligado a uma.
+export async function erroCreditoIndisponivel(
+  db: Prisma.TransactionClient | typeof prisma,
+  servicoId: string | null
+): Promise<string | null> {
+  if (!servicoId) return null;
+
+  const servico = await db.servico.findUnique({ where: { id: servicoId }, select: { plataformaId: true } });
+  if (!servico?.plataformaId) return null;
+
+  const plataforma = await db.plataforma.findUnique({
+    where: { id: servico.plataformaId },
+    include: { lotes: true, servicos: { select: { id: true } } },
+  });
+  if (!plataforma) return null;
+
+  const comprados = plataforma.lotes.reduce((a, l) => a + l.quantidade, 0);
+  const servicoIds = plataforma.servicos.map((s) => s.id);
+  const usados = await db.renovacao.count({ where: { cliente: { servicoId: { in: servicoIds } } } });
+  const saldo = comprados - usados;
+
+  if (saldo <= 0) {
+    return `Sem créditos disponíveis em ${plataforma.nome}. Compre mais créditos em Plataformas antes de renovar.`;
+  }
+  return null;
+}
 
 // Soma o saldo de créditos de todas as plataformas do revendedor, pro
 // resumo do Painel — sem uma consulta por plataforma como dadosPlataformas.
@@ -37,7 +71,7 @@ export async function saldoTotalCreditos(revendedorId: string): Promise<{ saldo:
 export async function dadosPlataformas(revendedorId: string) {
   const plataformas = await prisma.plataforma.findMany({
     where: { revendedorId },
-    include: { lotes: true, servicos: true },
+    include: { lotes: true, servicos: { include: { _count: { select: { clientes: true } } } } },
     orderBy: { nome: "asc" },
   });
 

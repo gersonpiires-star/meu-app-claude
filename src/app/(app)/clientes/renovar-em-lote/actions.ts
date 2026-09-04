@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
 import { PLANO_MESES, calcularVencimentoComDiaFixo } from "@/lib/planos";
+import { erroCreditoIndisponivel } from "@/lib/plataformas";
+
+class SemCreditoError extends Error {}
 
 export async function renovarComPlanoAtual(id: string): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
@@ -13,13 +16,19 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
     // Lê e grava dentro da mesma transação serializável — senão um clique
     // duplo ou duas abas abertas podiam ambos ler o mesmo vencimento antigo
     // e gravar duas renovações pro mesmo cliente, duplicando receita/custo
-    // no relatório (mesma corrida já corrigida em registrarVenda).
+    // no relatório (mesma corrida já corrigida em registrarVenda). A
+    // checagem de crédito roda dentro dela também, senão dois cliques
+    // simultâneos podiam ambos passar pela checagem e consumir o último
+    // crédito duas vezes.
     await prisma.$transaction(
       async (tx) => {
         const cliente = await tx.cliente.findUniqueOrThrow({
           where: { id, revendedorId: revendedor.id },
           include: { servico: true },
         });
+
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        if (erroCredito) throw new SemCreditoError(erroCredito);
 
         const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
         const novoVencimento = calcularVencimentoComDiaFixo(cliente.plano, base, cliente.diaFixo);
@@ -36,6 +45,9 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
   } catch (erro) {
+    if (erro instanceof SemCreditoError) {
+      return { erro: erro.message };
+    }
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2034") {
       return { erro: "Esse cliente acabou de ser renovado em outra aba/clique — confira antes de tentar de novo." };
     }

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
+import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { brl, parseDataBr } from "@/lib/format";
 import type { PlanoCliente } from "@/generated/prisma/enums";
@@ -158,7 +159,10 @@ export async function aplicarReajusteEmGrupo(clienteIds: string[], novoValor: nu
   revalidatePath("/painel");
 }
 
-export async function renovarCliente(id: string, formData: FormData) {
+export async function renovarCliente(
+  id: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
   const plano = planoSchema.parse(formData.get("plano"));
   const valor = Number(formData.get("valor") ?? 0);
@@ -167,6 +171,9 @@ export async function renovarCliente(id: string, formData: FormData) {
   const cliente = await prisma.cliente.findUniqueOrThrow({
     where: { id, revendedorId: revendedor.id },
   });
+
+  const erroCredito = await erroCreditoIndisponivel(prisma, cliente.servicoId);
+  if (erroCredito) return { ok: false, erro: erroCredito };
 
   const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
   const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
@@ -193,6 +200,7 @@ export async function renovarCliente(id: string, formData: FormData) {
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");
+  return { ok: true };
 }
 
 export async function converterTeste(id: string) {

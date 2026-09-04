@@ -23,6 +23,67 @@ export async function criarPlataforma(formData: FormData) {
   revalidatePath("/plataformas");
 }
 
+const appSchema = z.object({
+  nome: z.string().trim().min(1, "Informe o nome do app"),
+  custoCredito: z.coerce.number().min(0.01, "Informe o custo do crédito"),
+  cobrancaTelaExtra: z.coerce.number().min(0).optional(),
+});
+
+// Cria um app já vinculado a essa plataforma, com o custo do crédito
+// obrigatório — diferente da configuração solta que existia antes em
+// Precificação > Apps, aqui o usuário é obrigado a preencher o preço antes
+// de conseguir usar a plataforma. Se já existe um app com esse nome (por
+// exemplo criado sem querer ao digitar o serviço num cadastro de cliente),
+// vincula ele a essa plataforma em vez de dar erro de nome duplicado.
+export async function criarAppNaPlataforma(plataformaId: string, formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = appSchema.parse(Object.fromEntries(formData));
+
+  const plataforma = await prisma.plataforma.findUniqueOrThrow({
+    where: { id: plataformaId, revendedorId: revendedor.id },
+  });
+
+  await prisma.servico.upsert({
+    where: { revendedorId_nome: { revendedorId: revendedor.id, nome: dados.nome } },
+    update: {
+      plataformaId: plataforma.id,
+      custoCredito: dados.custoCredito,
+      cobrancaTelaExtra: dados.cobrancaTelaExtra ?? null,
+    },
+    create: {
+      revendedorId: revendedor.id,
+      nome: dados.nome,
+      plataformaId: plataforma.id,
+      custoCredito: dados.custoCredito,
+      cobrancaTelaExtra: dados.cobrancaTelaExtra ?? null,
+    },
+  });
+
+  revalidatePath("/plataformas");
+}
+
+const servicoConfigSchema = z.object({
+  plataformaId: z.string().trim().optional(),
+  custoCredito: z.coerce.number().min(0).optional(),
+  cobrancaTelaExtra: z.coerce.number().min(0).optional(),
+});
+
+export async function atualizarConfigServico(servicoId: string, formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = servicoConfigSchema.parse(Object.fromEntries(formData));
+
+  await prisma.servico.update({
+    where: { id: servicoId, revendedorId: revendedor.id },
+    data: {
+      plataformaId: dados.plataformaId || null,
+      custoCredito: dados.custoCredito ?? null,
+      cobrancaTelaExtra: dados.cobrancaTelaExtra ?? null,
+    },
+  });
+
+  revalidatePath("/plataformas");
+}
+
 const loteSchema = z.object({
   quantidade: z.coerce.number().int().min(1, "Informe a quantidade"),
   valorPago: z.coerce.number().min(0),
