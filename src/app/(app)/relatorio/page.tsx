@@ -1,4 +1,4 @@
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dadosMes, proximoMes, ultimosMeses } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
@@ -10,6 +10,7 @@ import { GraficoMeses } from "./grafico-meses";
 import { CalendarioMes } from "./calendario-mes";
 import { RenovacoesPorServico, type GrupoRenovacao } from "./renovacoes-por-servico";
 import { VendasDetalhadas, type VendaDetalhe } from "./vendas-detalhadas";
+import { editarRenovacao } from "./actions";
 
 const MESES_NOME = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -22,6 +23,7 @@ export default async function RelatorioPage({
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
+  const ehFuncionario = await souFuncionario();
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
   const { ano: anoParam, mes: mesParam } = await searchParams;
@@ -58,6 +60,7 @@ export default async function RelatorioPage({
       nome: r.cliente.nome,
       sub: `${PLANO_LABEL[r.plano]} · ${dataCurta(r.data)}`,
       liquido: r.valor - r.custo,
+      valor: r.valor,
       custo: r.custo,
     });
     gruposRenovMap.set(nome, atual);
@@ -113,7 +116,7 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Renovações do mês · por serviço</h2>
-        <RenovacoesPorServico grupos={gruposRenovacao} />
+        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} podeEditar={!ehFuncionario} />
       </Card>
 
       <Card>

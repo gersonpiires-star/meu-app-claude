@@ -1,13 +1,89 @@
 "use client";
 
-import { useState } from "react";
-import { cx } from "@/components/ui";
+import { useState, useTransition } from "react";
+import { Button, Field, Input, cx } from "@/components/ui";
 import { brl } from "@/lib/format";
 
-export type ItemRenovacao = { id: string; nome: string; sub: string; liquido: number; custo: number };
+export type ItemRenovacao = { id: string; nome: string; sub: string; liquido: number; valor: number; custo: number };
 export type GrupoRenovacao = { servico: string; qtd: number; meses: number; bruto: number; custo: number; itens: ItemRenovacao[] };
 
-export function RenovacoesPorServico({ grupos }: { grupos: GrupoRenovacao[] }) {
+type AcaoEditar = (renovacaoId: string, formData: FormData) => Promise<{ ok: true } | { ok: false; erro: string }>;
+
+function ItemLinha({ item, acao, podeEditar }: { item: ItemRenovacao; acao?: AcaoEditar; podeEditar: boolean }) {
+  const [editando, setEditando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciarTransicao] = useTransition();
+
+  if (editando && acao) {
+    return (
+      <form
+        className="flex flex-col gap-2 py-2"
+        action={(formData) =>
+          iniciarTransicao(async () => {
+            const resposta = await acao(item.id, formData);
+            if (resposta.ok) {
+              setEditando(false);
+              setErro(null);
+            } else {
+              setErro(resposta.erro);
+            }
+          })
+        }
+      >
+        <span className="text-sm font-semibold text-text">{item.nome}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Valor (R$)">
+            <Input type="number" name="valor" min={0} step="0.01" defaultValue={item.valor} required />
+          </Field>
+          <Field label="Custo de crédito (R$)">
+            <Input type="number" name="custo" min={0} step="0.01" defaultValue={item.custo} required />
+          </Field>
+        </div>
+        {erro ? <p className="text-xs font-semibold text-danger">{erro}</p> : null}
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditando(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={pendente} className="flex-1">
+            {pendente ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-text">{item.nome}</span>
+        <span className="block text-[11px] text-text-dim">{item.sub}</span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-0.5">
+        <span className="text-sm font-semibold text-accent">{brl(item.liquido)}</span>
+        <span className="text-[11px] text-danger">− {brl(item.custo)}</span>
+      </span>
+      {podeEditar && acao ? (
+        <button
+          type="button"
+          onClick={() => setEditando(true)}
+          className="shrink-0 text-[11px] font-semibold text-text-dim hover:text-accent"
+        >
+          Editar
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function RenovacoesPorServico({
+  grupos,
+  acao,
+  podeEditar = false,
+}: {
+  grupos: GrupoRenovacao[];
+  acao?: AcaoEditar;
+  podeEditar?: boolean;
+}) {
   const [aberto, setAberto] = useState<string | null>(null);
 
   if (grupos.length === 0) {
@@ -39,16 +115,7 @@ export function RenovacoesPorServico({ grupos }: { grupos: GrupoRenovacao[] }) {
             {expandido ? (
               <div className="flex flex-col divide-y divide-border px-4 pb-3">
                 {g.itens.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 py-2">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-text">{item.nome}</span>
-                      <span className="block text-[11px] text-text-dim">{item.sub}</span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end gap-0.5">
-                      <span className="text-sm font-semibold text-accent">{brl(item.liquido)}</span>
-                      <span className="text-[11px] text-danger">− {brl(item.custo)}</span>
-                    </span>
-                  </div>
+                  <ItemLinha key={item.id} item={item} acao={acao} podeEditar={podeEditar} />
                 ))}
               </div>
             ) : null}
