@@ -1,6 +1,7 @@
 import { exigirRevendedor, acessoLiberado } from "@/lib/sessao";
 import { NavShell } from "@/components/nav-shell";
 import { AcessoPausado } from "@/components/acesso-pausado";
+import { InactivityLogout } from "@/components/inactivity-logout";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const revendedor = await exigirRevendedor();
@@ -11,8 +12,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <NavShell nome={revendedor.nome} ehAdmin={ehAdmin}>
-      {children}
-    </NavShell>
+    <>
+      <InactivityLogout minutos={5} />
+      <NavShell nome={revendedor.nome} ehAdmin={ehAdmin}>
+        {children}
+      </NavShell>
+    </>
   );
 }
