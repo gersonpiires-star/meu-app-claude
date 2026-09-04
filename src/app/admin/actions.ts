@@ -141,3 +141,9 @@ export async function publicarAviso(formData: FormData) {
   revalidatePath("/admin/comunicados");
   redirect("/admin/comunicados");
 }
+
+export async function excluirAviso(id: string) {
+  await exigirAdmin();
+  await prisma.aviso.delete({ where: { id, destino: "TODOS_REVENDEDORES" } });
+  revalidatePath("/admin/comunicados");
+}

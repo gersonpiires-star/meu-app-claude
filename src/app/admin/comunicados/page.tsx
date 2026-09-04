@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { dataPorExtenso } from "@/lib/format";
 import { Button, Card, EmptyState, Field, Input, Textarea } from "@/components/ui";
 import { publicarAviso } from "../actions";
+import { ExcluirAvisoBotao } from "./excluir-aviso-botao";
 
 export default async function ComunicadosPage() {
   await exigirAdmin();
@@ -38,9 +39,12 @@ export default async function ComunicadosPage() {
         <div className="flex flex-col gap-3">
           {avisos.map((aviso) => (
             <Card key={aviso.id}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold text-text">{aviso.titulo}</p>
-                <span className="text-xs text-text-dim">{dataPorExtenso(aviso.criadoEm)}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-text-dim">{dataPorExtenso(aviso.criadoEm)}</span>
+                  <ExcluirAvisoBotao id={aviso.id} />
+                </div>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-text-muted">{aviso.mensagem}</p>
             </Card>
