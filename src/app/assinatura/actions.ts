@@ -5,11 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
 import { criarPreferencia, tokenPlataforma } from "@/lib/mercadopago";
 import { aplicarDesconto, validarCupom } from "@/lib/cupons";
-
-const PLANOS_ASSINATURA = {
-  MENSAL: { valor: 29, meses: 1, titulo: "GestorPro — plano mensal" },
-  ANUAL: { valor: 290, meses: 12, titulo: "GestorPro — plano anual" },
-} as const;
+import { PLANOS_ASSINATURA } from "@/lib/planos-assinatura";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");

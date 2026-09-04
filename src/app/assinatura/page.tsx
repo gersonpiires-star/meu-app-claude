@@ -2,9 +2,20 @@ import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { iniciarPagamentoAssinatura } from "./actions";
+import { PRECO_MENSAL, PRECO_ANUAL, PRECO_ANUAL_MENSALIZADO } from "@/lib/planos-assinatura";
+import { brl, brl0 } from "@/lib/format";
 
 const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
 const MP_DISPONIVEL = Boolean(process.env.MP_ACCESS_TOKEN);
+
+const BENEFICIOS = [
+  "Clientes, vendas e estoque num só lugar",
+  "Custo real de estoque por lote (FIFO), sem chute",
+  "Recibo em PDF automático em toda venda e renovação",
+  "Cobrança e renovação em lote, com lembrete automático",
+  "Relatório financeiro completo, mês a mês",
+  "Instala no celular e funciona como um app de verdade",
+];
 
 function linkPix(plano: string) {
   const texto = encodeURIComponent(`Olá! Quero liberar o GestorPro no plano ${plano} — prefiro pagar via Pix.`);
@@ -21,13 +32,22 @@ export default async function AssinaturaPage({
 
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-text">Liberar tudo</h1>
-          <p className="mt-1 text-xs text-text-dim uppercase tracking-wide">
-            Sem limite de clientes e com todas as funções
-          </p>
+      <div className="w-full max-w-xl">
+        <div className="mb-5 text-center">
+          <h1 className="text-2xl font-bold text-text">Liberar tudo no GestorPro</h1>
+          <p className="mt-1 text-sm text-text-dim">Sem limite de clientes e com todas as funções</p>
         </div>
+
+        <Card className="mb-5">
+          <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+            {BENEFICIOS.map((b) => (
+              <li key={b} className="flex items-start gap-2 text-sm text-text">
+                <span className="mt-0.5 shrink-0 font-bold text-accent">✓</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
 
         {erroCupom ? (
           <p className="mb-4 rounded-xl border border-danger-border bg-danger-bg/40 px-3 py-2 text-center text-sm text-danger">
@@ -35,61 +55,67 @@ export default async function AssinaturaPage({
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-4">
-          <Card className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-text">Mensal</span>
-              <Badge tone="neutral">Cancele quando quiser</Badge>
-            </div>
-            <div className="mt-1">
-              <span className="text-2xl font-bold text-accent">R$ 29</span>
-              <span className="text-sm text-text-dim"> /mês</span>
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="flex flex-col gap-2.5 p-4">
+            <span className="text-sm font-bold text-text">Mensal</span>
+            <div>
+              <span className="text-xl font-bold text-accent sm:text-2xl">{brl(PRECO_MENSAL)}</span>
+              <p className="mt-0.5 text-[11px] text-text-dim">por mês · cancele quando quiser</p>
             </div>
             {MP_DISPONIVEL ? (
-              <form action={iniciarPagamentoAssinatura} className="mt-3 flex flex-col gap-2">
+              <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
                 <input type="hidden" name="plano" value="MENSAL" />
-                <Input name="cupomCodigo" placeholder="Cupom de desconto (opcional)" className="text-sm" />
-                <Button type="submit" className="w-full">
-                  Pagar com Pix ou cartão
+                <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />
+                <Button type="submit" className="w-full text-sm">
+                  Assinar
                 </Button>
+                <p className="text-center text-[10px] leading-tight text-text-dim">
+                  Pix (QR Code ou copia e cola) ou cartão, via Mercado Pago
+                </p>
               </form>
             ) : null}
-            <a href={linkPix("Mensal — R$ 29/mês")} target="_blank" rel="noreferrer">
-              <Button variant="whatsapp" className="mt-2 w-full">
-                Prefiro pagar no Pix — falar no WhatsApp
+            <a href={linkPix(`Mensal — ${brl(PRECO_MENSAL)}/mês`)} target="_blank" rel="noreferrer">
+              <Button variant="whatsapp" className="w-full text-xs">
+                Pix pelo WhatsApp
               </Button>
             </a>
           </Card>
 
-          <Card className="flex flex-col gap-1 border-accent-strong">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-text">Anual · 2 meses grátis</span>
-              <Badge tone="accent">R$ 290 à vista</Badge>
+          <Card className="flex flex-col gap-2.5 border-accent-strong p-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-bold text-text">Anual</span>
+              <Badge tone="accent">2 meses grátis</Badge>
             </div>
-            <div className="mt-1">
-              <span className="text-2xl font-bold text-accent">R$ 24</span>
-              <span className="text-sm text-text-dim"> /mês</span>
+            <div>
+              <span className="text-xl font-bold text-accent sm:text-2xl">{brl0(PRECO_ANUAL_MENSALIZADO)}</span>
+              <p className="mt-0.5 text-[11px] text-text-dim">por mês · {brl(PRECO_ANUAL)} à vista</p>
             </div>
             {MP_DISPONIVEL ? (
-              <form action={iniciarPagamentoAssinatura} className="mt-3 flex flex-col gap-2">
+              <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
                 <input type="hidden" name="plano" value="ANUAL" />
-                <Input name="cupomCodigo" placeholder="Cupom de desconto (opcional)" className="text-sm" />
-                <Button type="submit" className="w-full">
-                  Pagar com Pix ou cartão
+                <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />
+                <Button type="submit" className="w-full text-sm">
+                  Assinar
                 </Button>
+                <p className="text-center text-[10px] leading-tight text-text-dim">
+                  Pix (QR Code ou copia e cola) ou cartão, via Mercado Pago
+                </p>
               </form>
             ) : null}
-            <a href={linkPix("Anual — R$ 290 à vista")} target="_blank" rel="noreferrer">
-              <Button variant="whatsapp" className="mt-2 w-full">
-                Prefiro pagar no Pix — falar no WhatsApp
+            <a href={linkPix(`Anual — ${brl(PRECO_ANUAL)} à vista`)} target="_blank" rel="noreferrer">
+              <Button variant="whatsapp" className="w-full text-xs">
+                Pix pelo WhatsApp
               </Button>
             </a>
           </Card>
-
-          <Link href={revendedor.papel === "ADMIN" ? "/admin" : "/painel"} className="text-center text-xs text-text-dim hover:text-text">
-            Agora não
-          </Link>
         </div>
+
+        <Link
+          href={revendedor.papel === "ADMIN" ? "/admin" : "/painel"}
+          className="mt-4 block text-center text-xs text-text-dim hover:text-text"
+        >
+          Agora não
+        </Link>
       </div>
     </main>
   );
