@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
+import { CompartilharRecibo } from "@/components/compartilhar-recibo";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
 
 // Encaixa uma linha extra logo abaixo da primeira linha do modelo que
@@ -88,7 +89,7 @@ export function MensagemWhatsApp({
         <div className="-mt-2 flex flex-col gap-2">
           <p className="text-xs text-text-dim">Confirmação de renovação — sem chave Pix, o cliente já pagou.</p>
           {ultimaRenovacaoId ? (
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-2">
               <label className="flex items-center gap-2 text-xs font-medium text-text-dim">
                 <input
                   type="checkbox"
@@ -99,14 +100,22 @@ export function MensagemWhatsApp({
                 Enviar recibo em PDF junto
               </label>
               {incluirRecibo ? (
-                <a
-                  href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  Baixar recibo em PDF ↓
-                </a>
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-accent hover:underline"
+                  >
+                    Baixar recibo em PDF ↓
+                  </a>
+                  <CompartilharRecibo
+                    reciboUrl={`/api/renovacoes/${ultimaRenovacaoId}/recibo`}
+                    nomeArquivo={`recibo-${dados.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+                    mensagem={mensagemFinal}
+                    className="px-3 py-1.5 text-xs"
+                  />
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -157,7 +166,9 @@ export function MensagemWhatsApp({
       </div>
       {ehRenovacao && ultimaRenovacaoId && incluirRecibo ? (
         <p className="-mt-1 text-[11px] text-text-dim">
-          O WhatsApp não deixa anexar arquivo pelo link — baixe o recibo antes e anexe ele na conversa que abrir.
+          &ldquo;Enviar no WhatsApp&rdquo; abre a conversa certa mas só com o texto — o WhatsApp não deixa anexar
+          arquivo pelo link. &ldquo;Compartilhar recibo&rdquo; (se aparecer, depende do celular) já manda o PDF
+          anexado, só que você escolhe o contato na hora.
         </p>
       ) : null}
     </div>

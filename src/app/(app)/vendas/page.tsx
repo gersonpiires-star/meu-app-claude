@@ -5,6 +5,7 @@ import { limitesDoMes } from "@/lib/dados";
 import { brl, dataCurta } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { CompartilharRecibo } from "@/components/compartilhar-recibo";
 import { vincularClienteVenda } from "./actions";
 import { VincularCliente } from "./vincular-cliente";
 
@@ -73,11 +74,22 @@ export default async function VendasPage({
                   <Button variant="whatsapp">Enviar no WhatsApp</Button>
                 </a>
               ) : null}
+              <CompartilharRecibo
+                reciboUrl={`/api/vendas/${vendaRecemCriada.id}/recibo`}
+                nomeArquivo={`recibo-${vendaRecemCriada.cliente.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`}
+                mensagem={mensagemRecibo(
+                  vendaRecemCriada.cliente.nome,
+                  vendaRecemCriada.produto.modelo,
+                  vendaRecemCriada.quantidade * vendaRecemCriada.valorUnitario
+                )}
+              />
             </div>
           </div>
           {vendaRecemCriada.cliente.whatsapp ? (
             <p className="text-[11px] text-text-dim">
-              O WhatsApp não deixa anexar arquivo pelo link — baixe o recibo antes e anexe ele na conversa que abrir.
+              &ldquo;Enviar no WhatsApp&rdquo; abre a conversa certa mas só com o texto — o WhatsApp não deixa anexar
+              arquivo pelo link. &ldquo;Compartilhar recibo&rdquo; (se aparecer, depende do celular) já manda o PDF
+              anexado, só que você escolhe o contato na hora.
             </p>
           ) : null}
         </Card>
