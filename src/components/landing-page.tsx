@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
-import { buttonClassName } from "@/components/ui";
+import { Badge, buttonClassName } from "@/components/ui";
+import { PRECO_MENSAL, PRECO_ANUAL, PRECO_ANUAL_MENSALIZADO } from "@/lib/planos-assinatura";
+import { brl, brl0 } from "@/lib/format";
 
 const RECURSOS = [
   {
@@ -118,6 +120,39 @@ export function LandingPage() {
                   <p className="mt-1.5 text-sm leading-relaxed text-text-muted">{p.texto}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border bg-surface/40 py-16 md:py-20">
+          <div className="mx-auto max-w-6xl px-5">
+            <h2 className="text-2xl font-bold text-text md:text-3xl">Planos</h2>
+            <p className="mt-2 max-w-xl text-text-muted">
+              Comece com 7 dias grátis, sem cartão. Depois, escolha o plano que fizer sentido pra sua revenda.
+            </p>
+            <div className="mx-auto mt-10 grid max-w-2xl gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-surface p-6">
+                <span className="text-sm font-bold text-text">Mensal</span>
+                <div className="mt-2">
+                  <span className="text-3xl font-extrabold text-accent">{brl(PRECO_MENSAL)}</span>
+                  <p className="mt-1 text-xs text-text-dim">por mês · cancele quando quiser</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-accent-strong bg-surface p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-text">Anual</span>
+                  <Badge tone="accent">2 meses grátis</Badge>
+                </div>
+                <div className="mt-2">
+                  <span className="text-3xl font-extrabold text-accent">{brl0(PRECO_ANUAL_MENSALIZADO)}</span>
+                  <p className="mt-1 text-xs text-text-dim">por mês · {brl(PRECO_ANUAL)} à vista</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 flex justify-center">
+              <Link href="/cadastro" className={buttonClassName("primary", "px-7 py-3.5 text-base")}>
+                Testar grátis primeiro
+              </Link>
             </div>
           </div>
         </section>
