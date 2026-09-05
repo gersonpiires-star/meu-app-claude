@@ -13,7 +13,9 @@ export type NotificacaoRevendedor =
 export async function notificacoesParaRevendedor(revendedor: { id: string; avisosLidosAte: Date | null }) {
   const [avisos, pagamentos] = await Promise.all([
     prisma.aviso.findMany({
-      where: { destino: "TODOS_REVENDEDORES" },
+      where: {
+        OR: [{ destino: "TODOS_REVENDEDORES" }, { destino: "UM_REVENDEDOR", revendedorId: revendedor.id }],
+      },
       orderBy: { criadoEm: "desc" },
       take: 20,
     }),

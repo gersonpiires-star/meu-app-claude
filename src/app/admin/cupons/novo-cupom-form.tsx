@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Field, Input, Select } from "@/components/ui";
 import { criarCupom } from "./actions";
 
-export function NovoCupomForm() {
+export function NovoCupomForm({ revendedores }: { revendedores: { id: string; nome: string; email: string }[] }) {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
@@ -44,13 +44,34 @@ export function NovoCupomForm() {
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Válido até (opcional)">
+        <Field label="Válido até uma data fixa (opcional)">
           <Input type="date" name="validoAte" />
         </Field>
         <Field label="Limite de usos (opcional)">
           <Input type="number" name="usoMaximo" min={1} placeholder="Sem limite" />
         </Field>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Ou expira em (opcional)">
+          <Input type="number" name="expiraQuantidade" min={1} placeholder="Ex: 24" />
+        </Field>
+        <Field label="Unidade">
+          <Select name="expiraUnidade" defaultValue="horas">
+            <option value="horas">Horas</option>
+            <option value="dias">Dias</option>
+          </Select>
+        </Field>
+      </div>
+      <Field label="Restringir a um revendedor (opcional)">
+        <Select name="revendedorId" defaultValue="">
+          <option value="">Qualquer revendedor pode usar</option>
+          {revendedores.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.nome} — {r.email}
+            </option>
+          ))}
+        </Select>
+      </Field>
       {erro ? <p className="text-sm text-danger">{erro}</p> : null}
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>

@@ -49,6 +49,7 @@ enum TipoMovimentoEstoque {
 
 enum DestinoAviso {
   TODOS_REVENDEDORES
+  UM_REVENDEDOR
   TODOS_CLIENTES
   CLIENTES_DO_SERVICO
 }
@@ -133,6 +134,7 @@ model Revendedor {
   logsAtividade   LogAtividade[]
   notificacoesPagamento NotificacaoPagamento[]
   importacoesAntigas ImportacaoAntiga[]
+  cuponsRestritos Cupom[]
 }
 
 // Marca cada arquivo de backup do app antigo já importado (pelo hash do
@@ -503,6 +505,12 @@ model Cupom {
   validoAte  DateTime?
   usoMaximo  Int?
   usosCount  Int       @default(0)
+
+  // Restringe o cupom a um único revendedor (ex: negociação individual) —
+  // null significa que qualquer revendedor pode usar, respeitando ainda
+  // usoMaximo e validoAte.
+  revendedorId String?
+  revendedor   Revendedor? @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
 
   criadoEm DateTime @default(now())
 

@@ -24,7 +24,7 @@ export async function iniciarPagamentoAssinatura(formData: FormData) {
   let cupomId: string | null = null;
 
   if (cupomCodigo) {
-    const resultado = await validarCupom(cupomCodigo);
+    const resultado = await validarCupom(cupomCodigo, revendedor.id);
     if ("erro" in resultado) {
       redirect(`/assinatura?erroCupom=${encodeURIComponent(resultado.erro)}`);
     }

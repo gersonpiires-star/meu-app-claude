@@ -11,6 +11,9 @@ const cupomSchema = z.object({
   valor: z.coerce.number().positive("Informe um valor de desconto maior que zero"),
   validoAte: z.string().trim().optional(),
   usoMaximo: z.string().trim().optional(),
+  revendedorId: z.string().trim().optional(),
+  expiraQuantidade: z.string().trim().optional(),
+  expiraUnidade: z.enum(["horas", "dias"]).optional(),
 });
 
 export async function criarCupom(formData: FormData): Promise<{ ok: true } | { ok: false; erro: string }> {
@@ -33,13 +36,24 @@ export async function criarCupom(formData: FormData): Promise<{ ok: true } | { o
 
   const usoMaximo = dados.usoMaximo ? Number(dados.usoMaximo) : null;
 
+  // "Expira em X horas/dias" tem prioridade sobre a data fixa — é o jeito
+  // de dar um prazo curto e preciso (ex: cupom de uma negociação pontual)
+  // sem precisar calcular a data na mão.
+  let validoAte: Date | null = dados.validoAte ? new Date(`${dados.validoAte}T23:59:59.000Z`) : null;
+  const expiraQuantidade = dados.expiraQuantidade ? Number(dados.expiraQuantidade) : null;
+  if (expiraQuantidade && expiraQuantidade > 0) {
+    const horas = dados.expiraUnidade === "dias" ? expiraQuantidade * 24 : expiraQuantidade;
+    validoAte = new Date(Date.now() + horas * 60 * 60 * 1000);
+  }
+
   await prisma.cupom.create({
     data: {
       codigo,
       tipo: dados.tipo,
       valor: dados.valor,
-      validoAte: dados.validoAte ? new Date(`${dados.validoAte}T23:59:59.000Z`) : null,
+      validoAte,
       usoMaximo: usoMaximo && usoMaximo > 0 ? Math.floor(usoMaximo) : null,
+      revendedorId: dados.revendedorId || null,
     },
   });
 

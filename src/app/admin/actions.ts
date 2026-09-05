@@ -125,6 +125,7 @@ export async function excluirInteressado(id: string) {
 const avisoSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título"),
   mensagem: z.string().trim().min(1, "Informe a mensagem"),
+  destinatarioId: z.string().trim().optional(),
 });
 
 export async function publicarAviso(formData: FormData) {
@@ -132,11 +133,9 @@ export async function publicarAviso(formData: FormData) {
   const dados = avisoSchema.parse(Object.fromEntries(formData));
 
   await prisma.aviso.create({
-    data: {
-      destino: "TODOS_REVENDEDORES",
-      titulo: dados.titulo,
-      mensagem: dados.mensagem,
-    },
+    data: dados.destinatarioId
+      ? { destino: "UM_REVENDEDOR", revendedorId: dados.destinatarioId, titulo: dados.titulo, mensagem: dados.mensagem }
+      : { destino: "TODOS_REVENDEDORES", titulo: dados.titulo, mensagem: dados.mensagem },
   });
 
   revalidatePath("/admin/comunicados");
@@ -145,6 +144,6 @@ export async function publicarAviso(formData: FormData) {
 
 export async function excluirAviso(id: string) {
   await exigirAdmin();
-  await prisma.aviso.delete({ where: { id, destino: "TODOS_REVENDEDORES" } });
+  await prisma.aviso.delete({ where: { id, destino: { in: ["TODOS_REVENDEDORES", "UM_REVENDEDOR"] } } });
   revalidatePath("/admin/comunicados");
 }
