@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 import { Badge, buttonClassName } from "@/components/ui";
-import { PRECO_MENSAL, PRECO_ANUAL, PRECO_ANUAL_MENSALIZADO } from "@/lib/planos-assinatura";
+import {
+  PRECO_MENSAL,
+  PRECO_SEMESTRAL,
+  PRECO_SEMESTRAL_MENSALIZADO,
+  PRECO_ANUAL,
+  PRECO_ANUAL_MENSALIZADO,
+} from "@/lib/planos-assinatura";
 import { brl, brl0 } from "@/lib/format";
 
 const RECURSOS = [
@@ -130,21 +136,36 @@ export function LandingPage() {
             <p className="mt-2 max-w-xl text-text-muted">
               Comece com 7 dias grátis, sem cartão. Depois, escolha o plano que fizer sentido pra sua revenda.
             </p>
-            <div className="mx-auto mt-10 grid max-w-2xl gap-5 sm:grid-cols-2">
+            <div className="mx-auto mt-10 grid max-w-4xl items-end gap-5 sm:grid-cols-3">
               <div className="rounded-2xl border border-border bg-surface p-6">
                 <span className="text-sm font-bold text-text">Mensal</span>
-                <div className="mt-2">
-                  <span className="text-3xl font-extrabold text-accent">{brl(PRECO_MENSAL)}</span>
+                <div className="mt-3">
+                  <span className="text-4xl font-extrabold text-text">{brl(PRECO_MENSAL)}</span>
                   <p className="mt-1 text-xs text-text-dim">por mês · cancele quando quiser</p>
                 </div>
               </div>
-              <div className="rounded-2xl border border-accent-strong bg-surface p-6">
+
+              <div className="rounded-2xl border border-border bg-surface p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-text">Semestral</span>
+                  <Badge tone="accent">10% de desconto</Badge>
+                </div>
+                <div className="mt-3">
+                  <span className="text-4xl font-extrabold text-text">{brl0(PRECO_SEMESTRAL_MENSALIZADO)}</span>
+                  <p className="mt-1 text-xs text-text-dim">por mês · {brl(PRECO_SEMESTRAL)} à vista</p>
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border-2 border-accent bg-accent-soft/30 p-6 shadow-[0_0_0_4px_rgba(46,230,197,0.08)] sm:scale-105">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-bg-deep">
+                  Melhor custo-benefício
+                </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-text">Anual</span>
                   <Badge tone="accent">2 meses grátis</Badge>
                 </div>
-                <div className="mt-2">
-                  <span className="text-3xl font-extrabold text-accent">{brl0(PRECO_ANUAL_MENSALIZADO)}</span>
+                <div className="mt-3">
+                  <span className="text-4xl font-extrabold text-accent">{brl0(PRECO_ANUAL_MENSALIZADO)}</span>
                   <p className="mt-1 text-xs text-text-dim">por mês · {brl(PRECO_ANUAL)} à vista</p>
                 </div>
               </div>

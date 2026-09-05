@@ -6,8 +6,9 @@ import { dataPorExtenso, brl0 } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card } from "@/components/ui";
 import { AcoesAcesso } from "../acoes-acesso";
+import { planoDosMeses } from "@/lib/planos-assinatura";
 
-const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", ANUAL: "Anual" };
+const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 
 export default async function AssinanteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   await exigirAdmin();
@@ -31,7 +32,7 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
   if (!revendedor || revendedor.papel !== "REVENDEDOR") notFound();
 
   const ultimoPagamento = revendedor.pagamentos[0];
-  const plano = revendedor.planoAssinatura ?? (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : null);
+  const plano = revendedor.planoAssinatura ?? (ultimoPagamento ? planoDosMeses(ultimoPagamento.meses ?? 1) : null);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">

@@ -2,7 +2,13 @@ import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { iniciarPagamentoAssinatura } from "./actions";
-import { PRECO_MENSAL, PRECO_ANUAL, PRECO_ANUAL_MENSALIZADO } from "@/lib/planos-assinatura";
+import {
+  PRECO_MENSAL,
+  PRECO_SEMESTRAL,
+  PRECO_SEMESTRAL_MENSALIZADO,
+  PRECO_ANUAL,
+  PRECO_ANUAL_MENSALIZADO,
+} from "@/lib/planos-assinatura";
 import { brl, brl0 } from "@/lib/format";
 
 const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
@@ -32,7 +38,7 @@ export default async function AssinaturaPage({
 
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl">
+      <div className="w-full max-w-2xl">
         <div className="mb-5 text-center">
           <h1 className="text-2xl font-bold text-text">Liberar tudo no GestorPro</h1>
           <p className="mt-1 text-sm text-text-dim">Sem limite de clientes e com todas as funções</p>
@@ -55,7 +61,7 @@ export default async function AssinaturaPage({
           </p>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="flex flex-col gap-2.5 p-4">
             <span className="text-sm font-bold text-text">Mensal</span>
             <div>
@@ -75,6 +81,34 @@ export default async function AssinaturaPage({
               </form>
             ) : null}
             <a href={linkPix(`Mensal — ${brl(PRECO_MENSAL)}/mês`)} target="_blank" rel="noreferrer">
+              <Button variant="whatsapp" className="w-full text-xs">
+                Pix pelo WhatsApp
+              </Button>
+            </a>
+          </Card>
+
+          <Card className="flex flex-col gap-2.5 p-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-bold text-text">Semestral</span>
+              <Badge tone="accent">10% de desconto</Badge>
+            </div>
+            <div>
+              <span className="text-xl font-bold text-accent sm:text-2xl">{brl0(PRECO_SEMESTRAL_MENSALIZADO)}</span>
+              <p className="mt-0.5 text-[11px] text-text-dim">por mês · {brl(PRECO_SEMESTRAL)} à vista</p>
+            </div>
+            {MP_DISPONIVEL ? (
+              <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
+                <input type="hidden" name="plano" value="SEMESTRAL" />
+                <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />
+                <Button type="submit" className="w-full text-sm">
+                  Assinar
+                </Button>
+                <p className="text-center text-[10px] leading-tight text-text-dim">
+                  Pix (QR Code ou copia e cola) ou cartão, via Mercado Pago
+                </p>
+              </form>
+            ) : null}
+            <a href={linkPix(`Semestral — ${brl(PRECO_SEMESTRAL)} à vista`)} target="_blank" rel="noreferrer">
               <Button variant="whatsapp" className="w-full text-xs">
                 Pix pelo WhatsApp
               </Button>

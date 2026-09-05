@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, diaCivilBr, fmtTelefone, iniciais } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card, EmptyState, Input, cx } from "@/components/ui";
+import { planoDosMeses } from "@/lib/planos-assinatura";
 
-const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", ANUAL: "Anual" };
+const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 
 const ABAS = [
   { chave: "assinantes", label: "Assinantes" },
@@ -143,7 +144,7 @@ export default async function AssinantesPage({
               // a lista continua mostrando o plano/valor dele em vez de "—".
               const plano =
                 a.planoAssinatura ??
-                (ultimoPagamento ? ((ultimoPagamento.meses ?? 1) >= 12 ? "ANUAL" : "MENSAL") : a.statusAssinatura === "TRIAL" ? "TRIAL" : null);
+                (ultimoPagamento ? planoDosMeses(ultimoPagamento.meses ?? 1) : a.statusAssinatura === "TRIAL" ? "TRIAL" : null);
               const vencimento = a.statusAssinatura === "TRIAL" ? a.trialFim : a.assinaturaVence;
               const valor = ultimoPagamento ? brl0(ultimoPagamento.valor) : "—";
               const chamarLink =

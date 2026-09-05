@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirAdmin } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataCurta } from "@/lib/format";
+import { planoDosMeses } from "@/lib/planos-assinatura";
 
 export async function liberarAcesso(revendedorId: string, meses: number) {
   await exigirAdmin();
@@ -20,7 +21,7 @@ export async function liberarAcesso(revendedorId: string, meses: number) {
     data: {
       statusAssinatura: "ATIVO",
       assinaturaVence: vence,
-      planoAssinatura: meses >= 12 ? "ANUAL" : "MENSAL",
+      planoAssinatura: planoDosMeses(meses),
       pausadoEm: null,
       motivoPausa: null,
     },

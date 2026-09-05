@@ -14,7 +14,7 @@ const MESES = [
 export default async function AdminPainelPage() {
   await exigirAdmin();
   const [dados, crescimento] = await Promise.all([dadosAdmin(), dadosCrescimento()]);
-  const mrr = dados.previstoMensal + dados.previstoAnual;
+  const mrr = dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
   const arr = mrr * 12;
 
   return (
@@ -45,10 +45,14 @@ export default async function AdminPainelPage() {
           <p className="mt-1 text-3xl font-bold text-accent">{brl0(dados.previstoProxMes)}</p>
           <p className="mt-1 text-xs text-text-dim">Receita prevista se todos os assinantes ativos continuarem</p>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Planos mensais</p>
               <p className="mt-0.5 font-semibold text-text">{brl0(dados.previstoMensal)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Planos semestrais (mensalizado)</p>
+              <p className="mt-0.5 font-semibold text-text">{brl0(dados.previstoSemestral)}</p>
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Planos anuais (mensalizado)</p>

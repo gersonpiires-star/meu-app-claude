@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { calcularVencimento } from "@/lib/planos";
+import { planoDosMeses } from "@/lib/planos-assinatura";
 import { enviarPush } from "@/lib/push";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
         data: {
           statusAssinatura: "ATIVO",
           assinaturaVence: vence,
-          planoAssinatura: meses >= 12 ? "ANUAL" : "MENSAL",
+          planoAssinatura: planoDosMeses(meses),
         },
       });
 

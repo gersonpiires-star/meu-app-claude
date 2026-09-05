@@ -24,6 +24,7 @@ enum StatusAssinatura {
 
 enum PlanoAssinatura {
   MENSAL
+  SEMESTRAL
   ANUAL
 }
 

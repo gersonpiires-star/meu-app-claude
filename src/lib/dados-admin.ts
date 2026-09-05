@@ -56,6 +56,7 @@ export async function dadosAdmin() {
   });
 
   let previstoMensal = 0;
+  let previstoSemestral = 0;
   let previstoAnual = 0;
   let ativosSemPagamento = 0;
   for (const r of ativosComPagamento) {
@@ -67,9 +68,10 @@ export async function dadosAdmin() {
     const meses = pagamento.meses ?? 1;
     const mensal = pagamento.valor / meses;
     if (meses <= 1) previstoMensal += mensal;
+    else if (meses < 12) previstoSemestral += mensal;
     else previstoAnual += mensal;
   }
-  const previstoProxMes = previstoMensal + previstoAnual;
+  const previstoProxMes = previstoMensal + previstoSemestral + previstoAnual;
   const { ano: anoAgora, mes: mesAgora } = diaCivilBr(agora);
   const proximoMes = new Date(anoAgora, mesAgora + 1, 1);
 
@@ -85,6 +87,7 @@ export async function dadosAdmin() {
     trialsVencendo,
     previstoProxMes,
     previstoMensal,
+    previstoSemestral,
     previstoAnual,
     ativosSemPagamento,
     proximoMes,
