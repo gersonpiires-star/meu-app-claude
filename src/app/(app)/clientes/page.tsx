@@ -76,18 +76,18 @@ export default async function ClientesPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold text-text">Clientes</h1>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Link href="/clientes/cobrar-em-lote">
-            <Button variant="ghost">Cobrar em lote</Button>
+            <Button variant="ghost" className="w-full sm:w-auto">Cobrar em lote</Button>
           </Link>
           <Link href="/clientes/renovar-em-lote">
-            <Button variant="ghost">Renovar em lote</Button>
+            <Button variant="ghost" className="w-full sm:w-auto">Renovar em lote</Button>
           </Link>
           <Link href="/clientes/aviso-em-massa">
-            <Button variant="ghost">Aviso em massa</Button>
+            <Button variant="ghost" className="w-full sm:w-auto">Aviso em massa</Button>
           </Link>
           <Link href="/clientes/novo">
-            <Button>+ Novo cliente</Button>
+            <Button className="w-full sm:w-auto">+ Novo cliente</Button>
           </Link>
         </div>
       </div>
