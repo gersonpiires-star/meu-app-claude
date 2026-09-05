@@ -32,7 +32,7 @@ export function NovoCupomForm({ revendedores }: { revendedores: { id: string; no
       <Field label="Código">
         <Input name="codigo" placeholder="Ex: BLACKFRIDAY30" required autoFocus style={{ textTransform: "uppercase" }} />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Tipo de desconto">
           <Select name="tipo" defaultValue="PERCENTUAL">
             <option value="PERCENTUAL">Percentual (%)</option>
@@ -43,7 +43,7 @@ export function NovoCupomForm({ revendedores }: { revendedores: { id: string; no
           <Input type="number" name="valor" min={0.01} step="0.01" placeholder="Ex: 30" required />
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Válido até uma data fixa (opcional)">
           <Input type="date" name="validoAte" />
         </Field>
@@ -51,7 +51,7 @@ export function NovoCupomForm({ revendedores }: { revendedores: { id: string; no
           <Input type="number" name="usoMaximo" min={1} placeholder="Sem limite" />
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Ou expira em (opcional)">
           <Input type="number" name="expiraQuantidade" min={1} placeholder="Ex: 24" />
         </Field>

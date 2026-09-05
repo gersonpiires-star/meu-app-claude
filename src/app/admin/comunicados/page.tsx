@@ -1,13 +1,13 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataPorExtenso } from "@/lib/format";
-import { Badge, Button, Card, EmptyState, Field, Input, Select, Textarea } from "@/components/ui";
-import { publicarAviso } from "../actions";
+import { Badge, Card, EmptyState } from "@/components/ui";
 import { ExcluirAvisoBotao } from "./excluir-aviso-botao";
+import { PublicarAvisoForm } from "./publicar-aviso-form";
 
 export default async function ComunicadosPage() {
   await exigirAdmin();
-  const [avisos, revendedores] = await Promise.all([
+  const [avisos, revendedores, cupons] = await Promise.all([
     prisma.aviso.findMany({
       where: { destino: { in: ["TODOS_REVENDEDORES", "UM_REVENDEDOR"] } },
       include: { revendedor: { select: { nome: true, email: true } } },
@@ -18,38 +18,27 @@ export default async function ComunicadosPage() {
       orderBy: { nome: "asc" },
       select: { id: true, nome: true, email: true },
     }),
+    prisma.cupom.findMany({
+      where: { ativo: true },
+      orderBy: { criadoEm: "desc" },
+    }),
   ]);
+
+  // Só oferece pra gerar mensagem os cupons que ainda valem de fato —
+  // um cupom expirado ou esgotado não deveria virar um comunicado novo.
+  const cuponsValidos = cupons
+    .filter((c) => {
+      const expirado = c.validoAte ? c.validoAte < new Date() : false;
+      const esgotado = c.usoMaximo != null && c.usosCount >= c.usoMaximo;
+      return !expirado && !esgotado;
+    })
+    .map((c) => ({ id: c.id, codigo: c.codigo, tipo: c.tipo, valor: c.valor, revendedorId: c.revendedorId }));
 
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-lg font-bold text-text">Comunicados</h1>
 
-      <Card>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
-          Publicar comunicado
-        </p>
-        <form action={publicarAviso} className="flex flex-col gap-3">
-          <Field label="Destinatário">
-            <Select name="destinatarioId" defaultValue="">
-              <option value="">Todos os revendedores</option>
-              {revendedores.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nome} — {r.email}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Título">
-            <Input name="titulo" required />
-          </Field>
-          <Field label="Mensagem">
-            <Textarea name="mensagem" required />
-          </Field>
-          <Button type="submit" className="w-full">
-            Publicar
-          </Button>
-        </form>
-      </Card>
+      <PublicarAvisoForm revendedores={revendedores} cupons={cuponsValidos} />
 
       {avisos.length === 0 ? (
         <EmptyState>Nenhum comunicado publicado ainda.</EmptyState>
