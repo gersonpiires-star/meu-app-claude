@@ -157,10 +157,16 @@ export default async function ClientesPage({
                     <Badge tone={estado.tom}>{estado.label}</Badge>
                   </span>
                   <span className="hidden md:flex md:gap-1.5">
-                    {cliente.whatsapp && cliente.status !== "CANCELADO" ? (
-                      <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
-                    ) : null}
-                    {cliente.status !== "CANCELADO" ? <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" /> : null}
+                    {cliente.status !== "CANCELADO" ? (
+                      <>
+                        {cliente.whatsapp ? (
+                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
+                        ) : null}
+                        <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
+                      </>
+                    ) : (
+                      <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" label="Reativar" labelFeito="Reativado ✓" />
+                    )}
                   </span>
 
                   {/* Mobile */}
@@ -187,7 +193,11 @@ export default async function ClientesPage({
                         ) : null}
                         <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="flex gap-2 pl-12">
+                        <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" label="Reativar" labelFeito="Reativado ✓" />
+                      </div>
+                    )}
                   </div>
                 </div>
               );

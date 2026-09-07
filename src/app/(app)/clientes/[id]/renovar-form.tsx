@@ -12,11 +12,15 @@ export function RenovarForm({
   planoAtual,
   valorAtual,
   custoCredito,
+  labelBotao = "Renovar",
+  labelConfirmar = "Confirmar renovação",
 }: {
   acao: (formData: FormData) => Promise<{ ok: true } | { ok: false; erro: string }>;
   planoAtual: PlanoCliente;
   valorAtual: number;
   custoCredito: number;
+  labelBotao?: string;
+  labelConfirmar?: string;
 }) {
   const [aberto, setAberto] = useState(false);
   const [plano, setPlano] = useState<PlanoCliente>(planoAtual);
@@ -28,7 +32,7 @@ export function RenovarForm({
   if (!aberto) {
     return (
       <Button className="w-full" onClick={() => setAberto(true)}>
-        Renovar
+        {labelBotao}
       </Button>
     );
   }
@@ -103,7 +107,7 @@ export function RenovarForm({
           Cancelar
         </Button>
         <Button type="submit" disabled={pendente} className="flex-1">
-          {pendente ? "Salvando…" : "Confirmar renovação"}
+          {pendente ? "Salvando…" : labelConfirmar}
         </Button>
       </div>
     </form>

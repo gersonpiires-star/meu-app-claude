@@ -440,7 +440,20 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <CancelarForm acao={cancelarCliente.bind(null, id)} label="Marcar como inativo" className="flex-1" />
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-text-dim">Cliente cancelado. Se ele voltar a pagar, registre a renovação abaixo pra reativar.</p>
+          <RenovarForm
+            acao={renovarCliente.bind(null, id)}
+            planoAtual={cliente.plano}
+            valorAtual={cliente.valorPlano}
+            custoCredito={cliente.servico?.custoCredito ?? 0}
+            labelBotao="Reativar cliente"
+            labelConfirmar="Confirmar reativação"
+          />
+          <RenovarBotao clienteId={id} label={`Reativar com o plano atual (${PLANO_LABEL[cliente.plano]})`} labelFeito="Reativado ✓" />
+        </div>
+      )}
 
       <details className="rounded-xl border border-border-strong">
         <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-text-dim">Ajustes avançados</summary>
