@@ -13,11 +13,19 @@ export function ExcluirRenovacaoBotao({ id }: { id: string }) {
         type="button"
         disabled={pendente}
         onClick={() => {
-          if (confirm("Excluir essa renovação? O cliente volta pro plano, valor e vencimento de antes dela. Essa ação não pode ser desfeita.")) {
+          if (
+            confirm(
+              "Excluir essa renovação? Se for a mais recente do cliente, ele volta pro plano/valor/vencimento de antes dela. Caso contrário, só o registro é removido (sem mexer na data de vencimento). Essa ação não pode ser desfeita."
+            )
+          ) {
             setErro(null);
             iniciarTransicao(async () => {
               const resultado = await excluirRenovacao(id);
-              if (!resultado.ok) setErro(resultado.erro);
+              if (!resultado.ok) {
+                setErro(resultado.erro);
+              } else if (!resultado.restaurado) {
+                alert("Renovação excluída. O vencimento do cliente NÃO foi ajustado automaticamente — confira e corrija se precisar.");
+              }
             });
           }
         }}

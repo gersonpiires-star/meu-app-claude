@@ -217,13 +217,16 @@ export async function renovarCliente(
 }
 
 // Desfaz uma renovação lançada errada (ex: renovou o cliente errado sem
-// querer) — só permite excluir a MAIS RECENTE do cliente, senão o cliente
-// já teria outra renovação em cima dela e restaurar o snapshot bagunçaria
-// essa renovação seguinte. O cliente volta pro estado exato de antes
-// (plano, valor, vencimento, status) guardado no momento da renovação —
-// renovações de antes dessa trava existir não têm esse retrato e por isso
-// não podem ser desfeitas.
-export async function excluirRenovacao(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+// querer, ou duplicou por um clique duplo). Quando é a renovação MAIS
+// RECENTE do cliente E guarda o retrato de antes dela (snapshotAnterior),
+// restaura o cliente pro estado exato (plano, valor, vencimento, status) —
+// desfazendo o efeito, não só o registro. Renovações mais antigas, ou sem
+// esse retrato (registradas antes dessa trava existir), ainda podem ser
+// excluídas — só que sem mexer no cliente, já que não dá pra saber com
+// segurança qual vencimento restaurar; o revendedor confere/corrige a data
+// manualmente depois, se precisar (ex: dois lançamentos idênticos por
+// engano — sobra só o registro certo).
+export async function excluirRenovacao(id: string): Promise<{ ok: true; restaurado: boolean } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
 
   const renovacao = await prisma.renovacao.findUnique({
@@ -238,40 +241,40 @@ export async function excluirRenovacao(id: string): Promise<{ ok: true } | { ok:
     where: { clienteId: renovacao.clienteId },
     orderBy: { data: "desc" },
   });
-  if (maisRecente?.id !== renovacao.id) {
-    return { ok: false, erro: "Só dá pra excluir a renovação mais recente desse cliente." };
-  }
-
   const snapshot = snapshotClienteSchema.safeParse(renovacao.snapshotAnterior);
-  if (!snapshot.success) {
-    return { ok: false, erro: "Essa renovação é antiga demais e não guarda o estado anterior — não dá pra desfazer com segurança." };
-  }
+  const podeRestaurar = maisRecente?.id === renovacao.id && snapshot.success;
 
-  await prisma.$transaction([
-    prisma.renovacao.delete({ where: { id } }),
-    prisma.cliente.update({
-      where: { id: renovacao.clienteId },
-      data: {
-        plano: snapshot.data.plano,
-        valorPlano: snapshot.data.valorPlano,
-        vencimento: new Date(snapshot.data.vencimento),
-        status: snapshot.data.status,
-        testeGratis: snapshot.data.testeGratis,
-      },
-    }),
-  ]);
+  if (podeRestaurar) {
+    await prisma.$transaction([
+      prisma.renovacao.delete({ where: { id } }),
+      prisma.cliente.update({
+        where: { id: renovacao.clienteId },
+        data: {
+          plano: snapshot.data.plano,
+          valorPlano: snapshot.data.valorPlano,
+          vencimento: new Date(snapshot.data.vencimento),
+          status: snapshot.data.status,
+          testeGratis: snapshot.data.testeGratis,
+        },
+      }),
+    ]);
+  } else {
+    await prisma.renovacao.delete({ where: { id } });
+  }
 
   await registrarLog(
     revendedor.id,
     "cliente.excluir_renovacao",
-    `Excluiu uma renovação lançada por engano de ${renovacao.cliente.nome} (${PLANO_LABEL[renovacao.plano]}, ${brl(renovacao.valor)})`
+    podeRestaurar
+      ? `Excluiu uma renovação lançada por engano de ${renovacao.cliente.nome} (${PLANO_LABEL[renovacao.plano]}, ${brl(renovacao.valor)}) — cliente restaurado pro estado anterior`
+      : `Excluiu um registro de renovação de ${renovacao.cliente.nome} (${PLANO_LABEL[renovacao.plano]}, ${brl(renovacao.valor)}) — vencimento não foi ajustado automaticamente`
   );
 
   revalidatePath(`/clientes/${renovacao.clienteId}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");
-  return { ok: true };
+  return { ok: true, restaurado: podeRestaurar };
 }
 
 export async function converterTeste(id: string) {

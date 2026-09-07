@@ -24,6 +24,12 @@ const MENSAGEM_MANUAL = {
     'Oi! O GestorPro tem um manual completo de uso, disponível direto no menu do app em "Manual do app" (no celular aparece como "Manual"). Qualquer dúvida, é só consultar por lá!',
 };
 
+const MENSAGEM_CUPOM_GENERICO = {
+  titulo: "Você ganhou um cupom de desconto!",
+  mensagem:
+    "Você recebeu um cupom de desconto na sua próxima renovação do GestorPro. Use o código [CÓDIGO] na hora de renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!",
+};
+
 export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Revendedor[]; cupons: CupomOpcao[] }) {
   const [destinatarioId, setDestinatarioId] = useState("");
   const [modeloSelecionado, setModeloSelecionado] = useState("");
@@ -35,6 +41,11 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
     if (valor === "manual") {
       setTitulo(MENSAGEM_MANUAL.titulo);
       setMensagem(MENSAGEM_MANUAL.mensagem);
+      return;
+    }
+    if (valor === "cupom-generico") {
+      setTitulo(MENSAGEM_CUPOM_GENERICO.titulo);
+      setMensagem(MENSAGEM_CUPOM_GENERICO.mensagem);
       return;
     }
     const cupom = cupons.find((c) => c.id === valor);
@@ -53,8 +64,9 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
           <Select value={modeloSelecionado} onChange={(e) => aoEscolherModelo(e.target.value)}>
             <option value="">Escrever mensagem livre</option>
             <option value="manual">Manual do usuário do GestorPro</option>
+            <option value="cupom-generico">Cupom de desconto</option>
             {cupons.length > 0 ? (
-              <optgroup label="Cupons">
+              <optgroup label="Cupons cadastrados">
                 {cupons.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.codigo} — {formatarDesconto(c)}

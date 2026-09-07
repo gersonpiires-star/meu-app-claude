@@ -149,20 +149,17 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
     ? `✓ ${PLANO_LABEL[cliente.renovacoes[0].plano]} · última em ${dataCurta(cliente.renovacoes[0].data)}`
     : "Nenhuma renovação registrada";
 
-  // Só a renovação mais recente pode ser desfeita (senão bagunçaria uma
-  // renovação seguinte já feita em cima dela) — e só se ela guardou o
-  // retrato de antes (renovações de antes dessa trava existir não têm).
-  const renovacaoMaisRecente = cliente.renovacoes[0];
-  const podeExcluirRenovacao = renovacaoMaisRecente?.snapshotAnterior != null;
-
   const historico = [
     ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom, href: null as string | null, excluirId: null as string | null })),
+    // Qualquer renovação pode ser excluída — se for a mais recente e tiver o
+    // retrato de antes dela salvo, o cliente é restaurado automaticamente;
+    // senão só o registro some (ex: limpar um lançamento duplicado).
     ...cliente.renovacoes.slice(0, 6).map((r) => ({
       label: `Renovado — ${PLANO_LABEL[r.plano]}`,
       data: dataHora(r.data),
       tom: "success" as Tom,
       href: `/api/renovacoes/${r.id}/recibo`,
-      excluirId: r.id === renovacaoMaisRecente.id && podeExcluirRenovacao ? r.id : null,
+      excluirId: r.id as string | null,
     })),
     ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom, href: null as string | null, excluirId: null as string | null })),
     { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom, href: null as string | null, excluirId: null as string | null },
