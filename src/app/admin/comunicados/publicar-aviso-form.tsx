@@ -4,17 +4,35 @@ import { useState } from "react";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { publicarAviso } from "../actions";
 
-type Revendedor = { id: string; nome: string; email: string };
+type Revendedor = { id: string; nome: string; email: string; statusAssinatura: "TRIAL" | "ATIVO" | "PAUSADO" | "CANCELADO" };
 type CupomOpcao = { id: string; codigo: string; tipo: "PERCENTUAL" | "FIXO"; valor: number; revendedorId: string | null };
 
 function formatarDesconto(cupom: CupomOpcao) {
   return cupom.tipo === "PERCENTUAL" ? `${cupom.valor}%` : `R$ ${cupom.valor.toFixed(2).replace(".", ",")}`;
 }
 
-function gerarMensagemCupom(cupom: CupomOpcao) {
+// Quem ainda está em teste grátis nunca pagou pelo GestorPro — falar em
+// "renovar" pra essa pessoa não faz sentido (não tem o que renovar ainda).
+// Cupom restrito a um revendedor específico: olha o status dele de verdade.
+// Cupom pra todo mundo: usa uma frase que serve tanto pra quem já paga
+// quanto pra quem ainda vai assinar pela primeira vez.
+function gerarMensagemCupom(cupom: CupomOpcao, revendedorAlvo: Revendedor | null) {
+  const desconto = formatarDesconto(cupom);
+  const titulo = "Você ganhou um cupom de desconto!";
+
+  if (revendedorAlvo) {
+    const nuncaAssinou = revendedorAlvo.statusAssinatura === "TRIAL";
+    const acao = nuncaAssinou ? "assinar" : "renovar sua assinatura";
+    const contexto = nuncaAssinou ? "pra assinar o GestorPro" : "na sua próxima renovação do GestorPro";
+    return {
+      titulo,
+      mensagem: `Você recebeu um cupom de ${desconto} de desconto ${contexto}. Use o código ${cupom.codigo} na hora de ${acao} e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
+    };
+  }
+
   return {
-    titulo: "Você ganhou um cupom de desconto!",
-    mensagem: `Você recebeu um cupom de ${formatarDesconto(cupom)} de desconto na sua próxima renovação do GestorPro. Use o código ${cupom.codigo} na hora de renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
+    titulo,
+    mensagem: `Você recebeu um cupom de ${desconto} de desconto no GestorPro. Use o código ${cupom.codigo} na hora de assinar ou renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
   };
 }
 
@@ -58,7 +76,8 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
       setMensagem("");
       return;
     }
-    const gerado = gerarMensagemCupom(cupom);
+    const revendedorAlvo = cupom.revendedorId ? (revendedores.find((r) => r.id === cupom.revendedorId) ?? null) : null;
+    const gerado = gerarMensagemCupom(cupom, revendedorAlvo);
     setTitulo(gerado.titulo);
     setMensagem(gerado.mensagem);
     if (cupom.revendedorId) setDestinatarioId(cupom.revendedorId);

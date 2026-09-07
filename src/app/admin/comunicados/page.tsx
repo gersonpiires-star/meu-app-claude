@@ -16,7 +16,7 @@ export default async function ComunicadosPage() {
     prisma.revendedor.findMany({
       where: { papel: "REVENDEDOR" },
       orderBy: { nome: "asc" },
-      select: { id: true, nome: true, email: true },
+      select: { id: true, nome: true, email: true, statusAssinatura: true },
     }),
     prisma.cupom.findMany({
       where: { ativo: true },
