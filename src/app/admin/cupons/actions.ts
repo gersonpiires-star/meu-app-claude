@@ -66,3 +66,20 @@ export async function alternarCupomAtivo(id: string, ativo: boolean) {
   await prisma.cupom.update({ where: { id }, data: { ativo } });
   revalidatePath("/admin/cupons");
 }
+
+// Só deixa excluir cupom que não está mais valendo (desativado, expirado
+// ou esgotado) — evita apagar por engano um cupom ainda rodando numa
+// campanha. Pagamentos que já usaram o cupom não são afetados:
+// Pagamento.cupomId vira null (onDelete: SetNull no schema).
+export async function excluirCupom(id: string) {
+  await exigirAdmin();
+  const cupom = await prisma.cupom.findUniqueOrThrow({ where: { id } });
+  const expirado = cupom.validoAte ? cupom.validoAte < new Date() : false;
+  const esgotado = cupom.usoMaximo != null && cupom.usosCount >= cupom.usoMaximo;
+  const efetivamenteAtivo = cupom.ativo && !expirado && !esgotado;
+  if (efetivamenteAtivo) {
+    throw new Error("Desative o cupom antes de excluir.");
+  }
+  await prisma.cupom.delete({ where: { id } });
+  revalidatePath("/admin/cupons");
+}

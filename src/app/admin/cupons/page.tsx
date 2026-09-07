@@ -4,6 +4,7 @@ import { brl, dataHora } from "@/lib/format";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { NovoCupomForm } from "./novo-cupom-form";
 import { AlternarAtivoBotao } from "./alternar-ativo-botao";
+import { ExcluirCupomBotao } from "./excluir-cupom-botao";
 
 export default async function CupomsPage() {
   await exigirAdmin();
@@ -55,7 +56,10 @@ export default async function CupomsPage() {
                     {c.usoMaximo != null ? ` · ${c.usosCount}/${c.usoMaximo} usos` : ` · ${c.usosCount} uso${c.usosCount === 1 ? "" : "s"}`}
                   </p>
                 </div>
-                <AlternarAtivoBotao id={c.id} ativo={c.ativo} />
+                <div className="flex items-center gap-3">
+                  <AlternarAtivoBotao id={c.id} ativo={c.ativo} />
+                  {!efetivamenteAtivo ? <ExcluirCupomBotao id={c.id} codigo={c.codigo} /> : null}
+                </div>
               </Card>
             );
           })}
