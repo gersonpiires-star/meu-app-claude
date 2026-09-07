@@ -56,12 +56,13 @@ function diasTexto(vencimento: Date): string {
   return dias < 0 ? `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"} atrás` : `em ${dias} dia${dias === 1 ? "" : "s"}`;
 }
 
+// Conta em meses de calendário (ignora o dia do mês) — usada tanto pro texto
+// "Cliente há X meses" quanto pra dividir o "já rendeu" por mês, pra nunca
+// mostrarem números que não batem entre si na mesma tela.
 function mesesComoCliente(criadoEm: Date, hoje: Date = new Date()): number {
   const c = diaCivilBr(criadoEm);
   const h = diaCivilBr(hoje);
-  let m = (h.ano - c.ano) * 12 + (h.mes - c.mes);
-  if (h.dia < c.dia) m -= 1;
-  return Math.max(0, m);
+  return Math.max(0, (h.ano - c.ano) * 12 + (h.mes - c.mes));
 }
 
 function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
@@ -70,9 +71,7 @@ function ehClienteNovo(criadoEm: Date, ate: Date = new Date()): boolean {
 }
 
 function tempoDeCasa(desde: Date, ate: Date = new Date()): string {
-  const d = diaCivilBr(desde);
-  const a = diaCivilBr(ate);
-  const meses = Math.max(0, (a.ano - d.ano) * 12 + (a.mes - d.mes));
+  const meses = mesesComoCliente(desde, ate);
   if (meses < 1) {
     const dias = Math.max(0, Math.round((ate.getTime() - desde.getTime()) / 86400000));
     return `${dias} dia${dias === 1 ? "" : "s"}`;
