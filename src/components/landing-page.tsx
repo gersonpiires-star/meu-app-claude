@@ -84,10 +84,30 @@ export function LandingPage() {
               <p className="mt-4 text-xs text-text-dim">Sem cartão de crédito · cancele quando quiser</p>
             </div>
 
-            <div className="relative flex justify-center">
+            <div className="relative flex justify-center pb-8 pr-4 sm:pb-10 sm:pr-8">
               <div className="absolute h-72 w-72 rounded-full bg-accent/20 blur-3xl" aria-hidden="true" />
-              <div className="relative w-[240px] overflow-hidden rounded-[32px] border-[5px] border-surface-2 bg-bg-deep shadow-2xl">
-                <div className="absolute left-1/2 top-0 z-10 h-4 w-24 -translate-x-1/2 rounded-b-xl bg-surface-2" />
+
+              {/* Notebook: tela com moldura grossa sobre uma base (deck do teclado)
+                  nitidamente mais larga e clara que a tela, como um notebook aberto. */}
+              <div className="relative w-full max-w-[440px] pb-3">
+                <div className="relative rounded-t-xl border-[10px] border-b-0 border-surface-2 bg-bg-deep shadow-2xl">
+                  <span className="absolute left-1/2 top-[-5px] h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-bg" aria-hidden="true" />
+                  <div className="overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/landing-preview-desktop.png" alt="Painel do GestorPro no computador" className="block w-full" />
+                  </div>
+                </div>
+                <div
+                  className="relative -mx-[9%] h-6 rounded-b-2xl border-t border-white/10 bg-surface-2 shadow-[0_10px_20px_-6px_rgba(0,0,0,0.6)]"
+                  aria-hidden="true"
+                >
+                  <span className="absolute left-1/2 top-1.5 h-1 w-16 -translate-x-1/2 rounded-full bg-bg-deep/50" />
+                </div>
+              </div>
+
+              {/* Celular sobreposto no canto, sugerindo o mesmo painel também no bolso */}
+              <div className="absolute -bottom-6 -right-1 w-[92px] overflow-hidden rounded-[18px] border-[4px] border-surface-2 bg-bg-deep shadow-2xl sm:-right-3 sm:w-[112px]">
+                <div className="absolute left-1/2 top-0 z-10 h-2.5 w-11 -translate-x-1/2 rounded-b-md bg-surface-2" />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/landing-preview.png" alt="Painel do GestorPro no celular" className="block w-full" />
               </div>
