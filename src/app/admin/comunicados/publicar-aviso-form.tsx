@@ -18,15 +18,26 @@ function gerarMensagemCupom(cupom: CupomOpcao) {
   };
 }
 
+const MENSAGEM_MANUAL = {
+  titulo: "Conheça o manual do GestorPro",
+  mensagem:
+    'Oi! O GestorPro tem um manual completo de uso, disponível direto no menu do app em "Manual do app" (no celular aparece como "Manual"). Qualquer dúvida, é só consultar por lá!',
+};
+
 export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Revendedor[]; cupons: CupomOpcao[] }) {
   const [destinatarioId, setDestinatarioId] = useState("");
-  const [cupomId, setCupomId] = useState("");
+  const [modeloSelecionado, setModeloSelecionado] = useState("");
   const [titulo, setTitulo] = useState("");
   const [mensagem, setMensagem] = useState("");
 
-  function aoEscolherCupom(id: string) {
-    setCupomId(id);
-    const cupom = cupons.find((c) => c.id === id);
+  function aoEscolherModelo(valor: string) {
+    setModeloSelecionado(valor);
+    if (valor === "manual") {
+      setTitulo(MENSAGEM_MANUAL.titulo);
+      setMensagem(MENSAGEM_MANUAL.mensagem);
+      return;
+    }
+    const cupom = cupons.find((c) => c.id === valor);
     if (!cupom) return;
     const gerado = gerarMensagemCupom(cupom);
     setTitulo(gerado.titulo);
@@ -38,19 +49,22 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
     <Card>
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Publicar comunicado</p>
       <form action={publicarAviso} className="flex flex-col gap-3">
-        {cupons.length > 0 ? (
-          <Field label="Cupons — preencher mensagem automaticamente (opcional)">
-            <Select value={cupomId} onChange={(e) => aoEscolherCupom(e.target.value)}>
-              <option value="">Escrever mensagem livre</option>
-              {cupons.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.codigo} — {formatarDesconto(c)}
-                  {c.revendedorId ? " (restrito a um revendedor)" : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : null}
+        <Field label="Modelos de mensagem — preencher automaticamente (opcional)">
+          <Select value={modeloSelecionado} onChange={(e) => aoEscolherModelo(e.target.value)}>
+            <option value="">Escrever mensagem livre</option>
+            <option value="manual">Manual do usuário do GestorPro</option>
+            {cupons.length > 0 ? (
+              <optgroup label="Cupons">
+                {cupons.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.codigo} — {formatarDesconto(c)}
+                    {c.revendedorId ? " (restrito a um revendedor)" : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+          </Select>
+        </Field>
         <Field label="Destinatário">
           <Select name="destinatarioId" value={destinatarioId} onChange={(e) => setDestinatarioId(e.target.value)}>
             <option value="">Todos os revendedores</option>
