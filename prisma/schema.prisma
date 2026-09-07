@@ -143,6 +143,7 @@ model Revendedor {
   importacoesAntigas ImportacaoAntiga[]
   cuponsRestritos Cupom[]
   conversasAssessor ConversaAssessor[]
+  acoesPendentesAssessor AcaoPendenteAssessor[]
 }
 
 // Histórico de conversa do revendedor com o assessor de IA no WhatsApp —
@@ -161,6 +162,26 @@ model ConversaAssessor {
   // pro próximo turno — só o texto final da conversa.
   papel    String
   conteudo String
+
+  criadoEm DateTime @default(now())
+
+  @@index([revendedorId, criadoEm])
+}
+
+// Ação que o assessor de IA identificou como sensível (valor alto numa
+// renovação/venda, ou lembrete de vencimento em lote) e por isso não
+// executou direto — fica esperando o revendedor confirmar por mensagem
+// antes de ser aplicada. Expira sozinha (checado em código, não aqui) se
+// não for confirmada em poucos minutos, pra não sobrar uma ação velha
+// esperando um "sim" que já não faz sentido.
+model AcaoPendenteAssessor {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
+  tipo    String
+  payload Json
+  resumo  String
 
   criadoEm DateTime @default(now())
 

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { inicioDoDiaBr } from "@/lib/format";
 import { ASSESSOR_TOOLS, executarFerramenta } from "./tools";
 
 // claude-opus-5 é o modelo recomendado por padrão para agentes com tool
@@ -13,6 +14,12 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
 const HISTORICO_MAX_MENSAGENS = 20;
 const MAX_ITERACOES_FERRAMENTA = 6;
 
+// Teto de mensagens por dia por revendedor — protege contra um caso de
+// abuso ou loop virar um custo desproporcional ao que a assinatura paga
+// (cada mensagem consome créditos da conta Anthropic, sem relação com o
+// valor da assinatura do GestorPro).
+const LIMITE_MENSAGENS_DIA = Number(process.env.ASSESSOR_LIMITE_MENSAGENS_DIA ?? 60);
+
 function promptSistema(nomeRevendedor: string): string {
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
   return `Você é o assessor de IA do GestorPro, conversando por WhatsApp com ${nomeRevendedor}, um revendedor de streaming que usa o GestorPro pra gerenciar clientes, vendas e cobranças.
@@ -23,7 +30,8 @@ Regras:
 - Responda em português do Brasil, direto e curto — é uma conversa de WhatsApp, não um relatório. Sem markdown (sem #, sem **negrito**), no máximo um ou dois parágrafos curtos, listas com "-" quando fizer sentido.
 - Use as ferramentas sempre que a pergunta depender de dados reais (nunca invente números de clientes, valores ou vencimentos).
 - Se "buscar_cliente" ou outra ferramenta retornar "multiplosResultados", pergunte qual cliente exatamente antes de agir.
-- Ações que mexem em dinheiro ou dados do cliente (criar_cliente, renovar_cliente, registrar_venda, enviar_cobranca) já foram autorizadas pelo próprio dono da conta ao ativar o assessor — pode executar direto quando o pedido for claro, só confirme antes se faltar alguma informação necessária.
+- Ações que mexem em dinheiro ou dados do cliente (criar_cliente, renovar_cliente, registrar_venda, enviar_cobranca, enviar_lembretes_vencimento) já foram autorizadas pelo próprio dono da conta ao ativar o assessor — pode executar direto quando o pedido for claro, só confirme antes se faltar alguma informação necessária.
+- Se uma ferramenta retornar "confirmacaoNecessaria", NÃO execute a ação de novo sozinho: mostre o "resumo" pro revendedor e espere a resposta dele nessa mesma conversa. Só chame confirmar_acao_pendente depois que ele responder algo claramente afirmativo ou negativo — nunca assuma "sim" por conta própria.
 - Se uma ferramenta retornar "erro", explique o motivo pro revendedor em vez de tentar de novo do mesmo jeito.`;
 }
 
@@ -31,6 +39,20 @@ export class AssessorNaoConfiguradoError extends Error {}
 
 export async function responderMensagemAssessor(revendedorId: string, nomeRevendedor: string, mensagemUsuario: string): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) throw new AssessorNaoConfiguradoError("ANTHROPIC_API_KEY não configurada");
+
+  const mensagensHoje = await prisma.conversaAssessor.count({
+    where: { revendedorId, papel: "user", criadoEm: { gte: inicioDoDiaBr() } },
+  });
+  if (mensagensHoje >= LIMITE_MENSAGENS_DIA) {
+    const aviso = "Você atingiu o limite de mensagens do assessor por hoje — volta amanhã ou peça ao suporte pra ajustar o limite.";
+    await prisma.conversaAssessor.createMany({
+      data: [
+        { revendedorId, papel: "user", conteudo: mensagemUsuario },
+        { revendedorId, papel: "assistant", conteudo: aviso },
+      ],
+    });
+    return aviso;
+  }
 
   const client = new Anthropic();
 

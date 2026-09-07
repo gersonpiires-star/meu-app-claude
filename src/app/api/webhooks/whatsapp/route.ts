@@ -42,8 +42,7 @@ export async function POST(request: Request) {
   }
 
   const de = params.From; // "whatsapp:+5511999999999"
-  const corpoMensagem = params.Body?.trim();
-  if (!de || !corpoMensagem) return respostaTwiml();
+  if (!de) return respostaTwiml();
 
   const remetente = normalizarWhatsappBr(de.replace("whatsapp:", ""));
 
@@ -62,6 +61,22 @@ export async function POST(request: Request) {
     // número que descobrir o número da Twilio.
     return respostaTwiml();
   }
+
+  // Áudio, figurinha, foto etc.: o assessor ainda só entende texto. Sem
+  // isso, mandar um áudio (Body vazio) caía no "sem mensagem" silencioso
+  // abaixo e o revendedor achava que o assessor simplesmente não respondeu.
+  const numMedia = Number(params.NumMedia ?? "0");
+  if (numMedia > 0) {
+    const tipoAudio = (params.MediaContentType0 ?? "").startsWith("audio/");
+    return respostaTwiml(
+      tipoAudio
+        ? "Ainda não consigo ouvir áudio — pode escrever em texto o que você precisa?"
+        : "Por enquanto só consigo ler texto por aqui — pode escrever o que você precisa?"
+    );
+  }
+
+  const corpoMensagem = params.Body?.trim();
+  if (!corpoMensagem) return respostaTwiml();
 
   try {
     const resposta = await responderMensagemAssessor(revendedor.id, revendedor.nome, corpoMensagem);

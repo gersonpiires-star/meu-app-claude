@@ -59,7 +59,8 @@ criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
 
 Cada revendedor pode ligar (em `/configuracoes`) um assessor de IA que responde no WhatsApp dele,
 com acesso aos próprios dados do GestorPro — consultar clientes, vencimentos e financeiro, cadastrar
-cliente, renovar plano, registrar venda de aparelho e mandar cobrança direto pro cliente.
+cliente, renovar plano, registrar venda de aparelho, mandar cobrança pro cliente e disparar lembrete
+de vencimento em lote.
 
 **Como funciona**: o revendedor manda mensagem pro número da Twilio configurado; o webhook
 (`/api/webhooks/whatsapp`) identifica quem escreveu pelo número (comparado com o `whatsapp` cadastrado
@@ -74,27 +75,49 @@ que consultam/alteram só os dados daquele revendedor, e devolve a resposta pelo
 - No painel da Twilio, em **Messaging → Try it out → Send a WhatsApp message** (sandbox) ou no seu
   número de WhatsApp Business aprovado, configure **"WHEN A MESSAGE COMES IN"** para
   `POST` em `${APP_URL}/api/webhooks/whatsapp`.
+- `ASSESSOR_LIMITE_MENSAGENS_DIA` (opcional, padrão `60`) — teto de mensagens por dia por revendedor,
+  pra evitar que um caso de abuso ou loop vire um custo desproporcional. Ao atingir o limite, o
+  assessor avisa e para de chamar a API da Anthropic até o dia seguinte (fuso de Brasília).
+- `ASSESSOR_LIMITE_CONFIRMACAO` (opcional, padrão `100`) — valor em reais a partir do qual uma
+  renovação ou venda não executa direto: o assessor descreve a ação e só aplica depois que o
+  revendedor confirmar na conversa (fica guardado em `AcaoPendenteAssessor` por até 10 minutos).
 
 Sem essas variáveis configuradas, o botão "Ligar assessor" em Configurações continua existindo mas
 avisa que a integração não está pronta — nada quebra pro resto do app.
 
-**Limitações importantes**:
+**Lembrete de vencimento em lote (proativo, fora da janela de 24h)**: por padrão, a Twilio (como
+qualquer provedor da API oficial do WhatsApp) só permite mensagem livre pra quem escreveu pra você
+nas últimas 24h — é por isso que **enviar_cobranca** (uma mensagem por vez, pro cliente que o
+revendedor pedir) só funciona dentro dessa janela. Pra mandar lembrete proativo — "avisa todo mundo
+que vence essa semana" — sem depender de sorte de janela, o assessor tem a ferramenta
+**enviar_lembretes_vencimento**, que usa um **Content Template** aprovado pela Meta:
+
+1. No Console da Twilio, vá em **Messaging → Content Template Builder** e crie um template categoria
+   **Utility**, com o texto (4 variáveis, nessa ordem):
+   > Olá {{1}}! Passando para lembrar que seu plano {{2}} está com vencimento em {{3}}, no valor de
+   > {{4}}. Para continuar com o acesso, é só renovar com quem te atende.
+2. Envie pra aprovação da Meta (leva de minutos a poucos dias) e copie o `ContentSid` (começa com
+   `HX...`) depois de aprovado.
+3. Configure `TWILIO_CONTENT_SID_LEMBRETE=HX...` nas variáveis de ambiente.
+
+Sem essa variável, o assessor explica pro revendedor que a função ainda não foi habilitada, em vez de
+tentar e falhar silenciosamente. Acima de 5 clientes de uma vez, o envio também pede confirmação antes
+de disparar.
+
+**Outras limitações importantes**:
 
 - O webhook confere a assinatura `X-Twilio-Signature` de cada requisição — só aceita mensagens que
   realmente vieram da sua conta Twilio.
-- A Twilio (como qualquer provedor da API oficial do WhatsApp) só permite mensagem **livre** para
-  quem mandou mensagem pra você nas últimas 24h. A conversa do revendedor com o assessor funciona
-  sempre (ele que inicia). Já o **enviar_cobranca** manda mensagem pro *cliente* do revendedor — só
-  funciona se aquele cliente tiver escrito pro número da Twilio nas últimas 24h; fora disso a Twilio
-  recusa o envio e o assessor avisa o revendedor pra mandar manualmente dessa vez (pra cobrança
-  proativa em massa fora dessa janela, seria necessário cadastrar um Message Template aprovado pela
-  Meta — não implementado aqui).
 - O histórico da conversa com o assessor fica salvo no banco (`ConversaAssessor`) só o suficiente
   pra dar contexto às próximas mensagens — não é uma tela de chat dentro do app.
 - Cada mensagem trocada com o assessor consome créditos da sua conta Anthropic (modelo padrão
   `claude-opus-5`, configurável via `ANTHROPIC_MODEL`) e, se enviada pela Twilio, também da sua conta
-  Twilio — não há limite de uso por revendedor implementado, então monitore o consumo se for liberar
-  pra muita gente.
+  Twilio — o limite diário (acima) reduz o risco, mas monitore o consumo se for liberar pra muita
+  gente.
+- **Áudio, figurinha e foto ainda não são entendidos** — o assessor responde pedindo pra escrever em
+  texto, em vez de ficar em silêncio. Transcrever áudio exigiria integrar um serviço de
+  speech-to-text (Claude não recebe áudio diretamente); não implementado aqui por ser uma escolha de
+  fornecedor/custo que caberia decidir antes.
 
 ## Deploy (Supabase + Vercel)
 

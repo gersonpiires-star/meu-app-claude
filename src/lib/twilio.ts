@@ -15,6 +15,14 @@ export function assessorConfigurado(): boolean {
   return credenciais() !== null && Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
+// SID do Content Template aprovado pela Meta para lembrete de vencimento
+// (ver README, seção "Assessor de IA no WhatsApp" → lembretes em lote) —
+// sem isso, o envio proativo (fora da janela de 24h) não funciona; o
+// assessor avisa o revendedor em vez de tentar mandar mensagem livre.
+export function templateLembreteConfigurado(): boolean {
+  return Boolean(process.env.TWILIO_CONTENT_SID_LEMBRETE);
+}
+
 // Confere a assinatura X-Twilio-Signature do webhook — sem isso, qualquer
 // um que descobrisse a URL do webhook podia forjar um "From" de outro
 // revendedor e mexer nos dados de quem quisesse. Algoritmo oficial da
@@ -35,18 +43,9 @@ export function assinaturaValida(url: string, params: Record<string, string>, as
   return crypto.timingSafeEqual(bufEsperada, bufRecebida);
 }
 
-// Manda uma mensagem de WhatsApp através da Twilio. Fora da janela de 24h
-// desde a última mensagem recebida do destinatário, a Twilio só aceita
-// templates pré-aprovados — uma mensagem livre nesse caso é recusada, e o
-// chamador decide o que fazer (ex: avisar que precisa mandar na mão dessa
-// vez).
-export async function enviarWhatsApp(para: string, corpo: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+async function postParaTwilio(form: URLSearchParams): Promise<{ ok: true } | { ok: false; erro: string }> {
   const creds = credenciais();
   if (!creds) return { ok: false, erro: "Twilio não configurado" };
-
-  const destino = para.startsWith("whatsapp:") ? para : `whatsapp:+${normalizarWhatsappBr(para)}`;
-
-  const form = new URLSearchParams({ From: creds.numero, To: destino, Body: corpo });
 
   const resposta = await fetch(`${TWILIO_API_BASE}/Accounts/${creds.sid}/Messages.json`, {
     method: "POST",
@@ -63,4 +62,43 @@ export async function enviarWhatsApp(para: string, corpo: string): Promise<{ ok:
     return { ok: false, erro: `Twilio respondeu ${resposta.status}` };
   }
   return { ok: true };
+}
+
+function destinoWhatsapp(para: string): string {
+  return para.startsWith("whatsapp:") ? para : `whatsapp:+${normalizarWhatsappBr(para)}`;
+}
+
+// Manda uma mensagem de WhatsApp LIVRE através da Twilio. Fora da janela
+// de 24h desde a última mensagem recebida do destinatário, a Twilio só
+// aceita templates pré-aprovados — uma mensagem livre nesse caso é
+// recusada, e o chamador decide o que fazer (ex: avisar que precisa
+// mandar na mão dessa vez, ou usar enviarWhatsAppTemplate).
+export async function enviarWhatsApp(para: string, corpo: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const creds = credenciais();
+  if (!creds) return { ok: false, erro: "Twilio não configurado" };
+  return postParaTwilio(new URLSearchParams({ From: creds.numero, To: destinoWhatsapp(para), Body: corpo }));
+}
+
+// Manda mensagem usando um Content Template aprovado pela Meta — funciona
+// a qualquer momento, mesmo fora da janela de 24h (é assim que dá pra
+// mandar lembrete de vencimento de forma proativa, sem esperar o cliente
+// escrever primeiro). `contentSid` é o "HXxxxxxxxx..." do template
+// cadastrado no Content Template Builder da Twilio; `variaveis` preenche
+// os placeholders numerados do template ("1", "2", ... na ordem em que
+// aparecem no texto aprovado).
+export async function enviarWhatsAppTemplate(
+  para: string,
+  contentSid: string,
+  variaveis: Record<string, string>
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const creds = credenciais();
+  if (!creds) return { ok: false, erro: "Twilio não configurado" };
+  return postParaTwilio(
+    new URLSearchParams({
+      From: creds.numero,
+      To: destinoWhatsapp(para),
+      ContentSid: contentSid,
+      ContentVariables: JSON.stringify(variaveis),
+    })
+  );
 }

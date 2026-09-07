@@ -15,13 +15,29 @@ import { dadosMes } from "@/lib/relatorio";
 import { brl, dataCurta, dataPorExtenso } from "@/lib/format";
 import { mesclarModelos, preencherModelo, normalizarWhatsappBr } from "@/lib/mensagens";
 import { linkPagamentoCliente } from "@/lib/pagamentos";
-import { enviarWhatsApp } from "@/lib/twilio";
+import { enviarWhatsApp, enviarWhatsAppTemplate, templateLembreteConfigurado } from "@/lib/twilio";
 
 // Toda ferramenta recebe o revendedorId de quem mandou a mensagem no
 // WhatsApp (já resolvido pelo webhook a partir do número remetente) —
 // nunca confia em nenhum id de revendedor que o modelo possa inventar,
 // exatamente como as Server Actions nunca confiam em id vindo do form.
 type Ctx = { revendedorId: string };
+
+// Ações que mexem em dinheiro acima desse valor (renovação, venda) ou em
+// muitos clientes de uma vez (lembrete em lote) não executam direto — o
+// assessor pede confirmação por mensagem antes (ver confirmar_acao_pendente).
+const LIMITE_CONFIRMACAO = Number(process.env.ASSESSOR_LIMITE_CONFIRMACAO ?? 100);
+const LIMITE_LOTE_SEM_CONFIRMAR = 5;
+const PENDENTE_TTL_MS = 10 * 60 * 1000;
+
+async function criarPendente(revendedorId: string, tipo: string, payload: Record<string, unknown>, resumo: string): Promise<string> {
+  await prisma.acaoPendenteAssessor.create({ data: { revendedorId, tipo, payload: payload as Prisma.InputJsonValue, resumo } });
+  return JSON.stringify({
+    confirmacaoNecessaria: true,
+    resumo,
+    instrucao: "Mostre esse resumo pro revendedor e pergunte se confirma. Só chame confirmar_acao_pendente depois que ele responder claramente.",
+  });
+}
 
 async function registrarLogAssessor(revendedorId: string, acao: string, descricao: string) {
   try {
@@ -120,7 +136,7 @@ export const ASSESSOR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "renovar_cliente",
-    description: "Renova o plano de um cliente já existente, estendendo o vencimento a partir de hoje (ou do vencimento atual, se ainda não venceu).",
+    description: `Renova o plano de um cliente já existente, estendendo o vencimento a partir de hoje (ou do vencimento atual, se ainda não venceu). Se o valor for ${LIMITE_CONFIRMACAO} ou mais, não executa direto — retorna confirmacaoNecessaria e espera confirmação via confirmar_acao_pendente.`,
     input_schema: {
       type: "object",
       properties: {
@@ -133,7 +149,7 @@ export const ASSESSOR_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "registrar_venda",
-    description: "Registra a venda de um produto (aparelho) em estoque, opcionalmente vinculada a um cliente.",
+    description: `Registra a venda de um produto (aparelho) em estoque, opcionalmente vinculada a um cliente. Se o total (quantidade × valor unitário) for ${LIMITE_CONFIRMACAO} ou mais, não executa direto — retorna confirmacaoNecessaria e espera confirmação via confirmar_acao_pendente.`,
     input_schema: {
       type: "object",
       properties: {
@@ -157,6 +173,32 @@ export const ASSESSOR_TOOLS: Anthropic.Tool[] = [
         modelo: { type: "string", enum: ["Lembrete", "Vencido", "Renovação"], description: "Modelo de mensagem a usar" },
       },
       required: ["clienteNome", "modelo"],
+    },
+  },
+  {
+    name: "enviar_lembretes_vencimento",
+    description:
+      `Manda lembrete de vencimento pra VÁRIOS clientes de uma vez, usando um template aprovado pela Meta — por isso funciona mesmo fora da janela de 24h (diferente de enviar_cobranca, que só manda pra um cliente por vez e só dentro da janela). Requer que o GestorPro tenha configurado o template; se não tiver, retorna erro explicando isso. Se atingir mais de ${LIMITE_LOTE_SEM_CONFIRMAR} clientes, não envia direto — retorna confirmacaoNecessaria.`,
+    input_schema: {
+      type: "object",
+      properties: {
+        filtro: {
+          type: "string",
+          enum: ["VENCENDO_5_DIAS", "VENCIDOS"],
+          description: "VENCENDO_5_DIAS = ainda não venceu, vence em até 5 dias. VENCIDOS = já vencidos.",
+        },
+      },
+      required: ["filtro"],
+    },
+  },
+  {
+    name: "confirmar_acao_pendente",
+    description:
+      "Confirma ou cancela a última ação que ficou esperando aprovação (renovação/venda de valor alto, ou lembrete em lote). Só chame depois que o revendedor responder claramente sim/não pra pergunta de confirmação — nunca decida sozinho.",
+    input_schema: {
+      type: "object",
+      properties: { confirmar: { type: "boolean", description: "true se o revendedor confirmou, false se cancelou" } },
+      required: ["confirmar"],
     },
   },
 ];
@@ -190,6 +232,132 @@ function textoCliente(c: ClienteResumo) {
     situacao,
     testeGratis: c.testeGratis,
   };
+}
+
+type ResultadoAcao = { ok: true; [chave: string]: unknown } | { ok: false; erro: string };
+
+const FAIXA_POR_FILTRO: Record<string, "ATE_5_DIAS" | "VENCIDO"> = {
+  VENCENDO_5_DIAS: "ATE_5_DIAS",
+  VENCIDOS: "VENCIDO",
+};
+
+// Lógica que de fato renova o cliente — separada do case do switch pra ser
+// chamada tanto direto (valor abaixo do limite de confirmação) quanto por
+// confirmar_acao_pendente (valor alto, já aprovado pelo revendedor).
+async function aplicarRenovacao(ctx: Ctx, clienteId: string, plano: PlanoCliente, valor: number): Promise<ResultadoAcao> {
+  const cliente = await prisma.cliente.findFirst({ where: { id: clienteId, revendedorId: ctx.revendedorId } });
+  if (!cliente) return { ok: false, erro: "Cliente não encontrado — pode ter sido removido nesse meio tempo." };
+
+  const erroCredito = await erroCreditoIndisponivel(prisma, cliente.servicoId);
+  if (erroCredito) return { ok: false, erro: erroCredito };
+
+  const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
+  const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
+
+  await prisma.$transaction([
+    prisma.renovacao.create({ data: { clienteId: cliente.id, plano, valor, custo: 0 } }),
+    prisma.cliente.update({
+      where: { id: cliente.id },
+      data: { plano, valorPlano: valor, vencimento: novoVencimento, status: "ATIVO", testeGratis: false },
+    }),
+  ]);
+
+  await registrarLogAssessor(
+    ctx.revendedorId,
+    "cliente.renovar",
+    `Renovou o plano de ${cliente.nome} (${PLANO_LABEL[plano]}, ${brl(valor)}) via assessor no WhatsApp`
+  );
+  return { ok: true, cliente: cliente.nome, novoVencimento: dataCurta(novoVencimento) };
+}
+
+type PayloadVenda = { produtoId: string; quantidade: number; valorUnitario: number; formaPagamento: string; clienteId: string | null };
+
+async function aplicarVenda(ctx: Ctx, payload: PayloadVenda): Promise<ResultadoAcao> {
+  const produto = await prisma.produto.findFirst({ where: { id: payload.produtoId, revendedorId: ctx.revendedorId } });
+  if (!produto) return { ok: false, erro: "Produto não encontrado — pode ter sido removido nesse meio tempo." };
+
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        const estoque = await estoqueAtualProduto(produto.id, tx);
+        if (payload.quantidade > estoque) {
+          throw new Error(
+            estoque > 0
+              ? `Estoque insuficiente — só há ${estoque} unidade(s) de ${produto.modelo}.`
+              : `Sem estoque de ${produto.modelo}.`
+          );
+        }
+        const { custoUnitario } = await custoConsumoFifo(produto.id, payload.quantidade, tx);
+        await tx.venda.create({
+          data: {
+            revendedorId: ctx.revendedorId,
+            produtoId: produto.id,
+            clienteId: payload.clienteId,
+            quantidade: payload.quantidade,
+            valorUnitario: payload.valorUnitario,
+            custoUnitario,
+            formaPagamento: payload.formaPagamento,
+          },
+        });
+        await tx.movimentoEstoque.create({
+          data: { produtoId: produto.id, tipo: "SAIDA", quantidade: payload.quantidade, custoUnitario },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (erro) {
+    return { ok: false, erro: erro instanceof Error ? erro.message : "Falha ao registrar a venda." };
+  }
+
+  await registrarLogAssessor(ctx.revendedorId, "venda.criar", `Registrou venda de ${payload.quantidade}x ${produto.modelo} via assessor no WhatsApp`);
+  return { ok: true, produto: produto.modelo, quantidade: payload.quantidade, total: brl(payload.quantidade * payload.valorUnitario) };
+}
+
+// Lembrete em lote via Content Template aprovado pela Meta — diferente de
+// enviar_cobranca (mensagem livre, só funciona na janela de 24h), esse
+// caminho funciona a qualquer momento, então é o certo pra "avisar todo
+// mundo que vence essa semana" de forma proativa.
+async function aplicarLembretes(ctx: Ctx, filtro: string): Promise<ResultadoAcao> {
+  const contentSid = process.env.TWILIO_CONTENT_SID_LEMBRETE;
+  if (!contentSid) {
+    return {
+      ok: false,
+      erro: "O template de lembrete de vencimento ainda não foi configurado pelo GestorPro (TWILIO_CONTENT_SID_LEMBRETE). Avise o suporte pra habilitar essa função.",
+    };
+  }
+  const faixaAlvo = FAIXA_POR_FILTRO[filtro] ?? "ATE_5_DIAS";
+
+  const candidatos = await prisma.cliente.findMany({
+    where: { revendedorId: ctx.revendedorId, status: { not: "CANCELADO" } },
+    include: { servico: true },
+  });
+  const alvo = candidatos.filter((c) => faixaVencimento(c.vencimento) === faixaAlvo);
+  const comWhatsapp = alvo.filter((c) => c.whatsapp);
+
+  let enviados = 0;
+  let falharam = 0;
+  for (const cliente of comWhatsapp) {
+    const envio = await enviarWhatsAppTemplate(normalizarWhatsappBr(cliente.whatsapp!), contentSid, {
+      "1": cliente.nome,
+      "2": cliente.servico?.nome ?? "seu serviço",
+      "3": dataPorExtenso(cliente.vencimento),
+      "4": brl(cliente.valorPlano),
+    });
+    if (envio.ok) {
+      enviados++;
+      await prisma.cobranca.create({ data: { clienteId: cliente.id, modelo: "Lembrete" } });
+    } else {
+      falharam++;
+    }
+  }
+
+  await registrarLogAssessor(
+    ctx.revendedorId,
+    "cliente.lembrete_lote",
+    `Enviou lembrete de vencimento em lote via assessor no WhatsApp (${enviados} enviados, ${falharam} falharam)`
+  );
+
+  return { ok: true, enviados, falharam, semWhatsapp: alvo.length - comWhatsapp.length };
 }
 
 export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx): Promise<string> {
@@ -320,23 +488,13 @@ export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx)
       if (erroCredito) return JSON.stringify({ erro: erroCredito });
 
       const valor = typeof dados.valor === "number" ? dados.valor : resultado.valorPlano;
-      const base = resultado.vencimento > new Date() ? resultado.vencimento : new Date();
-      const novoVencimento = calcularVencimentoComDiaFixo(plano, base, resultado.diaFixo);
 
-      await prisma.$transaction([
-        prisma.renovacao.create({ data: { clienteId: resultado.id, plano, valor, custo: 0 } }),
-        prisma.cliente.update({
-          where: { id: resultado.id },
-          data: { plano, valorPlano: valor, vencimento: novoVencimento, status: "ATIVO", testeGratis: false },
-        }),
-      ]);
+      if (valor >= LIMITE_CONFIRMACAO) {
+        const resumo = `Renovar ${resultado.nome} para o plano ${PLANO_LABEL[plano]} por ${brl(valor)}?`;
+        return criarPendente(ctx.revendedorId, "renovar_cliente", { clienteId: resultado.id, plano, valor }, resumo);
+      }
 
-      await registrarLogAssessor(
-        ctx.revendedorId,
-        "cliente.renovar",
-        `Renovou o plano de ${resultado.nome} (${PLANO_LABEL[plano]}, ${brl(valor)}) via assessor no WhatsApp`
-      );
-      return JSON.stringify({ ok: true, cliente: resultado.nome, novoVencimento: dataCurta(novoVencimento) });
+      return JSON.stringify(await aplicarRenovacao(ctx, resultado.id, plano, valor));
     }
 
     case "registrar_venda": {
@@ -357,41 +515,15 @@ export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx)
         if (!Array.isArray(resultadoCliente)) clienteId = resultadoCliente.id;
       }
 
-      try {
-        await prisma.$transaction(
-          async (tx) => {
-            const estoque = await estoqueAtualProduto(produto.id, tx);
-            if (quantidade > estoque) {
-              throw new Error(
-                estoque > 0
-                  ? `Estoque insuficiente — só há ${estoque} unidade(s) de ${produto.modelo}.`
-                  : `Sem estoque de ${produto.modelo}.`
-              );
-            }
-            const { custoUnitario } = await custoConsumoFifo(produto.id, quantidade, tx);
-            await tx.venda.create({
-              data: {
-                revendedorId: ctx.revendedorId,
-                produtoId: produto.id,
-                clienteId,
-                quantidade,
-                valorUnitario,
-                custoUnitario,
-                formaPagamento,
-              },
-            });
-            await tx.movimentoEstoque.create({
-              data: { produtoId: produto.id, tipo: "SAIDA", quantidade, custoUnitario },
-            });
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-        );
-      } catch (erro) {
-        return JSON.stringify({ erro: erro instanceof Error ? erro.message : "Falha ao registrar a venda." });
+      const payload: PayloadVenda = { produtoId: produto.id, quantidade, valorUnitario, formaPagamento, clienteId };
+      const total = quantidade * valorUnitario;
+
+      if (total >= LIMITE_CONFIRMACAO) {
+        const resumo = `Registrar venda de ${quantidade}x ${produto.modelo} por ${brl(total)} (${formaPagamento})?`;
+        return criarPendente(ctx.revendedorId, "registrar_venda", { ...payload }, resumo);
       }
 
-      await registrarLogAssessor(ctx.revendedorId, "venda.criar", `Registrou venda de ${quantidade}x ${produto.modelo} via assessor no WhatsApp`);
-      return JSON.stringify({ ok: true, produto: produto.modelo, quantidade, total: brl(quantidade * valorUnitario) });
+      return JSON.stringify(await aplicarVenda(ctx, payload));
     }
 
     case "enviar_cobranca": {
@@ -437,6 +569,69 @@ export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx)
       await prisma.cobranca.create({ data: { clienteId: resultado.id, modelo: modeloEscolhido } });
       await registrarLogAssessor(ctx.revendedorId, "cliente.cobranca", `Enviou cobrança (${modeloEscolhido}) para ${resultado.nome} via assessor no WhatsApp`);
       return JSON.stringify({ ok: true, enviadoPara: resultado.nome });
+    }
+
+    case "enviar_lembretes_vencimento": {
+      const filtro = String(dados.filtro ?? "VENCENDO_5_DIAS");
+      if (!templateLembreteConfigurado()) {
+        return JSON.stringify({
+          erro: "O template de lembrete de vencimento ainda não foi configurado pelo GestorPro. Avise o suporte pra habilitar essa função.",
+        });
+      }
+
+      const faixaAlvo = FAIXA_POR_FILTRO[filtro] ?? "ATE_5_DIAS";
+      const candidatos = await prisma.cliente.findMany({ where: { revendedorId: ctx.revendedorId, status: { not: "CANCELADO" } } });
+      const alvo = candidatos.filter((c) => faixaVencimento(c.vencimento) === faixaAlvo && c.whatsapp);
+
+      if (alvo.length === 0) {
+        return JSON.stringify({ ok: true, enviados: 0, mensagem: "Nenhum cliente encontrado nesse filtro com WhatsApp cadastrado." });
+      }
+
+      if (alvo.length > LIMITE_LOTE_SEM_CONFIRMAR) {
+        const nomes = alvo.slice(0, 5).map((c) => c.nome).join(", ");
+        const resumo = `Mandar lembrete de vencimento pra ${alvo.length} clientes (${nomes}${alvo.length > 5 ? ", ..." : ""})?`;
+        return criarPendente(ctx.revendedorId, "enviar_lembretes_vencimento", { filtro }, resumo);
+      }
+
+      return JSON.stringify(await aplicarLembretes(ctx, filtro));
+    }
+
+    case "confirmar_acao_pendente": {
+      const confirmar = dados.confirmar === true;
+      const pendente = await prisma.acaoPendenteAssessor.findFirst({
+        where: { revendedorId: ctx.revendedorId },
+        orderBy: { criadoEm: "desc" },
+      });
+      if (!pendente) return JSON.stringify({ erro: "Não tem nenhuma ação esperando confirmação." });
+
+      await prisma.acaoPendenteAssessor.delete({ where: { id: pendente.id } }).catch(() => {});
+
+      if (Date.now() - pendente.criadoEm.getTime() > PENDENTE_TTL_MS) {
+        return JSON.stringify({ erro: "Essa confirmação expirou (mais de 10 minutos) — peça a ação de novo." });
+      }
+      if (!confirmar) return JSON.stringify({ ok: true, cancelado: true });
+
+      const payload = pendente.payload as Record<string, unknown>;
+      switch (pendente.tipo) {
+        case "renovar_cliente":
+          return JSON.stringify(
+            await aplicarRenovacao(ctx, String(payload.clienteId), payload.plano as PlanoCliente, Number(payload.valor))
+          );
+        case "registrar_venda":
+          return JSON.stringify(
+            await aplicarVenda(ctx, {
+              produtoId: String(payload.produtoId),
+              quantidade: Number(payload.quantidade),
+              valorUnitario: Number(payload.valorUnitario),
+              formaPagamento: String(payload.formaPagamento),
+              clienteId: payload.clienteId ? String(payload.clienteId) : null,
+            })
+          );
+        case "enviar_lembretes_vencimento":
+          return JSON.stringify(await aplicarLembretes(ctx, String(payload.filtro)));
+        default:
+          return JSON.stringify({ erro: "Tipo de ação pendente desconhecido." });
+      }
     }
 
     default:
