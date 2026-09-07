@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Card, Field, Input, cx } from "@/components/ui";
+import { useMemo, useState, useTransition } from "react";
+import { Button, Card, Field, Input, cx } from "@/components/ui";
 import { brl, brl0 } from "@/lib/format";
 import { PRAZO_LABEL, precoAVista, tabelaParcelado, type Prazo } from "@/lib/maquininha";
-import { salvarMargemPadrao, salvarTaxaCartao, restaurarTaxaCartao } from "./actions";
+import { salvarMargemPadrao, salvarTaxasCartao } from "./actions";
 
 const PRAZOS: Prazo[] = [0, 1, 2];
 
@@ -18,34 +18,40 @@ export function MaquininhaCalc({
   const [custo, setCusto] = useState(0);
   const [margem, setMargem] = useState(margemInicial);
   const [prazo, setPrazo] = useState<Prazo>(0);
-  const [taxasPersonalizadas, setTaxasPersonalizadas] = useState(taxasIniciais);
+  const [taxasSalvas, setTaxasSalvas] = useState(taxasIniciais);
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [rascunho, setRascunho] = useState<Record<number, number>>({});
   const [avisoAberto, setAvisoAberto] = useState(false);
+  const [salvando, iniciarTransicao] = useTransition();
 
   const preco = useMemo(() => precoAVista(custo, margem), [custo, margem]);
   const tabela = useMemo(
-    () => tabelaParcelado(preco, prazo, 12, taxasPersonalizadas),
-    [preco, prazo, taxasPersonalizadas]
+    () => tabelaParcelado(preco, prazo, 12, modoEdicao ? rascunho : taxasSalvas),
+    [preco, prazo, modoEdicao, rascunho, taxasSalvas]
   );
+
+  function comecarEdicao() {
+    setRascunho(Object.fromEntries(tabela.map((l) => [l.parcelas, l.taxa])));
+    setModoEdicao(true);
+  }
+
+  function cancelarEdicao() {
+    setModoEdicao(false);
+    setRascunho({});
+  }
 
   function aoEditarTaxa(parcelas: number, valor: string) {
     const taxa = Number(valor);
     if (!Number.isFinite(taxa)) return;
-    setTaxasPersonalizadas((atual) => ({ ...atual, [parcelas]: taxa }));
+    setRascunho((atual) => ({ ...atual, [parcelas]: taxa }));
   }
 
-  function aoSalvarTaxa(parcelas: number, valor: string) {
-    const taxa = Number(valor);
-    if (!Number.isFinite(taxa) || taxa < 0) return;
-    salvarTaxaCartao(parcelas, taxa);
-  }
-
-  function aoRestaurarTaxa(parcelas: number) {
-    setTaxasPersonalizadas((atual) => {
-      const proximo = { ...atual };
-      delete proximo[parcelas];
-      return proximo;
+  function salvar() {
+    iniciarTransicao(async () => {
+      await salvarTaxasCartao(rascunho);
+      setTaxasSalvas(rascunho);
+      setModoEdicao(false);
     });
-    restaurarTaxaCartao(parcelas);
   }
 
   return (
@@ -93,10 +99,9 @@ export function MaquininhaCalc({
       </div>
 
       <Card className="p-0">
-        <div className="relative grid grid-cols-[0.7fr_1.3fr_1fr_0.9fr] gap-2 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
-          <span>Parc</span>
-          <span className="flex items-center gap-1">
-            Taxa
+        <div className="relative flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+            Taxas de parcelamento da sua maquininha
             <button
               type="button"
               onClick={() => setAvisoAberto((a) => !a)}
@@ -107,11 +112,29 @@ export function MaquininhaCalc({
             </button>
             {avisoAberto ? (
               <div className="absolute left-0 top-full z-10 mt-2 w-64 rounded-xl border border-border-strong bg-surface p-3 text-[11px] normal-case tracking-normal text-text-muted shadow-lg">
-                Essas taxas são só uma referência de mercado. Edite cada uma pra bater com o que sua própria
-                maquininha cobra — o valor certo está no extrato ou no app do seu banco.
+                Essas taxas são só uma referência de mercado. Edite e salve cada uma pra bater com o que sua
+                própria maquininha cobra — o valor certo está no extrato ou no app do seu banco.
               </div>
             ) : null}
           </span>
+          {modoEdicao ? (
+            <div className="flex shrink-0 gap-2">
+              <Button type="button" variant="ghost" onClick={cancelarEdicao} disabled={salvando} className="px-2.5 py-1 text-xs">
+                Cancelar
+              </Button>
+              <Button type="button" onClick={salvar} disabled={salvando} className="px-2.5 py-1 text-xs">
+                {salvando ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" variant="ghost" onClick={comecarEdicao} className="shrink-0 px-2.5 py-1 text-xs">
+              Editar taxas
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-[0.7fr_1.3fr_1fr_0.9fr] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+          <span>Parc</span>
+          <span>Taxa</span>
           <span className="text-right">Parcela</span>
           <span className="text-right">Total</span>
         </div>
@@ -119,33 +142,24 @@ export function MaquininhaCalc({
           {tabela.map((l) => (
             <div key={l.parcelas} className="grid grid-cols-[0.7fr_1.3fr_1fr_0.9fr] items-center gap-2 px-4 py-2 text-sm">
               <span className="text-text">{l.parcelas}x</span>
-              <span className="flex flex-col gap-0.5">
+              {modoEdicao ? (
                 <span className="flex items-center gap-1">
                   <input
                     type="number"
                     min={0}
                     max={99}
                     step="0.01"
-                    value={l.taxa}
+                    value={rascunho[l.parcelas] ?? l.taxa}
                     onChange={(e) => aoEditarTaxa(l.parcelas, e.target.value)}
-                    onBlur={(e) => aoSalvarTaxa(l.parcelas, e.target.value)}
-                    className={cx(
-                      "w-14 min-w-0 rounded-md border bg-bg-deep px-1.5 py-1 text-xs outline-none focus:border-accent",
-                      l.personalizada ? "border-accent text-accent" : "border-border-strong text-text-muted"
-                    )}
+                    className="w-14 min-w-0 rounded-md border border-accent bg-bg-deep px-1.5 py-1 text-xs text-accent outline-none focus:border-accent"
                   />
                   <span className="shrink-0">%</span>
                 </span>
-                {l.personalizada ? (
-                  <button
-                    type="button"
-                    onClick={() => aoRestaurarTaxa(l.parcelas)}
-                    className="text-left text-[10px] text-text-dim underline hover:text-text"
-                  >
-                    usar padrão
-                  </button>
-                ) : null}
-              </span>
+              ) : (
+                <span className={cx("text-xs", l.personalizada ? "font-semibold text-accent" : "text-text-muted")}>
+                  {l.taxa.toFixed(2)}%
+                </span>
+              )}
               <span className="text-right font-semibold text-accent">{brl(l.parcela)}</span>
               <span className="text-right font-semibold text-text">{brl0(l.total)}</span>
             </div>
