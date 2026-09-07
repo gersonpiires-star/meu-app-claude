@@ -29,7 +29,14 @@ function ItemNotificacao({ item }: { item: NotificacaoRevendedor }) {
     item.tipo === "COMUNICADO" ? (
       <>
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold text-text">{item.titulo}</p>
+          <div className="flex items-center gap-1.5">
+            {item.categoria === "ATUALIZACAO" ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">
+                🚀 Atualização
+              </span>
+            ) : null}
+            <p className="text-sm font-semibold text-text">{item.titulo}</p>
+          </div>
           {!item.lido ? <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
         </div>
         <p className="mt-1 whitespace-pre-wrap text-xs text-text-muted">{item.mensagem}</p>

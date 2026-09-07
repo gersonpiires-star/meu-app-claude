@@ -54,6 +54,14 @@ enum DestinoAviso {
   CLIENTES_DO_SERVICO
 }
 
+// GERAL cobre os comunicados de sempre (cupom, dica de manual, aviso livre).
+// ATUALIZACAO marca especificamente uma novidade do sistema em si — recebe
+// selo próprio no sininho do revendedor, pra se distinguir de promoção/aviso.
+enum TipoAviso {
+  GERAL
+  ATUALIZACAO
+}
+
 enum TipoPagamento {
   ASSINATURA
   RENOVACAO
@@ -427,6 +435,7 @@ model Aviso {
   servico      Servico? @relation(fields: [servicoId], references: [id])
 
   destino  DestinoAviso
+  tipo     TipoAviso @default(GERAL)
   titulo   String
   mensagem String
   criadoEm DateTime @default(now())

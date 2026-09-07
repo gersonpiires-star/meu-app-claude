@@ -49,6 +49,7 @@ export default async function ComunicadosPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-text">{aviso.titulo}</p>
+                  {aviso.tipo === "ATUALIZACAO" ? <Badge tone="accent">🚀 Atualização</Badge> : null}
                   {aviso.revendedor ? (
                     <Badge tone="accent">Para {aviso.revendedor.nome}</Badge>
                   ) : (

@@ -126,6 +126,7 @@ const avisoSchema = z.object({
   titulo: z.string().trim().min(1, "Informe o título"),
   mensagem: z.string().trim().min(1, "Informe a mensagem"),
   destinatarioId: z.string().trim().optional(),
+  tipo: z.enum(["GERAL", "ATUALIZACAO"]).optional().default("GERAL"),
 });
 
 export async function publicarAviso(formData: FormData) {
@@ -134,8 +135,8 @@ export async function publicarAviso(formData: FormData) {
 
   await prisma.aviso.create({
     data: dados.destinatarioId
-      ? { destino: "UM_REVENDEDOR", revendedorId: dados.destinatarioId, titulo: dados.titulo, mensagem: dados.mensagem }
-      : { destino: "TODOS_REVENDEDORES", titulo: dados.titulo, mensagem: dados.mensagem },
+      ? { destino: "UM_REVENDEDOR", revendedorId: dados.destinatarioId, tipo: dados.tipo, titulo: dados.titulo, mensagem: dados.mensagem }
+      : { destino: "TODOS_REVENDEDORES", tipo: dados.tipo, titulo: dados.titulo, mensagem: dados.mensagem },
   });
 
   revalidatePath("/admin/comunicados");

@@ -1,7 +1,15 @@
 import { prisma } from "@/lib/prisma";
 
 export type NotificacaoRevendedor =
-  | { tipo: "COMUNICADO"; id: string; titulo: string; mensagem: string; criadoEm: Date; lido: boolean }
+  | {
+      tipo: "COMUNICADO";
+      id: string;
+      categoria: "GERAL" | "ATUALIZACAO";
+      titulo: string;
+      mensagem: string;
+      criadoEm: Date;
+      lido: boolean;
+    }
   | { tipo: "PAGAMENTO"; id: string; clienteId: string | null; clienteNome: string; valor: number; criadoEm: Date; lido: boolean };
 
 // Alimenta o sininho de notificação do painel do revendedor com dois tipos
@@ -33,6 +41,7 @@ export async function notificacoesParaRevendedor(revendedor: { id: string; aviso
     ...avisos.map((a): NotificacaoRevendedor => ({
       tipo: "COMUNICADO",
       id: a.id,
+      categoria: a.tipo,
       titulo: a.titulo,
       mensagem: a.mensagem,
       criadoEm: a.criadoEm,

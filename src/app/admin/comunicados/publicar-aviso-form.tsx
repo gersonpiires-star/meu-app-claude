@@ -49,12 +49,22 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
   const [titulo, setTitulo] = useState("");
   const [mensagem, setMensagem] = useState("");
 
+  const tipo = modeloSelecionado === "atualizacao" ? "ATUALIZACAO" : "GERAL";
+
   function aoEscolherModelo(valor: string) {
     setModeloSelecionado(valor);
     setCupomEscolhidoId("");
     if (valor === "manual") {
       setTitulo(MENSAGEM_MANUAL.titulo);
       setMensagem(MENSAGEM_MANUAL.mensagem);
+      return;
+    }
+    if (valor === "atualizacao") {
+      // Título já vem pronto — a mensagem descrevendo o que mudou é escrita
+      // na hora, específica de cada atualização (não dá pra ter um modelo
+      // fixo pra isso).
+      setTitulo("Atualização do GestorPro");
+      setMensagem("");
       return;
     }
     if (valor === "cupom") {
@@ -93,13 +103,21 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
     <Card>
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Publicar comunicado</p>
       <form action={publicarAviso} className="flex flex-col gap-3">
+        <input type="hidden" name="tipo" value={tipo} />
         <Field label="Modelos de mensagem — preencher automaticamente (opcional)">
           <Select value={modeloSelecionado} onChange={(e) => aoEscolherModelo(e.target.value)}>
             <option value="">Escrever mensagem livre</option>
+            <option value="atualizacao">Atualização do sistema</option>
             <option value="manual">Manual do usuário do GestorPro</option>
             <option value="cupom">Cupom de desconto</option>
           </Select>
         </Field>
+
+        {modeloSelecionado === "atualizacao" ? (
+          <p className="-mt-1 text-xs text-text-dim">
+            Recebe o selo &quot;Atualização&quot; no sininho de todo mundo — descreva abaixo o que mudou nessa versão.
+          </p>
+        ) : null}
 
         {precisaEscolherCupom ? (
           cupons.length > 0 ? (
