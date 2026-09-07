@@ -11,6 +11,14 @@ function formatarDesconto(cupom: CupomOpcao) {
   return cupom.tipo === "PERCENTUAL" ? `${cupom.valor}%` : `R$ ${cupom.valor.toFixed(2).replace(".", ",")}`;
 }
 
+// Mandando pra um revendedor específico, a mensagem chama pelo primeiro
+// nome — pra todo mundo, mantém o "Oi!" genérico de sempre.
+function saudacao(revendedorAlvo: Revendedor | null) {
+  if (!revendedorAlvo) return "Oi!";
+  const primeiroNome = revendedorAlvo.nome.trim().split(/\s+/)[0];
+  return `Oi, ${primeiroNome}!`;
+}
+
 // Quem ainda está em teste grátis nunca pagou pelo GestorPro — falar em
 // "renovar" pra essa pessoa não faz sentido (não tem o que renovar ainda).
 // Cupom restrito a um revendedor específico: olha o status dele de verdade.
@@ -19,6 +27,7 @@ function formatarDesconto(cupom: CupomOpcao) {
 function gerarMensagemCupom(cupom: CupomOpcao, revendedorAlvo: Revendedor | null) {
   const desconto = formatarDesconto(cupom);
   const titulo = "Você ganhou um cupom de desconto!";
+  const saud = saudacao(revendedorAlvo);
 
   if (revendedorAlvo) {
     const nuncaAssinou = revendedorAlvo.statusAssinatura === "TRIAL";
@@ -26,21 +35,22 @@ function gerarMensagemCupom(cupom: CupomOpcao, revendedorAlvo: Revendedor | null
     const contexto = nuncaAssinou ? "pra assinar o GestorPro" : "na sua próxima renovação do GestorPro";
     return {
       titulo,
-      mensagem: `Você recebeu um cupom de ${desconto} de desconto ${contexto}. Use o código ${cupom.codigo} na hora de ${acao} e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
+      mensagem: `${saud} Você recebeu um cupom de ${desconto} de desconto ${contexto}. Use o código ${cupom.codigo} na hora de ${acao} e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
     };
   }
 
   return {
     titulo,
-    mensagem: `Você recebeu um cupom de ${desconto} de desconto no GestorPro. Use o código ${cupom.codigo} na hora de assinar ou renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
+    mensagem: `${saud} Você recebeu um cupom de ${desconto} de desconto no GestorPro. Use o código ${cupom.codigo} na hora de assinar ou renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!`,
   };
 }
 
-const MENSAGEM_MANUAL = {
-  titulo: "Conheça o manual do GestorPro",
-  mensagem:
-    'Oi! O GestorPro tem um manual completo de uso, disponível direto no menu do app em "Manual do app" (no celular aparece como "Manual"). Qualquer dúvida, é só consultar por lá!',
-};
+function gerarMensagemManual(revendedorAlvo: Revendedor | null) {
+  return {
+    titulo: "Conheça o manual do GestorPro",
+    mensagem: `${saudacao(revendedorAlvo)} O GestorPro tem um manual completo de uso, disponível direto no menu do app em "Manual do app" (no celular aparece como "Manual"). Qualquer dúvida, é só consultar por lá!`,
+  };
+}
 
 export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Revendedor[]; cupons: CupomOpcao[] }) {
   const [destinatarioId, setDestinatarioId] = useState("");
@@ -51,12 +61,15 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
 
   const tipo = modeloSelecionado === "atualizacao" ? "ATUALIZACAO" : "GERAL";
 
+  const revendedorSelecionado = destinatarioId ? (revendedores.find((r) => r.id === destinatarioId) ?? null) : null;
+
   function aoEscolherModelo(valor: string) {
     setModeloSelecionado(valor);
     setCupomEscolhidoId("");
     if (valor === "manual") {
-      setTitulo(MENSAGEM_MANUAL.titulo);
-      setMensagem(MENSAGEM_MANUAL.mensagem);
+      const gerado = gerarMensagemManual(revendedorSelecionado);
+      setTitulo(gerado.titulo);
+      setMensagem(gerado.mensagem);
       return;
     }
     if (valor === "atualizacao") {
@@ -86,11 +99,38 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
       setMensagem("");
       return;
     }
-    const revendedorAlvo = cupom.revendedorId ? (revendedores.find((r) => r.id === cupom.revendedorId) ?? null) : null;
+    // Cupom restrito a um revendedor: a saudação é sempre dele. Cupom livre:
+    // respeita o destinatário já escolhido no seletor abaixo, se houver.
+    const revendedorAlvo = cupom.revendedorId
+      ? (revendedores.find((r) => r.id === cupom.revendedorId) ?? null)
+      : revendedorSelecionado;
     const gerado = gerarMensagemCupom(cupom, revendedorAlvo);
     setTitulo(gerado.titulo);
     setMensagem(gerado.mensagem);
     if (cupom.revendedorId) setDestinatarioId(cupom.revendedorId);
+  }
+
+  // Trocar o destinatário depois de já ter um modelo escolhido também deve
+  // atualizar a saudação da mensagem — sem isso, dava pra escolher "Cleiton"
+  // e continuar publicando com o "Oi!" genérico de antes.
+  function aoEscolherDestinatario(id: string) {
+    setDestinatarioId(id);
+    const revendedorAlvo = id ? (revendedores.find((r) => r.id === id) ?? null) : null;
+
+    if (modeloSelecionado === "manual") {
+      const gerado = gerarMensagemManual(revendedorAlvo);
+      setTitulo(gerado.titulo);
+      setMensagem(gerado.mensagem);
+      return;
+    }
+    if (modeloSelecionado === "cupom" && cupomEscolhidoId) {
+      const cupom = cupons.find((c) => c.id === cupomEscolhidoId);
+      if (cupom && !cupom.revendedorId) {
+        const gerado = gerarMensagemCupom(cupom, revendedorAlvo);
+        setTitulo(gerado.titulo);
+        setMensagem(gerado.mensagem);
+      }
+    }
   }
 
   // Só pode publicar se: não escolheu o modelo de cupom, ou escolheu e já
@@ -140,7 +180,7 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
         ) : null}
 
         <Field label="Destinatário">
-          <Select name="destinatarioId" value={destinatarioId} onChange={(e) => setDestinatarioId(e.target.value)}>
+          <Select name="destinatarioId" value={destinatarioId} onChange={(e) => aoEscolherDestinatario(e.target.value)}>
             <option value="">Todos os revendedores</option>
             {revendedores.map((r) => (
               <option key={r.id} value={r.id}>

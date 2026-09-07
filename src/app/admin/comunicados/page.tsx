@@ -10,7 +10,7 @@ export default async function ComunicadosPage() {
   const [avisos, revendedores, cupons] = await Promise.all([
     prisma.aviso.findMany({
       where: { destino: { in: ["TODOS_REVENDEDORES", "UM_REVENDEDOR"] } },
-      include: { revendedor: { select: { nome: true, email: true } } },
+      include: { revendedor: { select: { nome: true, email: true, avisosLidosAte: true } } },
       orderBy: { criadoEm: "desc" },
     }),
     prisma.revendedor.findMany({
@@ -51,7 +51,14 @@ export default async function ComunicadosPage() {
                   <p className="font-semibold text-text">{aviso.titulo}</p>
                   {aviso.tipo === "ATUALIZACAO" ? <Badge tone="accent">🚀 Atualização</Badge> : null}
                   {aviso.revendedor ? (
-                    <Badge tone="accent">Para {aviso.revendedor.nome}</Badge>
+                    <>
+                      <Badge tone="accent">Para {aviso.revendedor.nome}</Badge>
+                      {aviso.revendedor.avisosLidosAte && aviso.revendedor.avisosLidosAte >= aviso.criadoEm ? (
+                        <Badge tone="success">✓ Visto</Badge>
+                      ) : (
+                        <Badge tone="neutral">Ainda não visto</Badge>
+                      )}
+                    </>
                   ) : (
                     <Badge tone="neutral">Para todos</Badge>
                   )}
