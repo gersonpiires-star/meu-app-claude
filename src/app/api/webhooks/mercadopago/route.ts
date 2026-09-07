@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { calcularVencimento } from "@/lib/planos";
 import { planoDosMeses } from "@/lib/planos-assinatura";
+import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
             plano: pagamento.plano as PlanoCliente,
             valor: pagamento.valor,
             custo: pagamento.custo,
+            snapshotAnterior: snapshotDoCliente(cliente),
           },
         });
         await tx.cliente.update({

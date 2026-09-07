@@ -343,6 +343,14 @@ model Renovacao {
   valor     Float
   custo     Float    @default(0)
   data      DateTime @default(now())
+
+  // Estado do cliente (plano/valorPlano/vencimento/status/testeGratis) logo
+  // antes desta renovação ser aplicada — guardado só pra permitir desfazer
+  // um lançamento errado (ex: renovou o cliente errado sem querer) com
+  // segurança, restaurando o cliente pro estado exato de antes em vez de
+  // tentar recalcular a data na mão. Renovações de antes dessa coluna
+  // existir ficam sem esse snapshot e por isso não podem ser desfeitas.
+  snapshotAnterior Json?
 }
 
 model Produto {

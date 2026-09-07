@@ -9,6 +9,7 @@ import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from 
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { brl, parseDataBr } from "@/lib/format";
+import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
@@ -192,7 +193,7 @@ export async function renovarCliente(
 
   await prisma.$transaction([
     prisma.renovacao.create({
-      data: { clienteId: id, plano, valor, custo },
+      data: { clienteId: id, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
     }),
     prisma.cliente.update({
       where: { id },
@@ -209,6 +210,64 @@ export async function renovarCliente(
   await registrarLog(revendedor.id, "cliente.renovar", `Renovou o plano de ${cliente.nome} (${PLANO_LABEL[plano]}, ${brl(valor)})`);
 
   revalidatePath(`/clientes/${id}`);
+  revalidatePath("/clientes");
+  revalidatePath("/painel");
+  revalidatePath("/relatorio");
+  return { ok: true };
+}
+
+// Desfaz uma renovação lançada errada (ex: renovou o cliente errado sem
+// querer) — só permite excluir a MAIS RECENTE do cliente, senão o cliente
+// já teria outra renovação em cima dela e restaurar o snapshot bagunçaria
+// essa renovação seguinte. O cliente volta pro estado exato de antes
+// (plano, valor, vencimento, status) guardado no momento da renovação —
+// renovações de antes dessa trava existir não têm esse retrato e por isso
+// não podem ser desfeitas.
+export async function excluirRenovacao(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirRevendedor();
+
+  const renovacao = await prisma.renovacao.findUnique({
+    where: { id },
+    include: { cliente: true },
+  });
+  if (!renovacao || renovacao.cliente.revendedorId !== revendedor.id) {
+    return { ok: false, erro: "Renovação não encontrada." };
+  }
+
+  const maisRecente = await prisma.renovacao.findFirst({
+    where: { clienteId: renovacao.clienteId },
+    orderBy: { data: "desc" },
+  });
+  if (maisRecente?.id !== renovacao.id) {
+    return { ok: false, erro: "Só dá pra excluir a renovação mais recente desse cliente." };
+  }
+
+  const snapshot = snapshotClienteSchema.safeParse(renovacao.snapshotAnterior);
+  if (!snapshot.success) {
+    return { ok: false, erro: "Essa renovação é antiga demais e não guarda o estado anterior — não dá pra desfazer com segurança." };
+  }
+
+  await prisma.$transaction([
+    prisma.renovacao.delete({ where: { id } }),
+    prisma.cliente.update({
+      where: { id: renovacao.clienteId },
+      data: {
+        plano: snapshot.data.plano,
+        valorPlano: snapshot.data.valorPlano,
+        vencimento: new Date(snapshot.data.vencimento),
+        status: snapshot.data.status,
+        testeGratis: snapshot.data.testeGratis,
+      },
+    }),
+  ]);
+
+  await registrarLog(
+    revendedor.id,
+    "cliente.excluir_renovacao",
+    `Excluiu uma renovação lançada por engano de ${renovacao.cliente.nome} (${PLANO_LABEL[renovacao.plano]}, ${brl(renovacao.valor)})`
+  );
+
+  revalidatePath(`/clientes/${renovacao.clienteId}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");

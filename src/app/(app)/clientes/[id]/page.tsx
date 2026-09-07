@@ -13,6 +13,7 @@ import { ReajusteForm } from "./reajuste-form";
 import { RenovarForm } from "./renovar-form";
 import { CancelarForm } from "./cancelar-form";
 import { ExcluirBotao } from "./excluir-botao";
+import { ExcluirRenovacaoBotao } from "./excluir-renovacao-botao";
 import { CorrigirVencimento } from "./corrigir-vencimento";
 import { ConverterTesteBotao } from "./converter-teste-botao";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
@@ -148,13 +149,23 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
     ? `✓ ${PLANO_LABEL[cliente.renovacoes[0].plano]} · última em ${dataCurta(cliente.renovacoes[0].data)}`
     : "Nenhuma renovação registrada";
 
+  // Só a renovação mais recente pode ser desfeita (senão bagunçaria uma
+  // renovação seguinte já feita em cima dela) — e só se ela guardou o
+  // retrato de antes (renovações de antes dessa trava existir não têm).
+  const renovacaoMaisRecente = cliente.renovacoes[0];
+  const podeExcluirRenovacao = renovacaoMaisRecente?.snapshotAnterior != null;
+
   const historico = [
-    ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom, href: null as string | null })),
-    ...cliente.renovacoes
-      .slice(0, 6)
-      .map((r) => ({ label: `Renovado — ${PLANO_LABEL[r.plano]}`, data: dataHora(r.data), tom: "success" as Tom, href: `/api/renovacoes/${r.id}/recibo` })),
-    ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom, href: null as string | null })),
-    { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom, href: null as string | null },
+    ...cobrancasHoje.map((c) => ({ label: `Cobrança enviada (${c.modelo.toLowerCase()})`, data: horaCurta(c.criadoEm), tom: "warning" as Tom, href: null as string | null, excluirId: null as string | null })),
+    ...cliente.renovacoes.slice(0, 6).map((r) => ({
+      label: `Renovado — ${PLANO_LABEL[r.plano]}`,
+      data: dataHora(r.data),
+      tom: "success" as Tom,
+      href: `/api/renovacoes/${r.id}/recibo`,
+      excluirId: r.id === renovacaoMaisRecente.id && podeExcluirRenovacao ? r.id : null,
+    })),
+    ...pendentes.map((p) => ({ label: p, data: "FALTA", tom: "danger" as Tom, href: null as string | null, excluirId: null as string | null })),
+    { label: "Cadastro do cliente", data: dataCurta(cliente.criadoEm), tom: "neutral" as Tom, href: null as string | null, excluirId: null as string | null },
   ];
 
   const dadosMensagem = {
@@ -411,6 +422,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
                   className="shrink-0"
                 />
               ) : null}
+              {h.excluirId ? <ExcluirRenovacaoBotao id={h.excluirId} /> : null}
               <span className="shrink-0 text-xs text-text-dim">{h.data}</span>
             </div>
           ))}

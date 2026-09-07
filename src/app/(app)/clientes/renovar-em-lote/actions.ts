@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
 import { PLANO_MESES, calcularVencimentoComDiaFixo } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
+import { snapshotDoCliente } from "@/lib/renovacao";
 
 class SemCreditoError extends Error {}
 
@@ -35,7 +36,7 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
         const custo = PLANO_MESES[cliente.plano] * (cliente.servico?.custoCredito ?? 0);
 
         await tx.renovacao.create({
-          data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo },
+          data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo, snapshotAnterior: snapshotDoCliente(cliente) },
         });
         await tx.cliente.update({
           where: { id },
