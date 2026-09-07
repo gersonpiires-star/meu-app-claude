@@ -39,19 +39,58 @@ def y(top, page_h):
     return page_h - top
 
 
+IMG_TOPO = "scripts/manual-assinatura-topo.png"
+COR_BORDA = Color(0.8588, 0.9059, 0.902)
+
+
 def overlay_pagina22(page_w, page_h):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=(page_w, page_h))
 
-    # 1) Apaga o bullet "Anual" (top 558.9–568.2) e tudo abaixo dele até o
-    # fim da caixa de nota (top ~615–660), pra redesenhar deslocado.
+    # 1) Apaga tudo a partir do rodapé da barra de título do print (top 192,
+    # que fica igual) até o fim da caixa de nota original (top ~662): o print
+    # inteiro, a borda do frame, "Planos"/"Mensal"/"Anual", o bullet do Pix e
+    # a caixa de nota — tudo isso é redesenhado deslocado pra cima abaixo.
     c.setFillColor(white)
-    c.rect(0, y(662, page_h), page_w, 662 - 555, fill=1, stroke=0)
+    c.rect(0, y(662, page_h), page_w, 662 - 192, fill=1, stroke=0)
 
-    DESLOC = 577.7 - 558.9  # 18.8pt — sobe o conteúdo abaixo do bullet removido
+    # 2) Redesenha o print cortado (sem os cards de preço) na mesma largura e
+    # posição X do original, só mais baixo. A imagem fonte já foi recortada
+    # (scripts/manual-assinatura-topo.png, 1440x440 dos 1440x900 originais)
+    # mantendo a largura cheia, então a altura em pt escala na mesma proporção.
+    img_x, img_top, img_w = 45.75, 192.0, 503.25
+    img_h = img_w * (440 / 1440)
+    img_bottom = img_top + img_h
+    c.drawImage(IMG_TOPO, img_x, y(img_bottom, page_h), width=img_w, height=img_h, preserveAspectRatio=False, mask="auto")
 
-    # 2) Redesenha "› Pagamento via Pix (...) com o" + "suporte." uma linha
-    # acima de onde estavam, exatamente na posição que o bullet "Anual" tinha.
+    # 3) Redesenha o contorno do frame (mesmo topo, unido ao topo já existente
+    # da barra de título) terminando agora no novo rodapé, mais curto.
+    borda_bottom = img_bottom + 0.37
+    c.setStrokeColor(COR_BORDA)
+    c.setLineWidth(0.75)
+    c.rect(45.37, y(borda_bottom, page_h), 549.37 - 45.37, borda_bottom - 175.12, fill=0, stroke=1)
+
+    DESLOC_IMG = 506.62 - borda_bottom  # ~160.5pt — sobe tudo que dependia da altura do print
+    DESLOC_BULLET = 577.7 - 558.9  # 18.8pt — sobe o que ficava abaixo do bullet "Anual" removido
+
+    # 4) "Planos" e o bullet "Mensal" só dependem do corte do print.
+    c.setFont(FONT_BOLD, 10.5)
+    c.setFillColor(COR_LABEL)
+    c.drawString(45.4, y(522.7 - DESLOC_IMG, page_h), "Planos")
+
+    c.setFont(FONT_BOLD, 9.3)
+    c.setFillColor(COR_ACCENT)
+    c.drawString(45.4, y(539.4 - DESLOC_IMG, page_h), "›")
+    c.setFillColor(COR_LABEL)
+    c.drawString(56.7, y(539.4 - DESLOC_IMG, page_h), "Mensal")
+    largura_mensal = c.stringWidth("Mensal ", FONT_BOLD, 9.3)
+    c.setFont(FONT, 9.3)
+    c.setFillColor(COR_CORPO)
+    c.drawString(56.7 + largura_mensal, y(539.4 - DESLOC_IMG, page_h), "— cobrança recorrente todo mês, cancele quando quiser.")
+
+    # 5) O bullet "Anual" continua removido — o que vinha depois dele soma os
+    # dois deslocamentos (corte do print + fechamento do espaço do bullet).
+    DESLOC = DESLOC_IMG + DESLOC_BULLET
     c.setFont(FONT_BOLD, 9.3)
     c.setFillColor(COR_ACCENT)
     c.drawString(45.4, y(577.7 - DESLOC + 8.5, page_h), "›")
@@ -64,7 +103,7 @@ def overlay_pagina22(page_w, page_h):
     )
     c.drawString(56.7, y(591.2 - DESLOC + 8.5, page_h), "suporte.")
 
-    # 3) Redesenha a caixa de nota, deslocada pra cima em DESLOC.
+    # 6) Redesenha a caixa de nota, deslocada pra cima em DESLOC.
     # roundRect usa (x, y, width, height) com y = canto inferior esquerdo.
     box_top = 617.2 - DESLOC
     box_bottom = 657.7 - DESLOC
