@@ -8,11 +8,43 @@ export type ItemRenovacao = { id: string; nome: string; sub: string; liquido: nu
 export type GrupoRenovacao = { servico: string; qtd: number; meses: number; bruto: number; custo: number; itens: ItemRenovacao[] };
 
 type AcaoEditar = (renovacaoId: string, formData: FormData) => Promise<{ ok: true } | { ok: false; erro: string }>;
+type AcaoExcluir = (renovacaoId: string) => Promise<{ ok: true; restaurado: boolean } | { ok: false; erro: string }>;
 
-function ItemLinha({ item, acao, podeEditar }: { item: ItemRenovacao; acao?: AcaoEditar; podeEditar: boolean }) {
+function ItemLinha({
+  item,
+  acao,
+  acaoExcluir,
+  podeEditar,
+}: {
+  item: ItemRenovacao;
+  acao?: AcaoEditar;
+  acaoExcluir?: AcaoExcluir;
+  podeEditar: boolean;
+}) {
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
+  const [pendenteExcluir, iniciarTransicaoExcluir] = useTransition();
+
+  function excluir() {
+    if (!acaoExcluir) return;
+    if (
+      !confirm(
+        "Excluir essa renovação? Se for a mais recente do cliente, ele volta pro plano/valor/vencimento de antes dela e o crédito usado volta pra plataforma. Caso contrário, só o registro é removido (sem mexer na data de vencimento). Essa ação não pode ser desfeita."
+      )
+    ) {
+      return;
+    }
+    setErro(null);
+    iniciarTransicaoExcluir(async () => {
+      const resultado = await acaoExcluir(item.id);
+      if (!resultado.ok) {
+        setErro(resultado.erro);
+      } else if (!resultado.restaurado) {
+        alert("Renovação excluída. O vencimento do cliente NÃO foi ajustado automaticamente — confira e corrija se precisar.");
+      }
+    });
+  }
 
   if (editando && acao) {
     return (
@@ -53,24 +85,37 @@ function ItemLinha({ item, acao, podeEditar }: { item: ItemRenovacao; acao?: Aca
   }
 
   return (
-    <div className="flex items-center gap-3 py-2">
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-text">{item.nome}</span>
-        <span className="block text-[11px] text-text-dim">{item.sub}</span>
-      </span>
-      <span className="flex shrink-0 flex-col items-end gap-0.5">
-        <span className="text-sm font-semibold text-accent">{brl(item.liquido)}</span>
-        <span className="text-[11px] text-danger">− {brl(item.custo)}</span>
-      </span>
-      {podeEditar && acao ? (
-        <button
-          type="button"
-          onClick={() => setEditando(true)}
-          className="shrink-0 text-[11px] font-semibold text-text-dim hover:text-accent"
-        >
-          Editar
-        </button>
-      ) : null}
+    <div className="flex flex-col gap-1 py-2">
+      <div className="flex items-center gap-3">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-text">{item.nome}</span>
+          <span className="block text-[11px] text-text-dim">{item.sub}</span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-0.5">
+          <span className="text-sm font-semibold text-accent">{brl(item.liquido)}</span>
+          <span className="text-[11px] text-danger">− {brl(item.custo)}</span>
+        </span>
+        {podeEditar && acao ? (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="shrink-0 text-[11px] font-semibold text-text-dim hover:text-accent"
+          >
+            Editar
+          </button>
+        ) : null}
+        {podeEditar && acaoExcluir ? (
+          <button
+            type="button"
+            disabled={pendenteExcluir}
+            onClick={excluir}
+            className="shrink-0 text-[11px] font-semibold text-danger hover:underline disabled:opacity-50"
+          >
+            {pendenteExcluir ? "Excluindo…" : "Excluir"}
+          </button>
+        ) : null}
+      </div>
+      {erro ? <p className="text-right text-[11px] font-semibold text-danger">{erro}</p> : null}
     </div>
   );
 }
@@ -78,10 +123,12 @@ function ItemLinha({ item, acao, podeEditar }: { item: ItemRenovacao; acao?: Aca
 export function RenovacoesPorServico({
   grupos,
   acao,
+  acaoExcluir,
   podeEditar = false,
 }: {
   grupos: GrupoRenovacao[];
   acao?: AcaoEditar;
+  acaoExcluir?: AcaoExcluir;
   podeEditar?: boolean;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
@@ -115,7 +162,7 @@ export function RenovacoesPorServico({
             {expandido ? (
               <div className="flex flex-col divide-y divide-border px-4 pb-3">
                 {g.itens.map((item) => (
-                  <ItemLinha key={item.id} item={item} acao={acao} podeEditar={podeEditar} />
+                  <ItemLinha key={item.id} item={item} acao={acao} acaoExcluir={acaoExcluir} podeEditar={podeEditar} />
                 ))}
               </div>
             ) : null}

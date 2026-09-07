@@ -11,6 +11,7 @@ import { CalendarioMes } from "./calendario-mes";
 import { RenovacoesPorServico, type GrupoRenovacao } from "./renovacoes-por-servico";
 import { VendasDetalhadas, type VendaDetalhe } from "./vendas-detalhadas";
 import { editarRenovacao, editarVenda } from "./actions";
+import { excluirRenovacao } from "../clientes/actions";
 
 const MESES_NOME = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -118,7 +119,7 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Renovações do mês · por serviço</h2>
-        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} podeEditar={!ehFuncionario} />
+        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} acaoExcluir={excluirRenovacao} podeEditar={!ehFuncionario} />
       </Card>
 
       <Card>

@@ -24,37 +24,51 @@ const MENSAGEM_MANUAL = {
     'Oi! O GestorPro tem um manual completo de uso, disponível direto no menu do app em "Manual do app" (no celular aparece como "Manual"). Qualquer dúvida, é só consultar por lá!',
 };
 
-const MENSAGEM_CUPOM_GENERICO = {
-  titulo: "Você ganhou um cupom de desconto!",
-  mensagem:
-    "Você recebeu um cupom de desconto na sua próxima renovação do GestorPro. Use o código [CÓDIGO] na hora de renovar sua assinatura e garanta o benefício antes que ele expire. Qualquer dúvida, estamos à disposição!",
-};
-
 export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Revendedor[]; cupons: CupomOpcao[] }) {
   const [destinatarioId, setDestinatarioId] = useState("");
   const [modeloSelecionado, setModeloSelecionado] = useState("");
+  const [cupomEscolhidoId, setCupomEscolhidoId] = useState("");
   const [titulo, setTitulo] = useState("");
   const [mensagem, setMensagem] = useState("");
 
   function aoEscolherModelo(valor: string) {
     setModeloSelecionado(valor);
+    setCupomEscolhidoId("");
     if (valor === "manual") {
       setTitulo(MENSAGEM_MANUAL.titulo);
       setMensagem(MENSAGEM_MANUAL.mensagem);
       return;
     }
-    if (valor === "cupom-generico") {
-      setTitulo(MENSAGEM_CUPOM_GENERICO.titulo);
-      setMensagem(MENSAGEM_CUPOM_GENERICO.mensagem);
+    if (valor === "cupom") {
+      // Espera a escolha do cupom específico no seletor que aparece abaixo —
+      // limpa o título/mensagem até lá pra não publicar com código nenhum.
+      setTitulo("");
+      setMensagem("");
       return;
     }
-    const cupom = cupons.find((c) => c.id === valor);
-    if (!cupom) return;
+    setTitulo("");
+    setMensagem("");
+  }
+
+  function aoEscolherCupom(cupomId: string) {
+    setCupomEscolhidoId(cupomId);
+    const cupom = cupons.find((c) => c.id === cupomId);
+    if (!cupom) {
+      setTitulo("");
+      setMensagem("");
+      return;
+    }
     const gerado = gerarMensagemCupom(cupom);
     setTitulo(gerado.titulo);
     setMensagem(gerado.mensagem);
     if (cupom.revendedorId) setDestinatarioId(cupom.revendedorId);
   }
+
+  // Só pode publicar se: não escolheu o modelo de cupom, ou escolheu e já
+  // selecionou um cupom específico dos disponíveis (nunca com o código em
+  // branco). Sem nenhum cupom cadastrado, o fluxo de cupom fica travado.
+  const precisaEscolherCupom = modeloSelecionado === "cupom";
+  const publicarDesabilitado = precisaEscolherCupom && (cupons.length === 0 || !cupomEscolhidoId);
 
   return (
     <Card>
@@ -64,19 +78,30 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
           <Select value={modeloSelecionado} onChange={(e) => aoEscolherModelo(e.target.value)}>
             <option value="">Escrever mensagem livre</option>
             <option value="manual">Manual do usuário do GestorPro</option>
-            <option value="cupom-generico">Cupom de desconto</option>
-            {cupons.length > 0 ? (
-              <optgroup label="Cupons cadastrados">
+            <option value="cupom">Cupom de desconto</option>
+          </Select>
+        </Field>
+
+        {precisaEscolherCupom ? (
+          cupons.length > 0 ? (
+            <Field label="Selecione o cupom">
+              <Select value={cupomEscolhidoId} onChange={(e) => aoEscolherCupom(e.target.value)}>
+                <option value="">Escolha um cupom disponível…</option>
                 {cupons.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.codigo} — {formatarDesconto(c)}
                     {c.revendedorId ? " (restrito a um revendedor)" : ""}
                   </option>
                 ))}
-              </optgroup>
-            ) : null}
-          </Select>
-        </Field>
+              </Select>
+            </Field>
+          ) : (
+            <p className="-mt-1 text-xs font-semibold text-warning">
+              Nenhum cupom cadastrado ainda — crie um em Cupons antes de publicar esse comunicado.
+            </p>
+          )
+        ) : null}
+
         <Field label="Destinatário">
           <Select name="destinatarioId" value={destinatarioId} onChange={(e) => setDestinatarioId(e.target.value)}>
             <option value="">Todos os revendedores</option>
@@ -93,7 +118,7 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
         <Field label="Mensagem">
           <Textarea name="mensagem" value={mensagem} onChange={(e) => setMensagem(e.target.value)} required />
         </Field>
-        <Button type="submit" className="w-full">
+        <Button type="submit" disabled={publicarDesabilitado} className="w-full">
           Publicar
         </Button>
       </form>
