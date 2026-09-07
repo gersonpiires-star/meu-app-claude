@@ -147,3 +147,9 @@ export async function excluirAviso(id: string) {
   await prisma.aviso.delete({ where: { id, destino: { in: ["TODOS_REVENDEDORES", "UM_REVENDEDOR"] } } });
   revalidatePath("/admin/comunicados");
 }
+
+export async function marcarSugestaoLida(id: string) {
+  await exigirAdmin();
+  await prisma.sugestao.update({ where: { id }, data: { lida: true } });
+  revalidatePath("/admin");
+}

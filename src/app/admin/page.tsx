@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
+import { prisma } from "@/lib/prisma";
 import { dadosAdmin, dadosCrescimento } from "@/lib/dados-admin";
 import { brl0, dataCurta } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, StatTile } from "@/components/ui";
+import { MarcarSugestaoLidaBotao } from "./marcar-sugestao-lida-botao";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -13,7 +15,15 @@ const MESES = [
 
 export default async function AdminPainelPage() {
   await exigirAdmin();
-  const [dados, crescimento] = await Promise.all([dadosAdmin(), dadosCrescimento()]);
+  const [dados, crescimento, sugestoes] = await Promise.all([
+    dadosAdmin(),
+    dadosCrescimento(),
+    prisma.sugestao.findMany({
+      include: { revendedor: { select: { nome: true, email: true } } },
+      orderBy: { criadoEm: "desc" },
+      take: 20,
+    }),
+  ]);
   const mrr = dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
   const arr = mrr * 12;
 
@@ -75,6 +85,37 @@ export default async function AdminPainelPage() {
         <StatTile label="Ativos" value={String(dados.ativos)} tone="accent" />
         <StatTile label="Pausados" value={String(dados.pausados)} tone="warning" />
       </div>
+
+      {sugestoes.length > 0 ? (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Sugestões dos usuários</h2>
+            {sugestoes.some((s) => !s.lida) ? (
+              <Badge tone="warning">{sugestoes.filter((s) => !s.lida).length} nova{sugestoes.filter((s) => !s.lida).length === 1 ? "" : "s"}</Badge>
+            ) : null}
+          </div>
+          <div className="flex flex-col divide-y divide-border">
+            {sugestoes.map((s) => (
+              <div key={s.id} className="flex items-start justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-text">{s.revendedor.nome}</p>
+                    {s.lida ? null : <Badge tone="accent">Não lida</Badge>}
+                  </div>
+                  <p className="text-xs text-text-dim">{s.revendedor.email}</p>
+                  <p className="mt-1 text-sm text-text">{s.mensagem}</p>
+                  <p className="mt-1 text-xs text-text-dim">{dataCurta(s.criadoEm)}</p>
+                </div>
+                {s.lida ? null : (
+                  <div className="shrink-0">
+                    <MarcarSugestaoLidaBotao id={s.id} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {dados.trialsVencendo.length > 0 ? (
         <Card>

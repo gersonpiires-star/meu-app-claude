@@ -99,3 +99,16 @@ export async function salvarSuspensaoAutomatica(formData: FormData) {
 
   revalidatePath("/configuracoes");
 }
+
+export async function enviarSugestao(formData: FormData): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirRevendedor();
+  const mensagem = String(formData.get("mensagem") ?? "").trim();
+  if (mensagem.length < 5) return { ok: false, erro: "Escreva um pouco mais pra gente entender a sugestão." };
+
+  await prisma.sugestao.create({ data: { revendedorId: revendedor.id, mensagem } });
+
+  await registrarLog(revendedor.id, "config.enviar_sugestao", "Enviou uma sugestão pro time do GestorPro");
+
+  revalidatePath("/admin");
+  return { ok: true };
+}

@@ -10,6 +10,7 @@ import { BackupForm } from "./backup-form";
 import { NotificacoesPush } from "./notificacoes-push";
 import { LinkIndicacao } from "./link-indicacao";
 import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
+import { SugestaoForm } from "./sugestao-form";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -177,6 +178,12 @@ export default async function ConfiguracoesPage() {
           <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
         </Card>
       )}
+
+      <Card>
+        <h2 className="mb-1 text-sm font-bold text-text">Sugestões pro time do GestorPro</h2>
+        <p className="mb-3 text-sm text-text-dim">Tem alguma dica de melhoria ou ajuste que faria diferença no seu dia a dia? Conta pra gente.</p>
+        <SugestaoForm />
+      </Card>
 
       {ehFuncionario ? null : (
         <Card>

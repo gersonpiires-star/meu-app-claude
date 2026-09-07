@@ -141,6 +141,7 @@ model Revendedor {
   notificacoesPagamento NotificacaoPagamento[]
   importacoesAntigas ImportacaoAntiga[]
   cuponsRestritos Cupom[]
+  sugestoes       Sugestao[]
 }
 
 // Marca cada arquivo de backup do app antigo já importado (pelo hash do
@@ -428,6 +429,19 @@ model Aviso {
   destino  DestinoAviso
   titulo   String
   mensagem String
+  criadoEm DateTime @default(now())
+}
+
+// Canal na direção contrária do Aviso: o revendedor manda uma dica/sugestão
+// pra Administração GestorPro (não pro cliente dele) — aparece no Painel do
+// administrador com o nome de quem mandou e a mensagem.
+model Sugestao {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
+  mensagem String
+  lida     Boolean  @default(false)
   criadoEm DateTime @default(now())
 }
 
