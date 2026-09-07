@@ -33,6 +33,7 @@ const clienteSchema = z.object({
   testeGratis: z.coerce.boolean().default(false),
   anotacao: z.string().trim().optional(),
   indicadoPorId: z.string().trim().optional(),
+  interessadoId: z.string().trim().optional(),
 });
 
 function parseDiaFixo(texto?: string): number | null {
@@ -87,6 +88,17 @@ export async function criarCliente(formData: FormData) {
   });
 
   await registrarLog(revendedor.id, "cliente.criar", `Cadastrou o cliente ${cliente.nome}`);
+
+  // Só marca o interessado como convertido depois que o cliente realmente
+  // foi salvo — se o revendedor abrir "Virou cliente" e desistir sem
+  // preencher/enviar o formulário, o lead continua aparecendo em
+  // Interessados em vez de sumir sem nunca ter virado cliente de verdade.
+  if (dados.interessadoId) {
+    await prisma.interessadoCliente.updateMany({
+      where: { id: dados.interessadoId, revendedorId: revendedor.id },
+      data: { convertido: true },
+    });
+  }
 
   revalidatePath("/clientes");
   revalidatePath("/painel");

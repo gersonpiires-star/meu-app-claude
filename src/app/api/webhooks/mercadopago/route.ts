@@ -145,6 +145,15 @@ export async function POST(request: Request) {
         },
       });
 
+      // Receita que de fato entra pra Administração GestorPro — o Mercado
+      // Pago desconta a taxa dele antes de repassar. net_received_amount é
+      // o valor líquido que a própria API do MP devolve pra esse pagamento;
+      // sem ele (ou transaction_amount), cai pro preço cheio cobrado do
+      // revendedor em vez de quebrar a aprovação por causa disso.
+      const valorLiquido =
+        pagamentoMP.transaction_details?.net_received_amount ?? pagamentoMP.transaction_amount ?? pagamento.valor;
+      await tx.pagamento.update({ where: { id: pagamento.id }, data: { valorLiquido } });
+
       // Só conta o uso do cupom quando o pagamento realmente aprova — um
       // checkout abandonado não deveria consumir o limite de usos.
       if (pagamento.cupomId) {

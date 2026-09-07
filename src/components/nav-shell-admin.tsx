@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SairButton } from "@/components/sair-button";
@@ -8,13 +9,39 @@ import { cx } from "@/components/ui";
 
 const ITENS = [
   { href: "/admin", label: "Painel" },
-  { href: "/admin/assinantes", label: "Assinantes" },
+  {
+    href: "/admin/assinantes",
+    label: "Assinantes",
+    sub: [
+      { aba: "assinantes", label: "Ativos" },
+      { aba: "trial", label: "Em trial" },
+      { aba: "pausados", label: "Pausados" },
+      { aba: "cancelados", label: "Cancelados" },
+      { aba: "todos", label: "Todos" },
+    ],
+  },
+  { href: "/admin/cupons", label: "Cupons" },
   { href: "/admin/interessados", label: "Interessados" },
   { href: "/admin/comunicados", label: "Comunicados" },
 ];
 
+function ChevronIcon({ aberto }: { aberto: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      className={cx("h-3.5 w-3.5 shrink-0 transition-transform", aberto ? "rotate-180" : "")}
+    >
+      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function NavShellAdmin({ nome, children }: { nome: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const [expandido, setExpandido] = useState<string | null>(
+    ITENS.find((item) => item.sub && pathname === item.href)?.href ?? null
+  );
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
@@ -27,18 +54,61 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
-          {ITENS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cx(
-                "rounded-lg px-3 py-2 text-sm font-medium transition",
-                pathname === item.href ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {ITENS.map((item) => {
+            const ativo = pathname === item.href;
+            const estaAberto = item.sub ? expandido === item.href || ativo : false;
+
+            if (!item.sub) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cx(
+                    "rounded-lg px-3 py-2 text-sm font-medium transition",
+                    ativo ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+
+            return (
+              <div key={item.href}>
+                <div
+                  className={cx(
+                    "flex items-center gap-1 rounded-lg pr-2 text-sm font-medium transition",
+                    ativo ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
+                  )}
+                >
+                  <Link href={item.href} className="flex-1 px-3 py-2">
+                    {item.label}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setExpandido(estaAberto ? null : item.href)}
+                    aria-label={estaAberto ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+                    className="p-1"
+                  >
+                    <ChevronIcon aberto={estaAberto} />
+                  </button>
+                </div>
+                {estaAberto ? (
+                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
+                    {item.sub.map((s) => (
+                      <Link
+                        key={s.aba}
+                        href={`${item.href}?aba=${s.aba}`}
+                        className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-dim transition hover:text-text"
+                      >
+                        {s.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </nav>
         <Link
           href="/painel"

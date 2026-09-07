@@ -8,7 +8,7 @@ import { criarCliente } from "../actions";
 export default async function NovoClientePage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string; whatsapp?: string; servico?: string }>;
+  searchParams: Promise<{ nome?: string; whatsapp?: string; servico?: string; interessadoId?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
   const [servicos, clientes, params] = await Promise.all([
@@ -36,6 +36,7 @@ export default async function NovoClientePage({
           servicosExistentes={servicos.map((s) => s.nome)}
           clientesParaIndicacao={clientes}
           valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servico: params.servico }}
+          interessadoId={params.interessadoId}
         />
       </Card>
     </div>

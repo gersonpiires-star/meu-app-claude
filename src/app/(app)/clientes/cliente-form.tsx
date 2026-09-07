@@ -27,12 +27,14 @@ export function ClienteForm({
   servicosExistentes,
   clientesParaIndicacao = [],
   textoBotao = "Salvar cliente",
+  interessadoId,
 }: {
   acao: (formData: FormData) => Promise<void>;
   valoresIniciais?: ValoresIniciais;
   servicosExistentes: string[];
   clientesParaIndicacao?: { id: string; nome: string }[];
   textoBotao?: string;
+  interessadoId?: string;
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
   const [valor, setValor] = useState<number>(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
@@ -43,6 +45,7 @@ export function ClienteForm({
       className="flex flex-col gap-4"
       action={(formData) => iniciarTransicao(() => acao(formData))}
     >
+      {interessadoId ? <input type="hidden" name="interessadoId" value={interessadoId} /> : null}
       <Field label="Nome">
         <Input name="nome" defaultValue={valoresIniciais?.nome} required />
       </Field>

@@ -29,12 +29,18 @@ export function precoAVista(custo: number, margemPct: number): number {
   return custo / (1 - margem);
 }
 
-export function tabelaParcelado(precoBase: number, prazo: Prazo = 0, maxParcelas = 12) {
+export function tabelaParcelado(
+  precoBase: number,
+  prazo: Prazo = 0,
+  maxParcelas = 12,
+  taxasPersonalizadas?: Record<number, number> | null
+) {
   const linhas = [];
   for (let n = 1; n <= maxParcelas; n++) {
-    const taxa = taxaSugerida(n, prazo);
+    const personalizada = taxasPersonalizadas?.[n];
+    const taxa = personalizada ?? taxaSugerida(n, prazo);
     const total = precoBase / (1 - taxa / 100);
-    linhas.push({ parcelas: n, taxa, total, parcela: total / n });
+    linhas.push({ parcelas: n, taxa, total, parcela: total / n, personalizada: personalizada != null });
   }
   return linhas;
 }

@@ -23,6 +23,31 @@ export async function criarPlataforma(formData: FormData) {
   revalidatePath("/plataformas");
 }
 
+// Só deixa excluir uma plataforma lançada errada — se algum app dela já tem
+// cliente usando, bloqueia (o cliente ficaria sem controle de crédito) em
+// vez de apagar silenciosamente. Os lotes de compra somem junto (cascade no
+// schema); os apps ficam sem plataforma vinculada em vez de serem apagados.
+export async function excluirPlataforma(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirDono();
+  const plataforma = await prisma.plataforma.findUnique({
+    where: { id, revendedorId: revendedor.id },
+    include: { servicos: { include: { _count: { select: { clientes: true } } } } },
+  });
+  if (!plataforma) return { ok: false, erro: "Plataforma não encontrada." };
+
+  const totalClientes = plataforma.servicos.reduce((a, s) => a + s._count.clientes, 0);
+  if (totalClientes > 0) {
+    return {
+      ok: false,
+      erro: `Essa plataforma tem ${totalClientes} cliente${totalClientes === 1 ? "" : "s"} usando apps dela. Mude o app desses clientes antes de excluir.`,
+    };
+  }
+
+  await prisma.plataforma.delete({ where: { id } });
+  revalidatePath("/plataformas");
+  return { ok: true };
+}
+
 const appSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome do app"),
   custoCredito: z.coerce.number().min(0.01, "Informe o custo do crédito"),

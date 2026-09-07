@@ -41,18 +41,23 @@ export async function excluirInteressado(id: string) {
   revalidatePath("/painel");
 }
 
-export async function marcarConvertido(id: string) {
+// Edita os dados de um interessado já cadastrado — sobretudo pra completar
+// o telefone quando ele não foi informado na hora do cadastro.
+export async function editarInteressado(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
-  const lead = await prisma.interessadoCliente.update({
+  const nome = String(formData.get("nome") ?? "").trim();
+  const whatsapp = String(formData.get("whatsapp") ?? "").trim();
+  const interesse = String(formData.get("interesse") ?? "").trim();
+  const observacao = String(formData.get("observacao") ?? "").trim();
+  const retornarEm = parseDataBr(String(formData.get("retornarEm") ?? ""));
+  if (!nome) return;
+
+  await prisma.interessadoCliente.update({
     where: { id, revendedorId: revendedor.id },
-    data: { convertido: true },
+    data: { nome, whatsapp, interesse: interesse || null, observacao: observacao || null, retornarEm },
   });
 
-  await registrarLog(revendedor.id, "interessado.converter", `${lead.nome} virou cliente`);
+  await registrarLog(revendedor.id, "interessado.editar", `Editou os dados de ${nome}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
-
-  const params = new URLSearchParams({ nome: lead.nome, whatsapp: lead.whatsapp });
-  if (lead.interesse) params.set("servico", lead.interesse);
-  redirect(`/clientes/novo?${params.toString()}`);
 }

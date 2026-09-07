@@ -1,11 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
-import { Button, cx } from "@/components/ui";
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { Button, Field, Input, Textarea, cx } from "@/components/ui";
 import { dataCurta } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { excluirInteressado, marcarConvertido } from "./actions";
+import { excluirInteressado, editarInteressado } from "./actions";
 
 type Tom = "danger" | "warning" | "neutral";
 
@@ -23,21 +24,62 @@ function tagRetorno(retornarEm: Date | null): { label: string; tom: Tom } | null
   return { label: `Em ${dias}d`, tom: "neutral" };
 }
 
-export function InteressadoItem({
-  lead,
-}: {
-  lead: {
-    id: string;
-    nome: string;
-    whatsapp: string;
-    interesse: string | null;
-    retornarEm: Date | null;
-    observacao: string | null;
-  };
-}) {
+type Lead = {
+  id: string;
+  nome: string;
+  whatsapp: string;
+  interesse: string | null;
+  retornarEm: Date | null;
+  observacao: string | null;
+};
+
+export function InteressadoItem({ lead }: { lead: Lead }) {
   const [pendente, iniciarTransicao] = useTransition();
+  const [editando, setEditando] = useState(false);
   const tag = tagRetorno(lead.retornarEm);
   const mensagem = `Olá ${lead.nome.split(" ")[0]}, tudo bem? Passando pra saber se ficou alguma dúvida sobre o ${lead.interesse ?? "plano"}.`;
+
+  const paramsVirarCliente = new URLSearchParams({ interessadoId: lead.id, nome: lead.nome, whatsapp: lead.whatsapp });
+  if (lead.interesse) paramsVirarCliente.set("servico", lead.interesse);
+
+  if (editando) {
+    return (
+      <form
+        className="flex flex-col gap-3 rounded-2xl border border-border-strong bg-surface p-4"
+        action={(formData) =>
+          iniciarTransicao(async () => {
+            await editarInteressado(lead.id, formData);
+            setEditando(false);
+          })
+        }
+      >
+        <p className="text-sm font-bold text-text">Editar interessado</p>
+        <Field label="Nome">
+          <Input name="nome" defaultValue={lead.nome} required />
+        </Field>
+        <Field label="WhatsApp">
+          <Input name="whatsapp" defaultValue={lead.whatsapp} inputMode="tel" placeholder="DDD + número" />
+        </Field>
+        <Field label="Interesse">
+          <Input name="interesse" defaultValue={lead.interesse ?? ""} />
+        </Field>
+        <Field label="Retornar em (DD/MM/AAAA)">
+          <Input name="retornarEm" defaultValue={lead.retornarEm ? dataCurta(lead.retornarEm) : ""} placeholder="deixe vazio se não marcou" />
+        </Field>
+        <Field label="Observação">
+          <Textarea name="observacao" defaultValue={lead.observacao ?? ""} />
+        </Field>
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditando(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={pendente} className="flex-1">
+            {pendente ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border-strong bg-surface p-4">
@@ -63,13 +105,16 @@ export function InteressadoItem({
               Chamar
             </Button>
           </a>
-        ) : null}
-        <Button
-          className="flex-1"
-          disabled={pendente}
-          onClick={() => iniciarTransicao(() => marcarConvertido(lead.id))}
-        >
-          {pendente ? "…" : "Virou cliente"}
+        ) : (
+          <Button variant="ghost" className="flex-1" onClick={() => setEditando(true)}>
+            + WhatsApp
+          </Button>
+        )}
+        <Link href={`/clientes/novo?${paramsVirarCliente.toString()}`} className="flex-1">
+          <Button className="w-full">Virar cliente</Button>
+        </Link>
+        <Button variant="ghost" onClick={() => setEditando(true)}>
+          Editar
         </Button>
         <Button
           variant="danger"

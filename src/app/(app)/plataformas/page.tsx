@@ -8,6 +8,7 @@ import { NovoAppForm } from "./novo-app-form";
 import { LoteForm } from "./lote-form";
 import { LoteItem } from "./lote-item";
 import { ServicoItem } from "./servico-item";
+import { ExcluirPlataformaBotao } from "./excluir-plataforma-botao";
 import { adicionarLote, editarLote, criarAppNaPlataforma } from "./actions";
 
 export default async function PlataformasPage() {
@@ -53,6 +54,7 @@ export default async function PlataformasPage() {
                   <div className="flex items-center gap-2">
                     {baixo ? <Badge tone="warning">Saldo baixo</Badge> : null}
                     <Badge tone={baixo ? "danger" : "accent"}>Saldo: {p.saldo}</Badge>
+                    {!ehFuncionario ? <ExcluirPlataformaBotao id={p.id} nome={p.nome} /> : null}
                   </div>
                 </div>
 

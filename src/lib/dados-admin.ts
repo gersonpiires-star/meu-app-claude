@@ -24,7 +24,7 @@ export async function dadosAdmin() {
     prisma.interessado.count({ where: { convertido: false } }),
     prisma.pagamento.aggregate({
       where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
-      _sum: { valor: true },
+      _sum: { valorLiquido: true },
     }),
     prisma.revendedor.count({
       where: { papel: "REVENDEDOR", statusAssinatura: "PAUSADO", pausadoEm: { gte: inicio, lt: fim } },
@@ -36,7 +36,7 @@ export async function dadosAdmin() {
     }),
   ]);
 
-  const receitaMes = receitaAgg._sum.valor ?? 0;
+  const receitaMes = receitaAgg._sum.valorLiquido ?? 0;
   const baseRetencao = ativos + pausadosMes;
   const taxaRetencao = baseRetencao > 0 ? (ativos / baseRetencao) * 100 : 100;
 
@@ -50,7 +50,7 @@ export async function dadosAdmin() {
         where: { tipo: "ASSINATURA", status: "APROVADO" },
         orderBy: { criadoEm: "desc" },
         take: 1,
-        select: { valor: true, meses: true },
+        select: { valor: true, valorLiquido: true, meses: true },
       },
     },
   });
@@ -66,7 +66,7 @@ export async function dadosAdmin() {
       continue;
     }
     const meses = pagamento.meses ?? 1;
-    const mensal = pagamento.valor / meses;
+    const mensal = (pagamento.valorLiquido ?? pagamento.valor) / meses;
     if (meses <= 1) previstoMensal += mensal;
     else if (meses < 12) previstoSemestral += mensal;
     else previstoAnual += mensal;

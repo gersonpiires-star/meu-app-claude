@@ -101,6 +101,12 @@ model Revendedor {
   // aparelhos a partir do custo médio de compra (Precificação · Maquininha).
   margemPadrao Float @default(30)
 
+  // Taxas de parcelamento da própria maquininha do revendedor (substitui a
+  // tabela de referência genérica) — { "<parcelas>": percentualComoNumero },
+  // uma chave por número de parcelas de 1 a 12. Null/chave ausente = usa a
+  // taxa de referência padrão pra aquela parcela.
+  taxasCartaoPersonalizadas Json?
+
   // Motivo que o revendedor deu ao cancelar a própria assinatura do
   // GestorPro (não confundir com Cliente.motivoSaida, que é dele saindo
   // de um cliente dele).
@@ -479,6 +485,15 @@ model Pagamento {
   valor         Float
   custo         Float @default(0)
   meses         Int?
+
+  // Valor líquido depois de descontar a taxa do Mercado Pago (preenchido
+  // pelo webhook, a partir do net_received_amount que o MP devolve, só pra
+  // pagamento de ASSINATURA aprovado por ele) — é o que entra de fato na
+  // receita mostrada pro admin. Continua null pra pagamento pendente/
+  // recusado e pra RENOVACAO (isso é receita do próprio revendedor, não da
+  // plataforma). "valor" nunca muda: continua sendo o preço cobrado do
+  // revendedor, pra recibo/checkout baterem com o que ele efetivamente pagou.
+  valorLiquido Float?
 
   mpPreferenceId String? @unique
   mpPaymentId    String? @unique
