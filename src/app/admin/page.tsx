@@ -126,7 +126,7 @@ export default async function AdminPainelPage() {
               return (
                 <div key={r.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
-                    <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                    <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
                       {r.nome}
                     </Link>
                     <p className="text-xs text-text-dim">
@@ -205,7 +205,7 @@ export default async function AdminPainelPage() {
                 {crescimento.trialsVencidosSemConverter.map((r) => (
                   <div key={r.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
-                      <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                      <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
                         {r.nome}
                       </Link>
                       <p className="text-xs text-text-dim">trial venceu em {dataCurta(r.trialFim)}</p>
@@ -236,7 +236,7 @@ export default async function AdminPainelPage() {
                 {crescimento.trialsEngajados.map((r) => (
                   <div key={r.id} className="flex items-center justify-between gap-3 py-2">
                     <div className="min-w-0">
-                      <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                      <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
                         {r.nome}
                       </Link>
                       <p className="text-xs text-text-dim">
@@ -286,7 +286,7 @@ export default async function AdminPainelPage() {
                 {crescimento.cancelamentosRecentes.map((r) => (
                   <div key={r.id} className="py-2">
                     <div className="flex items-center justify-between gap-3">
-                      <Link href={`/admin/assinantes/${r.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                      <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
                         {r.nome}
                       </Link>
                       <span className="whitespace-nowrap text-xs text-text-dim">

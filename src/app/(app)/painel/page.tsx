@@ -137,7 +137,7 @@ export default async function PainelPage() {
                 <div key={lead.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-text">{lead.nome}</p>
-                    <p className="text-xs text-text-dim">
+                    <p className="truncate text-xs text-text-dim">
                       {lead.interesse ?? "—"} · retorno {dataCurta(lead.retornarEm!)}
                     </p>
                   </div>
@@ -216,7 +216,7 @@ export default async function PainelPage() {
             {[...dados.vencidos, ...dados.vencendo].map((cliente) => (
               <div key={cliente.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <Link href={`/clientes/${cliente.id}`} className="truncate text-sm font-semibold text-text hover:text-accent">
+                  <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
                     {cliente.nome}
                   </Link>
                   <p className="text-xs text-text-dim">
