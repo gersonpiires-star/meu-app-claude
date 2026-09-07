@@ -41,7 +41,7 @@ export function preencherModelo(texto: string, dados: Record<string, string>): s
 // celular) vira "+51 999 228 258" (Peru) em vez do número certo. Todo
 // telefone BR sem código de país tem 10-11 dígitos; com código, 12-13 —
 // então só falta completar quando tiver 11 dígitos ou menos.
-function normalizarWhatsappBr(valor: string): string {
+export function normalizarWhatsappBr(valor: string): string {
   const digitos = valor.replace(/\D/g, "");
   return digitos.length <= 11 ? `55${digitos}` : digitos;
 }

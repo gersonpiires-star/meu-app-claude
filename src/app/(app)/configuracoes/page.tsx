@@ -2,7 +2,9 @@ import Link from "next/link";
 import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
-import { salvarCredenciaisMP, salvarSuspensaoAutomatica } from "./actions";
+import { fmtTelefone } from "@/lib/format";
+import { assessorConfigurado } from "@/lib/twilio";
+import { salvarCredenciaisMP, salvarSuspensaoAutomatica, alternarAssessor } from "./actions";
 import { PerfilForm } from "./perfil-form";
 import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
@@ -129,6 +131,33 @@ export default async function ConfiguracoesPage() {
           <Button type="submit">Salvar</Button>
         </form>
       </Card>
+
+      {ehFuncionario ? null : (
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Assessor de IA no WhatsApp</h2>
+            {revendedor.assessorAtivo ? <Badge tone="accent">Ligado</Badge> : <Badge tone="neutral">Desligado</Badge>}
+          </div>
+          <p className="mb-3 text-sm text-text-dim">
+            Converse pelo WhatsApp com um assessor de IA que consulta e mexe nos seus dados do GestorPro —
+            perguntar quem está vencendo, cadastrar cliente, renovar plano, registrar venda ou mandar
+            cobrança pro cliente, tudo por mensagem. Fale com o número da Twilio configurado pelo GestorPro
+            a partir do seu WhatsApp cadastrado ({fmtTelefone(revendedor.whatsapp)}).
+          </p>
+          {assessorConfigurado() ? null : (
+            <p className="mb-3 text-sm text-amber-600">
+              O GestorPro ainda não configurou a integração (Twilio/Anthropic) neste ambiente — ligar aqui
+              não vai funcionar até isso ser feito.
+            </p>
+          )}
+          <form action={alternarAssessor}>
+            <input type="hidden" name="ativar" value={revendedor.assessorAtivo ? "0" : "1"} />
+            <Button type="submit" variant={revendedor.assessorAtivo ? "ghost" : "primary"} className="w-full">
+              {revendedor.assessorAtivo ? "Desligar assessor" : "Ligar assessor"}
+            </Button>
+          </form>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-center justify-between">

@@ -99,3 +99,22 @@ export async function salvarSuspensaoAutomatica(formData: FormData) {
 
   revalidatePath("/configuracoes");
 }
+
+// Só o dono liga/desliga o assessor de IA — ele passa a poder consultar e
+// alterar dados do negócio (clientes, vendas, cobranças) a partir do
+// número de WhatsApp cadastrado no perfil, então não é uma decisão pra
+// deixar um funcionário tomar sozinho.
+export async function alternarAssessor(formData: FormData) {
+  const revendedor = await exigirDono();
+  const ativar = formData.get("ativar") === "1";
+
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { assessorAtivo: ativar } });
+
+  await registrarLog(
+    revendedor.id,
+    "config.assessor_whatsapp",
+    ativar ? "Ligou o assessor de IA no WhatsApp" : "Desligou o assessor de IA no WhatsApp"
+  );
+
+  revalidatePath("/configuracoes");
+}

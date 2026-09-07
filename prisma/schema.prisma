@@ -101,6 +101,13 @@ model Revendedor {
   // aparelhos a partir do custo médio de compra (Precificação · Maquininha).
   margemPadrao Float @default(30)
 
+  // Liga/desliga o assessor de IA no WhatsApp (webhook em
+  // /api/webhooks/whatsapp) — identifica o revendedor pelo número que
+  // manda a mensagem (este campo `whatsapp`, normalizado com DDI 55).
+  // Desligado por padrão: só passa a responder depois que o revendedor
+  // ligar explicitamente em Configurações.
+  assessorAtivo Boolean @default(false)
+
   // Motivo que o revendedor deu ao cancelar a própria assinatura do
   // GestorPro (não confundir com Cliente.motivoSaida, que é dele saindo
   // de um cliente dele).
@@ -135,6 +142,29 @@ model Revendedor {
   notificacoesPagamento NotificacaoPagamento[]
   importacoesAntigas ImportacaoAntiga[]
   cuponsRestritos Cupom[]
+  conversasAssessor ConversaAssessor[]
+}
+
+// Histórico de conversa do revendedor com o assessor de IA no WhatsApp —
+// guardado pra dar contexto de mensagens anteriores pro Claude (a API de
+// mensagens é sem estado; sem isso cada mensagem do WhatsApp seria uma
+// conversa nova, sem lembrar do que foi falado antes). Só as últimas
+// mensagens são reenviadas a cada chamada (ver src/lib/assessor).
+model ConversaAssessor {
+  id           String @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
+  // "user" (mensagem do revendedor) ou "assistant" (resposta do Claude).
+  // Guardado como texto simples (não como os blocos de conteúdo da API)
+  // porque tool_use/tool_result de chamadas já resolvidas não interessam
+  // pro próximo turno — só o texto final da conversa.
+  papel    String
+  conteudo String
+
+  criadoEm DateTime @default(now())
+
+  @@index([revendedorId, criadoEm])
 }
 
 // Marca cada arquivo de backup do app antigo já importado (pelo hash do

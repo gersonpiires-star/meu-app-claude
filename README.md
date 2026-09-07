@@ -30,7 +30,9 @@ Acesse `http://localhost:3000`. Crie uma conta de revendedor pela tela de cadast
 - `src/app/admin/` — painel do administrador: assinantes, interessados, comunicados
 - `src/app/entrar`, `src/app/cadastro`, `src/app/assinatura` — autenticação e cobrança da assinatura
 - `src/app/api/webhooks/mercadopago` — recebe as notificações de pagamento
+- `src/app/api/webhooks/whatsapp` — recebe as mensagens do assessor de IA no WhatsApp (via Twilio)
 - `src/lib/` — regras de negócio (cálculo de vencimento por plano, formatação, modelos de mensagem, integração Mercado Pago)
+- `src/lib/assessor/` — ferramentas e loop de conversa do assessor de IA (Claude)
 - `prisma/schema.prisma` — modelo de dados
 
 ## Pagamentos com Mercado Pago
@@ -52,6 +54,47 @@ Para credenciais de teste (sandbox) ou produção, veja
 `mercadopago.com.br/developers/panel/app`. Depois de configurar `MP_ACCESS_TOKEN` você não precisa
 cadastrar a `notification_url` manualmente no painel do Mercado Pago — ela é enviada em cada preferência
 criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
+
+## Assessor de IA no WhatsApp
+
+Cada revendedor pode ligar (em `/configuracoes`) um assessor de IA que responde no WhatsApp dele,
+com acesso aos próprios dados do GestorPro — consultar clientes, vencimentos e financeiro, cadastrar
+cliente, renovar plano, registrar venda de aparelho e mandar cobrança direto pro cliente.
+
+**Como funciona**: o revendedor manda mensagem pro número da Twilio configurado; o webhook
+(`/api/webhooks/whatsapp`) identifica quem escreveu pelo número (comparado com o `whatsapp` cadastrado
+no perfil), manda a mensagem pro Claude com acesso a um conjunto de ferramentas (`src/lib/assessor/`)
+que consultam/alteram só os dados daquele revendedor, e devolve a resposta pelo mesmo WhatsApp.
+
+**Configuração** (variáveis de ambiente):
+
+- `ANTHROPIC_API_KEY` — chave da API da Anthropic (console.anthropic.com).
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` — credenciais da conta Twilio (console.twilio.com).
+- `TWILIO_WHATSAPP_NUMBER` — número de WhatsApp da Twilio, no formato `whatsapp:+14155238886`.
+- No painel da Twilio, em **Messaging → Try it out → Send a WhatsApp message** (sandbox) ou no seu
+  número de WhatsApp Business aprovado, configure **"WHEN A MESSAGE COMES IN"** para
+  `POST` em `${APP_URL}/api/webhooks/whatsapp`.
+
+Sem essas variáveis configuradas, o botão "Ligar assessor" em Configurações continua existindo mas
+avisa que a integração não está pronta — nada quebra pro resto do app.
+
+**Limitações importantes**:
+
+- O webhook confere a assinatura `X-Twilio-Signature` de cada requisição — só aceita mensagens que
+  realmente vieram da sua conta Twilio.
+- A Twilio (como qualquer provedor da API oficial do WhatsApp) só permite mensagem **livre** para
+  quem mandou mensagem pra você nas últimas 24h. A conversa do revendedor com o assessor funciona
+  sempre (ele que inicia). Já o **enviar_cobranca** manda mensagem pro *cliente* do revendedor — só
+  funciona se aquele cliente tiver escrito pro número da Twilio nas últimas 24h; fora disso a Twilio
+  recusa o envio e o assessor avisa o revendedor pra mandar manualmente dessa vez (pra cobrança
+  proativa em massa fora dessa janela, seria necessário cadastrar um Message Template aprovado pela
+  Meta — não implementado aqui).
+- O histórico da conversa com o assessor fica salvo no banco (`ConversaAssessor`) só o suficiente
+  pra dar contexto às próximas mensagens — não é uma tela de chat dentro do app.
+- Cada mensagem trocada com o assessor consome créditos da sua conta Anthropic (modelo padrão
+  `claude-opus-5`, configurável via `ANTHROPIC_MODEL`) e, se enviada pela Twilio, também da sua conta
+  Twilio — não há limite de uso por revendedor implementado, então monitore o consumo se for liberar
+  pra muita gente.
 
 ## Deploy (Supabase + Vercel)
 
@@ -76,6 +119,8 @@ criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
    - `AUTH_SECRET` (gere com o comando do `.env.example`) e `AUTH_TRUST_HOST=true`
    - `APP_URL` = a URL pública que a Vercel te der (ex: `https://gestorpro.vercel.app`)
    - `SUPORTE_WHATSAPP`, `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY` conforme a seção acima
+   - `ANTHROPIC_API_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`
+     (opcionais — só necessárias pro assessor de IA no WhatsApp, ver seção acima)
 5. Deploy. A URL que a Vercel gerar já é o endereço público do app. Depois de rodar, crie o admin
    direto pela SQL Editor do Supabase (cadastre-se normalmente pela tela do app e rode
    `update "Revendedor" set papel = 'ADMIN' where email = 'seu@email.com';`), já que o `db:seed`
