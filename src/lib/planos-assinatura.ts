@@ -31,3 +31,18 @@ export function planoDosMeses(meses: number): PlanoAssinaturaChave {
   if (meses >= 6) return "SEMESTRAL";
   return "MENSAL";
 }
+
+// Soma meses a uma data sem o bug clássico do Date.setMonth: pular pro dia
+// 1 antes de avançar o mês evita o "transbordo" quando o mês de destino tem
+// menos dias (ex: 31/jan + 1 mês viraria 03/mar em vez de 28/fev). Usado
+// pra empurrar o vencimento da ASSINATURA do GestorPro — tanto no webhook
+// quanto na liberação manual de acesso pelo admin.
+export function adicionarMeses(data: Date, meses: number): Date {
+  const dia = data.getDate();
+  const alvo = new Date(data);
+  alvo.setDate(1);
+  alvo.setMonth(alvo.getMonth() + meses);
+  const ultimoDiaDoMesAlvo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  alvo.setDate(Math.min(dia, ultimoDiaDoMesAlvo));
+  return alvo;
+}

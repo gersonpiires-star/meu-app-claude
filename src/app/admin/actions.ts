@@ -7,14 +7,13 @@ import { prisma } from "@/lib/prisma";
 import { exigirAdmin } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataCurta } from "@/lib/format";
-import { planoDosMeses } from "@/lib/planos-assinatura";
+import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 
 export async function liberarAcesso(revendedorId: string, meses: number) {
   await exigirAdmin();
   const revendedor = await prisma.revendedor.findUniqueOrThrow({ where: { id: revendedorId } });
   const base = revendedor.assinaturaVence && revendedor.assinaturaVence > new Date() ? revendedor.assinaturaVence : new Date();
-  const vence = new Date(base);
-  vence.setMonth(vence.getMonth() + meses);
+  const vence = adicionarMeses(base, meses);
 
   await prisma.revendedor.update({
     where: { id: revendedorId },

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { calcularVencimento } from "@/lib/planos";
-import { planoDosMeses } from "@/lib/planos-assinatura";
+import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
 import { registrarLog } from "@/lib/log";
@@ -141,8 +141,7 @@ export async function POST(request: Request) {
         revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
           ? revendedorAtual.assinaturaVence
           : new Date();
-      const vence = new Date(base);
-      vence.setMonth(vence.getMonth() + meses);
+      const vence = adicionarMeses(base, meses);
 
       await tx.revendedor.update({
         where: { id: pagamento.revendedorId },
