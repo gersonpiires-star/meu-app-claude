@@ -177,7 +177,13 @@ export async function GET(req: NextRequest) {
     const ontem = new Date(agora.getTime() - 24 * 60 * 60000);
 
     const [trialsVencendoCount, recusadosCount] = await Promise.all([
-      prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL", trialFim: { lte: em3Dias } } }),
+      // "Vencendo" precisa continuar futuro — sem o gte, um trial que já
+      // venceu há semanas (e nunca foi cancelado) batia lte: em3Dias todo
+      // santo dia pra sempre, disparando o aviso mesmo sem nenhum trial de
+      // verdade próximo do fim.
+      prisma.revendedor.count({
+        where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL", trialFim: { gte: agora, lte: em3Dias } },
+      }),
       prisma.pagamento.count({
         where: { tipo: "ASSINATURA", status: "RECUSADO", atualizadoEm: { gte: ontem } },
       }),
