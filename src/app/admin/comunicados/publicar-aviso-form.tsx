@@ -54,8 +54,8 @@ function gerarMensagemManual(revendedorAlvo: Revendedor | null) {
 
 function gerarMensagemIndicacao(revendedorAlvo: Revendedor | null) {
   return {
-    titulo: "Indique o GestorPro e ganhe 10% de desconto",
-    mensagem: `${saudacao(revendedorAlvo)} Você sabia que pode ganhar desconto indicando o GestorPro? Pegue seu link pessoal em Configurações > Indique o GestorPro e compartilhe com outros revendedores. Quando alguém se cadastrar pelo seu link e assinar o primeiro plano pago, você ganha automaticamente um cupom de 10% de desconto pra usar na sua próxima renovação. Sem limite de indicações!`,
+    titulo: "Indique o GestorPro e ganhe 15% de desconto",
+    mensagem: `${saudacao(revendedorAlvo)} Você sabia que pode ganhar desconto indicando o GestorPro? Pegue seu link pessoal em Configurações > Indique o GestorPro e compartilhe com outros revendedores. Quando alguém se cadastrar pelo seu link e assinar o primeiro plano pago, você ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação. Sem limite de indicações!`,
   };
 }
 
@@ -168,7 +168,7 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
             <option value="">Escrever mensagem livre</option>
             <option value="atualizacao">Atualização do sistema</option>
             <option value="manual">Manual do usuário do GestorPro</option>
-            <option value="indicacao">Indique e ganhe 10%</option>
+            <option value="indicacao">Indique e ganhe 15%</option>
             <option value="cupom">Cupom de desconto</option>
           </Select>
         </Field>

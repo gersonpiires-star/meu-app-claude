@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       }
 
       // Recompensa de indicação: quem indicou essa conta ganha um cupom de
-      // 10% pra usar na própria próxima renovação — só dispara na primeira
+      // 15% pra usar na própria próxima renovação — só dispara na primeira
       // assinatura paga de quem foi indicado, nunca em renovações seguintes.
       if (primeiraAssinaturaPaga && revendedorAtual.indicadoPorId) {
         const codigo = `INDIC${pagamento.id.slice(-8).toUpperCase()}`;
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
           data: {
             codigo,
             tipo: "PERCENTUAL",
-            valor: 10,
+            valor: 15,
             revendedorId: revendedorAtual.indicadoPorId,
             usoMaximo: 1,
             validoAte,
@@ -191,8 +191,8 @@ export async function POST(request: Request) {
             destino: "UM_REVENDEDOR",
             revendedorId: revendedorAtual.indicadoPorId,
             tipo: "GERAL",
-            titulo: "Você ganhou 10% de desconto por indicar o GestorPro!",
-            mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 10% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
+            titulo: "Você ganhou 15% de desconto por indicar o GestorPro!",
+            mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 15% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
           },
         });
         recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
@@ -256,7 +256,7 @@ export async function POST(request: Request) {
     await registrarLog(
       indicadorId,
       "indicacao.recompensa",
-      `Ganhou o cupom ${codigo} (10% de desconto) por indicar ${pagamento.revendedor.nome}, que assinou o GestorPro`
+      `Ganhou o cupom ${codigo} (15% de desconto) por indicar ${pagamento.revendedor.nome}, que assinou o GestorPro`
     );
 
     const indicador = await prisma.revendedor.findUnique({
@@ -265,7 +265,7 @@ export async function POST(request: Request) {
     });
     for (const inscricao of indicador?.pushSubscriptions ?? []) {
       const manter = await enviarPush(inscricao, {
-        titulo: "Você ganhou 10% de desconto!",
+        titulo: "Você ganhou 15% de desconto!",
         corpo: `${pagamento.revendedor.nome} assinou usando seu link de indicação. Use o cupom ${codigo} na próxima renovação.`,
         url: "/assinatura",
       });

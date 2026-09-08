@@ -171,7 +171,7 @@ export default async function ConfiguracoesPage() {
           <h2 className="mb-1 text-sm font-bold text-text">Indique o GestorPro</h2>
           <p className="mb-3 text-sm text-text-dim">
             Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago, você
-            ganha automaticamente um cupom de 10% de desconto pra usar na sua próxima renovação.
+            ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação.
             {indicadosCount > 0
               ? ` Você já indicou ${indicadosCount} pessoa${indicadosCount === 1 ? "" : "s"}.`
               : ""}
