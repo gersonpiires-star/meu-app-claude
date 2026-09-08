@@ -5,6 +5,7 @@ import { calcularVencimento } from "@/lib/planos";
 import { planoDosMeses } from "@/lib/planos-assinatura";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
+import { registrarLog } from "@/lib/log";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
@@ -127,8 +128,14 @@ export async function POST(request: Request) {
     });
     if (trocou.count === 0) return { jaProcessado: true };
 
+    let recompensaIndicacao: { indicadorId: string; codigo: string } | null = null;
+
     if (pagamento.tipo === "ASSINATURA") {
       const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
+      // TRIAL aqui significa que essa pessoa nunca tinha pago o GestorPro
+      // antes — é a conversão de verdade que a recompensa de indicação
+      // recompensa. Reativação de PAUSADO/CANCELADO não conta de novo.
+      const primeiraAssinaturaPaga = revendedorAtual.statusAssinatura === "TRIAL";
       const meses = pagamento.meses ?? 1;
       const base =
         revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
@@ -159,6 +166,36 @@ export async function POST(request: Request) {
       // checkout abandonado não deveria consumir o limite de usos.
       if (pagamento.cupomId) {
         await tx.cupom.update({ where: { id: pagamento.cupomId }, data: { usosCount: { increment: 1 } } });
+      }
+
+      // Recompensa de indicação: quem indicou essa conta ganha um cupom de
+      // 10% pra usar na própria próxima renovação — só dispara na primeira
+      // assinatura paga de quem foi indicado, nunca em renovações seguintes.
+      if (primeiraAssinaturaPaga && revendedorAtual.indicadoPorId) {
+        const codigo = `INDIC${pagamento.id.slice(-8).toUpperCase()}`;
+        const validoAte = new Date();
+        validoAte.setDate(validoAte.getDate() + 180);
+
+        await tx.cupom.create({
+          data: {
+            codigo,
+            tipo: "PERCENTUAL",
+            valor: 10,
+            revendedorId: revendedorAtual.indicadoPorId,
+            usoMaximo: 1,
+            validoAte,
+          },
+        });
+        await tx.aviso.create({
+          data: {
+            destino: "UM_REVENDEDOR",
+            revendedorId: revendedorAtual.indicadoPorId,
+            tipo: "GERAL",
+            titulo: "Você ganhou 10% de desconto por indicar o GestorPro!",
+            mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 10% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
+          },
+        });
+        recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
       }
     } else if (pagamento.tipo === "RENOVACAO" && pagamento.clienteId && pagamento.plano) {
       const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId } });
@@ -198,7 +235,7 @@ export async function POST(request: Request) {
         });
       }
     }
-    return { jaProcessado: false };
+    return { jaProcessado: false, recompensaIndicacao };
   });
 
   if (!resultado.jaProcessado && pagamento.tipo === "RENOVACAO" && pagamento.cliente) {
@@ -207,6 +244,30 @@ export async function POST(request: Request) {
         titulo: "Pagamento recebido",
         corpo: `${pagamento.cliente.nome} pagou a renovação pelo link — já está tudo atualizado.`,
         url: `/clientes/${pagamento.cliente.id}`,
+      });
+      if (!manter) {
+        await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+      }
+    }
+  }
+
+  if (!resultado.jaProcessado && resultado.recompensaIndicacao) {
+    const { indicadorId, codigo } = resultado.recompensaIndicacao;
+    await registrarLog(
+      indicadorId,
+      "indicacao.recompensa",
+      `Ganhou o cupom ${codigo} (10% de desconto) por indicar ${pagamento.revendedor.nome}, que assinou o GestorPro`
+    );
+
+    const indicador = await prisma.revendedor.findUnique({
+      where: { id: indicadorId },
+      include: { pushSubscriptions: true },
+    });
+    for (const inscricao of indicador?.pushSubscriptions ?? []) {
+      const manter = await enviarPush(inscricao, {
+        titulo: "Você ganhou 10% de desconto!",
+        corpo: `${pagamento.revendedor.nome} assinou usando seu link de indicação. Use o cupom ${codigo} na próxima renovação.`,
+        url: "/assinatura",
       });
       if (!manter) {
         await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});

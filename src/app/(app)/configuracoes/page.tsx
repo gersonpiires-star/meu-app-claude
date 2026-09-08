@@ -170,7 +170,8 @@ export default async function ConfiguracoesPage() {
         <Card>
           <h2 className="mb-1 text-sm font-bold text-text">Indique o GestorPro</h2>
           <p className="mb-3 text-sm text-text-dim">
-            Compartilhe seu link — quem se cadastrar por ele fica marcado como indicado por você.
+            Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago, você
+            ganha automaticamente um cupom de 10% de desconto pra usar na sua próxima renovação.
             {indicadosCount > 0
               ? ` Você já indicou ${indicadosCount} pessoa${indicadosCount === 1 ? "" : "s"}.`
               : ""}
