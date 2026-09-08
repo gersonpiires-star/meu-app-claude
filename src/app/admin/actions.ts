@@ -153,4 +153,12 @@ export async function marcarSugestaoLida(id: string) {
   await exigirAdmin();
   await prisma.sugestao.update({ where: { id }, data: { lida: true } });
   revalidatePath("/admin");
+  revalidatePath("/admin/sugestoes");
+}
+
+export async function alternarDestaqueSugestao(id: string, destaque: boolean) {
+  await exigirAdmin();
+  await prisma.sugestao.update({ where: { id }, data: { destaque } });
+  revalidatePath("/admin");
+  revalidatePath("/admin/sugestoes");
 }

@@ -19,9 +19,10 @@ export default async function AdminPainelPage() {
     dadosAdmin(),
     dadosCrescimento(),
     prisma.sugestao.findMany({
+      where: { lida: false },
       include: { revendedor: { select: { nome: true, email: true } } },
       orderBy: { criadoEm: "desc" },
-      take: 20,
+      take: 10,
     }),
   ]);
   const mrr = dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
@@ -90,27 +91,25 @@ export default async function AdminPainelPage() {
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-text">Sugestões dos usuários</h2>
-            {sugestoes.some((s) => !s.lida) ? (
-              <Badge tone="warning">{sugestoes.filter((s) => !s.lida).length} nova{sugestoes.filter((s) => !s.lida).length === 1 ? "" : "s"}</Badge>
-            ) : null}
+            <div className="flex items-center gap-2">
+              <Badge tone="warning">{sugestoes.length} nova{sugestoes.length === 1 ? "" : "s"}</Badge>
+              <Link href="/admin/sugestoes" className="text-xs font-semibold text-accent">
+                Ver todas
+              </Link>
+            </div>
           </div>
           <div className="flex flex-col divide-y divide-border">
             {sugestoes.map((s) => (
               <div key={s.id} className="flex items-start justify-between gap-3 py-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-text">{s.revendedor.nome}</p>
-                    {s.lida ? null : <Badge tone="accent">Não lida</Badge>}
-                  </div>
+                  <p className="truncate text-sm font-semibold text-text">{s.revendedor.nome}</p>
                   <p className="text-xs text-text-dim">{s.revendedor.email}</p>
                   <p className="mt-1 text-sm text-text">{s.mensagem}</p>
                   <p className="mt-1 text-xs text-text-dim">{dataCurta(s.criadoEm)}</p>
                 </div>
-                {s.lida ? null : (
-                  <div className="shrink-0">
-                    <MarcarSugestaoLidaBotao id={s.id} />
-                  </div>
-                )}
+                <div className="shrink-0">
+                  <MarcarSugestaoLidaBotao id={s.id} />
+                </div>
               </div>
             ))}
           </div>

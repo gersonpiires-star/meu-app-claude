@@ -23,6 +23,7 @@ const ITENS = [
   { href: "/admin/cupons", label: "Cupons" },
   { href: "/admin/interessados", label: "Interessados" },
   { href: "/admin/comunicados", label: "Comunicados" },
+  { href: "/admin/sugestoes", label: "Sugestões" },
 ];
 
 function ChevronIcon({ aberto }: { aberto: boolean }) {

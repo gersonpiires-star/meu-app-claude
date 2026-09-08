@@ -451,6 +451,9 @@ model Sugestao {
 
   mensagem String
   lida     Boolean  @default(false)
+  // Sinalizada pelo admin como uma boa ideia pra colocar no roteiro do
+  // produto — não muda o fluxo de leitura, só destaca na aba Sugestões.
+  destaque Boolean  @default(false)
   criadoEm DateTime @default(now())
 }
 
