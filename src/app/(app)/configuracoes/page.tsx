@@ -23,10 +23,15 @@ function baseUrl() {
 // revendedores verem.
 const EMAIL_BETA_UNITV = "gersonpiires@gmail.com";
 
+// Pausado a pedido do dono enquanto se espera a resposta da UniTV sobre uma
+// API oficial — o card fica escondido (mas o código continua todo aqui) até
+// virar true de novo.
+const INTEGRACAO_UNITV_ATIVA = false;
+
 export default async function ConfiguracoesPage() {
   const revendedor = await exigirRevendedor();
   const ehFuncionario = await souFuncionario();
-  const podeVerBetaUnitv = revendedor.email === EMAIL_BETA_UNITV;
+  const podeVerBetaUnitv = INTEGRACAO_UNITV_ATIVA && revendedor.email === EMAIL_BETA_UNITV;
   const configurado = Boolean(revendedor.mpAccessToken);
   const [chaves, indicadosCount] = await Promise.all([
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
