@@ -45,3 +45,10 @@ next-env.d.ts
 # database
 *.db
 *.db-journal
+
+# HyperFrames video tooling (installed ad hoc for marketing video work,
+# not part of the GestorPro app itself)
+/.agents/
+/.claude/
+/skills-lock.json
+/videos/

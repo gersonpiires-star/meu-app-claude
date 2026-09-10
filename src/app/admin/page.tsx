@@ -227,6 +227,41 @@ export default async function AdminPainelPage() {
             </Card>
           ) : null}
 
+          {crescimento.assinantesEsfriando.length > 0 ? (
+            <Card>
+              <h2 className="mb-1 text-sm font-bold text-text">Assinantes esfriando</h2>
+              <p className="mb-3 text-xs text-text-dim">
+                Pagam em dia, mas pararam de usar o app — sinal de que podem cancelar em breve. Vale um contato.
+              </p>
+              <div className="flex flex-col divide-y divide-border">
+                {crescimento.assinantesEsfriando.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+                        {r.nome}
+                      </Link>
+                      <p className="text-xs text-text-dim">
+                        {r.nuncaTeveAtividade ? "nunca usou o app" : `sem atividade há ${r.diasSemAtividade}d`}
+                      </p>
+                    </div>
+                    {r.whatsapp ? (
+                      <a
+                        href={linkWhatsApp(
+                          r.whatsapp,
+                          `Oi ${r.nome.split(" ")[0]}! Passando pra saber se está tudo certo com o GestorPro — precisa de alguma ajuda?`
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Badge tone="warning">Chamar</Badge>
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
           {crescimento.trialsEngajados.length > 0 ? (
             <Card>
               <h2 className="mb-1 text-sm font-bold text-text">Trials engajados</h2>

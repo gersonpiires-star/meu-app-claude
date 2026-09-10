@@ -168,6 +168,35 @@ export async function dadosCrescimento() {
     .sort((a, b) => b.trialFim.getTime() - a.trialFim.getTime())
     .slice(0, 10);
 
+  // Assinante ativo que sumiu — sem nenhuma ação registrada (LogAtividade
+  // cobre praticamente tudo que o dono/funcionário faz no app: cadastrar
+  // cliente, cobrar, vender aparelho etc.) há mais que o limiar. É o mesmo
+  // sinal de "trial quente" só que pro lado oposto: quem parou de usar
+  // tende a cancelar depois, então dá pra tentar reengajar antes.
+  const LIMIAR_DIAS_ESFRIANDO = 10;
+  const idsAtivos = revendedores.filter((r) => r.statusAssinatura === "ATIVO").map((r) => r.id);
+  const ultimasAtividades =
+    idsAtivos.length > 0
+      ? await prisma.logAtividade.groupBy({
+          by: ["revendedorId"],
+          where: { revendedorId: { in: idsAtivos } },
+          _max: { criadoEm: true },
+        })
+      : [];
+  const ultimaAtividadePorId = new Map(ultimasAtividades.map((a) => [a.revendedorId, a._max.criadoEm]));
+
+  const assinantesEsfriando = revendedores
+    .filter((r) => r.statusAssinatura === "ATIVO")
+    .map((r) => {
+      const ultimaAtividade = ultimaAtividadePorId.get(r.id) ?? null;
+      const referencia = ultimaAtividade ?? r.criadoEm;
+      const diasSemAtividade = Math.floor((agora.getTime() - referencia.getTime()) / 86400000);
+      return { id: r.id, nome: r.nome, whatsapp: r.whatsapp, diasSemAtividade, nuncaTeveAtividade: !ultimaAtividade };
+    })
+    .filter((r) => r.diasSemAtividade >= LIMIAR_DIAS_ESFRIANDO)
+    .sort((a, b) => b.diasSemAtividade - a.diasSemAtividade)
+    .slice(0, 10);
+
   const cohortMap = new Map<string, { ano: number; mes: number; total: number; aindaAtivos: number }>();
   for (const r of revendedores) {
     const dataConversao = primeiraConversao.get(r.id);
@@ -195,6 +224,7 @@ export async function dadosCrescimento() {
     histogramaDias,
     trialsEngajados,
     trialsVencidosSemConverter,
+    assinantesEsfriando,
     coorte,
     cancelamentosRecentes,
   };

@@ -109,6 +109,11 @@ model Revendedor {
   // aparelhos a partir do custo médio de compra (Precificação · Maquininha).
   margemPadrao Float @default(30)
 
+  // Meta de receita que o revendedor definiu pra si mesmo (renovações +
+  // aparelhos) — mostrada como barra de progresso no Painel. Null = ainda
+  // não definiu nenhuma; vale pra todo mês até ele mudar.
+  metaReceitaMensal Float?
+
   // Taxas de parcelamento da própria maquininha do revendedor (substitui a
   // tabela de referência genérica) — { "<parcelas>": percentualComoNumero },
   // uma chave por número de parcelas de 1 a 12. Null/chave ausente = usa a

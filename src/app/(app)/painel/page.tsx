@@ -8,6 +8,7 @@ import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "../clientes/cobrar-botao";
+import { MetaMensalCard } from "./meta-mensal";
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -119,6 +120,8 @@ export default async function PainelPage() {
           </Card>
         </Link>
       </div>
+
+      <MetaMensalCard meta={revendedor.metaReceitaMensal} receitaAtual={dados.receitaRecorrente + dados.receitaApar} />
 
       {dados.leadsParaRetornar.length > 0 ? (
         <Card>
