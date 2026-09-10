@@ -17,9 +17,16 @@ function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
+// Integração UniTV ainda é um teste não verificado (ver
+// src/lib/integracoes/unitv.ts) — só aparece pro dono do GestorPro por
+// enquanto, a pedido dele, até ficar confiável o suficiente pra outros
+// revendedores verem.
+const EMAIL_BETA_UNITV = "gersonpiires@gmail.com";
+
 export default async function ConfiguracoesPage() {
   const revendedor = await exigirRevendedor();
   const ehFuncionario = await souFuncionario();
+  const podeVerBetaUnitv = revendedor.email === EMAIL_BETA_UNITV;
   const configurado = Boolean(revendedor.mpAccessToken);
   const [chaves, indicadosCount] = await Promise.all([
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
@@ -167,7 +174,7 @@ export default async function ConfiguracoesPage() {
         <ImportarForm podeZerar={!ehFuncionario} />
       </Card>
 
-      {ehFuncionario ? null : (
+      {ehFuncionario || !podeVerBetaUnitv ? null : (
         <Card>
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-bold text-text">Integração UniTV</h2>
