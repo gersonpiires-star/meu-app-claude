@@ -51,7 +51,7 @@ async function tentarCaminho(caminho: string, usuario: string, senha: string) {
       signal: AbortSignal.timeout(8000),
     });
     const texto = await resposta.text().catch(() => "");
-    return { caminho, status: resposta.status, corpo: texto.slice(0, 200), ok: resposta.ok, erro: null as string | null };
+    return { caminho, status: resposta.status, corpo: texto, ok: resposta.ok, erro: null as string | null };
   } catch (erro) {
     return { caminho, status: null, corpo: "", ok: false, erro: erro instanceof Error ? erro.message : "erro de rede" };
   }
@@ -82,7 +82,9 @@ export async function loginUnitv(usuario: string, senha: string): Promise<Sessao
   }
 
   const relatorio = resultados
-    .map((r) => (r.erro ? `${r.caminho} → erro: ${r.erro}` : `${r.caminho} → HTTP ${r.status}${r.corpo ? `: ${r.corpo}` : ""}`))
+    .map((r) =>
+      r.erro ? `${r.caminho} → erro: ${r.erro}` : `${r.caminho} → HTTP ${r.status}${r.corpo ? `: ${r.corpo.slice(0, 200)}` : ""}`
+    )
     .join("\n");
 
   throw new ErroUnitv(`Nenhum endpoint conhecido funcionou:\n${relatorio}`);

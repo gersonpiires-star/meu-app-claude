@@ -50,12 +50,17 @@ export function calcularVencimentoComDiaFixo(
   const alvo = calcularVencimento(plano, apartirDe);
   if (!diaFixo) return alvo;
 
-  const { ano, mes } = diaCivilBr(alvo);
+  const { ano, mes, dia } = diaCivilBr(alvo);
   const diaAjustado = Math.min(diaFixo, ultimoDiaDoMes(ano, mes));
   const candidato = brMidnightUTC(ano, mes, diaAjustado);
 
-  const seiseDiasAntes = new Date(alvo);
-  seiseDiasAntes.setDate(seiseDiasAntes.getDate() - 6);
+  // Compara sempre meia-noite com meia-noite — nunca a hora "de agora" que
+  // `alvo` carrega (herdada de apartirDe) contra a meia-noite fixa de
+  // `candidato`, senão a tolerância de "até 6 dias antes" nunca inclui o 6º
+  // dia exato (a meia-noite de candidato sempre "perde" pra qualquer hora
+  // do dia depois das 00:00 em seiseDiasAntes).
+  const seiseDiasAntes = brMidnightUTC(ano, mes, dia);
+  seiseDiasAntes.setUTCDate(seiseDiasAntes.getUTCDate() - 6);
   if (candidato >= seiseDiasAntes) return candidato;
 
   const diaAjustado2 = Math.min(diaFixo, ultimoDiaDoMes(ano, mes + 1));

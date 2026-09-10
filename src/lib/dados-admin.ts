@@ -189,7 +189,11 @@ export async function dadosCrescimento() {
     .filter((r) => r.statusAssinatura === "ATIVO")
     .map((r) => {
       const ultimaAtividade = ultimaAtividadePorId.get(r.id) ?? null;
-      const referencia = ultimaAtividade ?? r.criadoEm;
+      // Sem nenhuma atividade registrada, a referência é a conversão em
+      // pagante (não o cadastro/trial) — senão quem virou assinante há
+      // pouco, mas nunca logou depois de pagar, já nasce "esfriando" contado
+      // desde o trial, mesmo tendo acabado de converter.
+      const referencia = ultimaAtividade ?? primeiraConversao.get(r.id) ?? r.criadoEm;
       const diasSemAtividade = Math.floor((agora.getTime() - referencia.getTime()) / 86400000);
       return { id: r.id, nome: r.nome, whatsapp: r.whatsapp, diasSemAtividade, nuncaTeveAtividade: !ultimaAtividade };
     })

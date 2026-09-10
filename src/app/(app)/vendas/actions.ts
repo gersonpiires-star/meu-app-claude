@@ -30,6 +30,11 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
   const produto = await prisma.produto.findUnique({ where: { id: dados.produtoId, revendedorId: revendedor.id } });
   if (!produto) return { erro: "Produto não encontrado." };
 
+  if (dados.clienteId) {
+    const cliente = await prisma.cliente.findUnique({ where: { id: dados.clienteId, revendedorId: revendedor.id } });
+    if (!cliente) return { erro: "Cliente não encontrado." };
+  }
+
   let vendaId = "";
   try {
     await prisma.$transaction(

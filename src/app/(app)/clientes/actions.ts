@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
@@ -13,6 +14,8 @@ import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const planoSchema = z.enum(["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"]);
+
+class SemCreditoError extends Error {}
 
 const clienteSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do cliente"),
@@ -181,33 +184,51 @@ export async function renovarCliente(
   const valor = Number(formData.get("valor") ?? 0);
   const custo = Number(formData.get("custo") ?? 0);
 
-  const cliente = await prisma.cliente.findUniqueOrThrow({
-    where: { id, revendedorId: revendedor.id },
-  });
+  let clienteNome = "";
+  try {
+    // Lê e grava dentro da mesma transação serializável — senão um clique
+    // duplo ou duas abas abertas podiam ambos ler o mesmo vencimento/crédito
+    // antigo e gravar duas renovações pro mesmo cliente, duplicando
+    // receita/custo no relatório e estourando o crédito da plataforma (mesma
+    // corrida já corrigida em renovarComPlanoAtual, no renovar-em-lote).
+    await prisma.$transaction(
+      async (tx) => {
+        const cliente = await tx.cliente.findUniqueOrThrow({
+          where: { id, revendedorId: revendedor.id },
+        });
+        clienteNome = cliente.nome;
 
-  const erroCredito = await erroCreditoIndisponivel(prisma, cliente.servicoId);
-  if (erroCredito) return { ok: false, erro: erroCredito };
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        if (erroCredito) throw new SemCreditoError(erroCredito);
 
-  const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
-  const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
+        const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
+        const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
 
-  await prisma.$transaction([
-    prisma.renovacao.create({
-      data: { clienteId: id, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
-    }),
-    prisma.cliente.update({
-      where: { id },
-      data: {
-        plano,
-        valorPlano: valor,
-        vencimento: novoVencimento,
-        status: "ATIVO",
-        testeGratis: false,
+        await tx.renovacao.create({
+          data: { clienteId: id, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
+        });
+        await tx.cliente.update({
+          where: { id },
+          data: {
+            plano,
+            valorPlano: valor,
+            vencimento: novoVencimento,
+            status: "ATIVO",
+            testeGratis: false,
+          },
+        });
       },
-    }),
-  ]);
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (erro) {
+    if (erro instanceof SemCreditoError) return { ok: false, erro: erro.message };
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2034") {
+      return { ok: false, erro: "Outra renovação desse cliente foi registrada bem nesse instante — tente novamente." };
+    }
+    throw erro;
+  }
 
-  await registrarLog(revendedor.id, "cliente.renovar", `Renovou o plano de ${cliente.nome} (${PLANO_LABEL[plano]}, ${brl(valor)})`);
+  await registrarLog(revendedor.id, "cliente.renovar", `Renovou o plano de ${clienteNome} (${PLANO_LABEL[plano]}, ${brl(valor)})`);
 
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
