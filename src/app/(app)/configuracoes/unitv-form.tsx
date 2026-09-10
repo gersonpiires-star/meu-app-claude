@@ -60,7 +60,9 @@ export function UnitvForm({
         </div>
       ) : null}
 
-      {resultado ? <p className={resultado.ok ? "text-sm text-accent" : "text-sm text-danger"}>{resultado.texto}</p> : null}
+      {resultado ? (
+        <p className={`whitespace-pre-line text-sm ${resultado.ok ? "text-accent" : "text-danger"}`}>{resultado.texto}</p>
+      ) : null}
 
       {conectado ? (
         <div className="flex gap-2">

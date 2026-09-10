@@ -1,55 +1,84 @@
 // Integração BETA com o painel da UniTV (https://panel-web.resell.media).
 //
 // NÃO VERIFICADO CONTRA O PAINEL DE VERDADE. A UniTV não publica nenhuma
-// API documentada (pesquisado em 2026-09) — o endpoint/payload abaixo é uma
-// tentativa razoável baseada no padrão comum de painéis IPTV white-label
-// parecidos (SPA em hash-route + backend REST próprio), mas este ambiente
-// de desenvolvimento não conseguiu nem alcançar panel-web.resell.media
-// (bloqueado pelo proxy de rede do sandbox), então nada aqui foi testado
-// contra o servidor real. A Vercel (produção) não tem esse bloqueio, então
-// o primeiro teste de verdade acontece só depois do deploy — espere esse
-// login falhar até corrigirmos com os dados reais da requisição.
+// API documentada (pesquisado em 2026-09), e não foi possível capturar a
+// requisição real do navegador (o painel resiste à interceptação HTTPS por
+// apps de sniffing no celular). Sem o endereço certo, `loginUnitv` tenta uma
+// lista de caminhos comuns pra esse tipo de painel (white-label IPTV,
+// provavelmente de origem chinesa — RuoYi/vue-element-admin/jeecg-boot são
+// frameworks de admin muito usados nesse nicho) até um responder algo
+// diferente de 404. Se nenhum funcionar, o erro mostra o resultado de cada
+// tentativa pra decidirmos o próximo passo com dado real.
 //
-// Pra corrigir de verdade: abra o painel da UniTV no navegador, abra o
-// DevTools (F12) > aba Network, filtre por Fetch/XHR, faça login, ache a
-// requisição de login na lista, botão direito > Copy > Copy as cURL, e
-// manda esse cURL. O mesmo pra uma ação de renovação de cliente.
+// Esse ambiente de desenvolvimento não consegue nem alcançar
+// panel-web.resell.media (bloqueado pelo proxy de rede do sandbox) — só a
+// Vercel (produção) consegue testar de verdade.
 
 const BASE_URL = "https://panel-web.resell.media";
+
+const CAMINHOS_CANDIDATOS = [
+  "/api/login",
+  "/api/user/login",
+  "/api/auth/login",
+  "/api/v1/login",
+  "/api/v1/auth/login",
+  "/api/v1/user/login",
+  "/login",
+  "/user/login",
+  "/passport/login",
+  "/api/passport/login",
+  "/sys/login",
+  "/api/sys/login",
+];
 
 export type SessaoUnitv = { token: string };
 
 export class ErroUnitv extends Error {}
 
-export async function loginUnitv(usuario: string, senha: string): Promise<SessaoUnitv> {
-  let resposta: Response;
+async function tentarCaminho(caminho: string, usuario: string, senha: string) {
   try {
-    resposta = await fetch(`${BASE_URL}/api/login`, {
+    const resposta = await fetch(`${BASE_URL}${caminho}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: usuario, password: senha }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(8000),
     });
+    const texto = await resposta.text().catch(() => "");
+    return { caminho, status: resposta.status, corpo: texto.slice(0, 200), ok: resposta.ok, erro: null as string | null };
   } catch (erro) {
-    throw new ErroUnitv(`Não foi possível conectar na UniTV: ${erro instanceof Error ? erro.message : "erro de rede"}`);
+    return { caminho, status: null, corpo: "", ok: false, erro: erro instanceof Error ? erro.message : "erro de rede" };
+  }
+}
+
+export async function loginUnitv(usuario: string, senha: string): Promise<SessaoUnitv> {
+  const resultados: Awaited<ReturnType<typeof tentarCaminho>>[] = [];
+
+  for (const caminho of CAMINHOS_CANDIDATOS) {
+    const resultado = await tentarCaminho(caminho, usuario, senha);
+    resultados.push(resultado);
+
+    // 404 = caminho errado, direto pro próximo. Qualquer outra coisa (200,
+    // 401, 400, 422...) já é sinal de que achamos o endpoint de verdade —
+    // para aqui pra não continuar batendo em outros caminhos à toa.
+    if (resultado.status !== 404 && resultado.status !== null) break;
   }
 
-  if (!resposta.ok) {
-    throw new ErroUnitv(`A UniTV recusou o login (HTTP ${resposta.status}) — usuário/senha errados ou o endpoint mudou.`);
+  const ultimo = resultados[resultados.length - 1];
+
+  if (ultimo.ok) {
+    const dados: unknown = JSON.parse(ultimo.corpo || "{}");
+    const token =
+      dados && typeof dados === "object"
+        ? ((dados as Record<string, unknown>).token ?? (dados as { data?: Record<string, unknown> }).data?.token)
+        : undefined;
+    if (typeof token === "string" && token) return { token };
   }
 
-  const dados: unknown = await resposta.json().catch(() => null);
-  const token =
-    dados && typeof dados === "object"
-      ? ((dados as Record<string, unknown>).token ??
-        (dados as { data?: Record<string, unknown> }).data?.token)
-      : undefined;
+  const relatorio = resultados
+    .map((r) => (r.erro ? `${r.caminho} → erro: ${r.erro}` : `${r.caminho} → HTTP ${r.status}${r.corpo ? `: ${r.corpo}` : ""}`))
+    .join("\n");
 
-  if (typeof token !== "string" || !token) {
-    throw new ErroUnitv("A UniTV respondeu, mas sem o formato de token esperado — endpoint precisa ser corrigido.");
-  }
-
-  return { token };
+  throw new ErroUnitv(`Nenhum endpoint conhecido funcionou:\n${relatorio}`);
 }
 
 // Ainda não implementado — depende de sabermos o formato real da requisição
