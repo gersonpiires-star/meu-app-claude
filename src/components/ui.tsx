@@ -12,6 +12,36 @@ export function Card({ children, className }: { children: ReactNode; className?:
   );
 }
 
+// Caixa retrátil (acordeão) — usa <details>/<summary> nativos, então abre e
+// fecha sem precisar de "use client" nem JavaScript. `extra` é pra um Badge
+// de status ao lado do título (ex: "Configurado", "Beta").
+export function CardRetratil({
+  titulo,
+  extra,
+  defaultOpen = false,
+  children,
+}: {
+  titulo: string;
+  extra?: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group rounded-2xl border border-border bg-surface" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-bold text-text">{titulo}</span>
+          {extra}
+        </span>
+        <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5 shrink-0 text-text-dim transition-transform group-open:rotate-180">
+          <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </summary>
+      <div className="px-5 pb-5">{children}</div>
+    </details>
+  );
+}
+
 export function Field({
   label,
   children,

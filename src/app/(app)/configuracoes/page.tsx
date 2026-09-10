@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { Badge, Button, CardRetratil, Field, Input } from "@/components/ui";
 import { salvarCredenciaisMP, salvarSuspensaoAutomatica } from "./actions";
 import { PerfilForm } from "./perfil-form";
 import { ImportarForm } from "./importar-form";
@@ -39,22 +39,20 @@ export default async function ConfiguracoesPage() {
   ]);
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-5">
-      <h1 className="text-lg font-bold text-text">Configurações</h1>
+    <div className="mx-auto flex max-w-lg flex-col gap-3">
+      <h1 className="mb-2 text-lg font-bold text-text">Configurações</h1>
 
       {ehFuncionario ? null : (
-        <Card>
-          <h2 className="mb-3 text-sm font-bold text-text">Seus dados</h2>
+        <CardRetratil titulo="Seus dados">
           <PerfilForm nome={revendedor.nome} whatsapp={revendedor.whatsapp} />
-        </Card>
+        </CardRetratil>
       )}
 
       {ehFuncionario ? null : (
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text">Receber pagamentos online (Mercado Pago)</h2>
-            {configurado ? <Badge tone="accent">Configurado</Badge> : <Badge tone="neutral">Não configurado</Badge>}
-          </div>
+        <CardRetratil
+          titulo="Receber pagamentos online (Mercado Pago)"
+          extra={configurado ? <Badge tone="accent">Configurado</Badge> : <Badge tone="neutral">Não configurado</Badge>}
+        >
           <p className="mb-4 text-sm text-text-dim">
             Cole aqui o Access Token da sua própria conta do Mercado Pago para gerar links de pagamento
             (Pix, cartão) na cobrança dos seus clientes — o dinheiro cai direto na sua conta, o GestorPro
@@ -82,48 +80,40 @@ export default async function ConfiguracoesPage() {
               Salvar credenciais
             </Button>
           </form>
-        </Card>
+        </CardRetratil>
       )}
 
       {ehFuncionario ? null : (
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-text">Funcionários</h2>
-              <p className="mt-1 text-sm text-text-dim">Dê acesso ao app pra quem te ajuda a atender.</p>
-            </div>
+        <CardRetratil titulo="Funcionários">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-text-dim">Dê acesso ao app pra quem te ajuda a atender.</p>
             <Link href="/configuracoes/funcionarios">
               <Button variant="ghost">Gerenciar</Button>
             </Link>
           </div>
-        </Card>
+        </CardRetratil>
       )}
 
       {ehFuncionario ? null : (
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-text">Histórico de ações</h2>
-              <p className="mt-1 text-sm text-text-dim">Veja o que você e seus funcionários andaram fazendo.</p>
-            </div>
+        <CardRetratil titulo="Histórico de ações">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-text-dim">Veja o que você e seus funcionários andaram fazendo.</p>
             <Link href="/configuracoes/historico">
               <Button variant="ghost">Ver histórico</Button>
             </Link>
           </div>
-        </Card>
+        </CardRetratil>
       )}
 
-      <Card>
-        <h2 className="mb-1 text-sm font-bold text-text">Lembrete diário de vencimento</h2>
+      <CardRetratil titulo="Lembrete diário de vencimento">
         <p className="mb-3 text-sm text-text-dim">
           Receba uma notificação toda manhã no celular ou computador com quem está vencendo ou vencido —
           sem precisar abrir o app pra conferir.
         </p>
         <NotificacoesPush />
-      </Card>
+      </CardRetratil>
 
-      <Card>
-        <h2 className="mb-1 text-sm font-bold text-text">Suspensão automática</h2>
+      <CardRetratil titulo="Suspensão automática">
         <p className="mb-3 text-sm text-text-dim">
           Cancela sozinho o cliente que ficar vencido por mais do que esse número de dias. Deixe em
           branco para nunca cancelar automaticamente.
@@ -142,61 +132,50 @@ export default async function ConfiguracoesPage() {
           </div>
           <Button type="submit">Salvar</Button>
         </form>
-      </Card>
+      </CardRetratil>
 
-      <Card>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-text">Modelos de mensagem</h2>
-            <p className="mt-1 text-sm text-text-dim">Personalize os textos de cobrança e comunicado.</p>
-          </div>
+      <CardRetratil titulo="Modelos de mensagem">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-text-dim">Personalize os textos de cobrança e comunicado.</p>
           <Link href="/configuracoes/modelos">
             <Button variant="ghost">Editar</Button>
           </Link>
         </div>
-      </Card>
+      </CardRetratil>
 
       {ehFuncionario ? null : (
-        <Card>
-          <h2 className="mb-3 text-sm font-bold text-text">Chaves Pix</h2>
+        <CardRetratil titulo="Chaves Pix">
           <p className="mb-3 text-sm text-text-dim">
             Cadastre suas chaves pra anexar na mensagem de cobrança que vai pro cliente.
           </p>
           <ChavesPixForm chaves={chaves} />
-        </Card>
+        </CardRetratil>
       )}
 
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Backup em arquivo</h2>
+      <CardRetratil titulo="Backup em arquivo">
         <p className="mb-3 text-sm text-text-dim">
           Cópia congelada dos seus dados — a nuvem não guarda histórico de versões antigas.
         </p>
         <BackupForm podeRestaurar={!ehFuncionario} />
-      </Card>
+      </CardRetratil>
 
-      <Card>
-        <h2 className="mb-3 text-sm font-bold text-text">Trazer dados de outro sistema</h2>
+      <CardRetratil titulo="Trazer dados de outro sistema">
         <ImportarForm podeZerar={!ehFuncionario} />
-      </Card>
+      </CardRetratil>
 
       {ehFuncionario || !podeVerBetaUnitv ? null : (
-        <Card>
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text">Integração UniTV</h2>
-            <Badge tone="warning">Beta</Badge>
-          </div>
+        <CardRetratil titulo="Integração UniTV" extra={<Badge tone="warning">Beta</Badge>}>
           <p className="mb-3 text-sm text-text-dim">
             Conecte sua conta de revenda da UniTV pra, no futuro, renovar clientes direto pelo GestorPro sem
             abrir o painel deles. A UniTV não tem API oficial — essa integração é experimental e pode falhar
             ou parar de funcionar sem aviso.
           </p>
           <UnitvForm usuarioAtual={revendedor.unitvUsuario} conectadoEm={revendedor.unitvConectadoEm} />
-        </Card>
+        </CardRetratil>
       )}
 
       {ehFuncionario ? null : (
-        <Card>
-          <h2 className="mb-1 text-sm font-bold text-text">Indique o GestorPro</h2>
+        <CardRetratil titulo="Indique o GestorPro">
           <p className="mb-3 text-sm text-text-dim">
             Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago, você
             ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação.
@@ -205,21 +184,19 @@ export default async function ConfiguracoesPage() {
               : ""}
           </p>
           <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
-        </Card>
+        </CardRetratil>
       )}
 
-      <Card>
-        <h2 className="mb-1 text-sm font-bold text-text">Sugestões pro time do GestorPro</h2>
+      <CardRetratil titulo="Sugestões pro time do GestorPro">
         <p className="mb-3 text-sm text-text-dim">Tem alguma dica de melhoria ou ajuste que faria diferença no seu dia a dia? Conta pra gente.</p>
         <SugestaoForm />
-      </Card>
+      </CardRetratil>
 
       {ehFuncionario ? null : (
-        <Card>
-          <h2 className="mb-1 text-sm font-bold text-text">Cancelar assinatura</h2>
+        <CardRetratil titulo="Cancelar assinatura">
           <p className="mb-3 text-sm text-text-dim">Se decidir sair, seus dados continuam guardados.</p>
           <CancelarAssinaturaForm />
-        </Card>
+        </CardRetratil>
       )}
     </div>
   );
