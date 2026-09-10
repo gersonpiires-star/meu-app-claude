@@ -5,6 +5,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
+import { criptografar, descriptografar } from "@/lib/crypto";
+import { loginUnitv, ErroUnitv } from "@/lib/integracoes/unitv";
 
 const schema = z.object({
   mpAccessToken: z.string().trim().optional(),
@@ -98,6 +100,84 @@ export async function salvarSuspensaoAutomatica(formData: FormData) {
   );
 
   revalidatePath("/configuracoes");
+}
+
+const unitvSchema = z.object({
+  unitvUsuario: z.string().trim().min(1, "Informe o usuário da UniTV"),
+  unitvSenha: z.string().trim().min(1, "Informe a senha da UniTV"),
+});
+
+// Guarda o usuário/senha da conta UniTV do revendedor (senha criptografada)
+// e já tenta logar uma vez, pra confirmar se as credenciais funcionam —
+// evita a pessoa achar que está tudo certo e só descobrir depois que digitou
+// a senha errada.
+export async function salvarCredenciaisUnitv(formData: FormData): Promise<{ erro: string } | { ok: true }> {
+  const revendedor = await exigirDono();
+  const parsed = unitvSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+
+  let conectadoEm: Date | null = null;
+  try {
+    await loginUnitv(parsed.data.unitvUsuario, parsed.data.unitvSenha);
+    conectadoEm = new Date();
+  } catch (erro) {
+    const mensagem = erro instanceof ErroUnitv ? erro.message : "Não foi possível testar a conexão com a UniTV.";
+    // Ainda salva as credenciais mesmo se o teste falhar — a integração é
+    // beta e o endpoint de login pode estar errado (não implementação
+    // verificada), então bloquear o salvamento aqui travaria a pessoa numa
+    // credencial que na real pode estar certa.
+    await prisma.revendedor.update({
+      where: { id: revendedor.id },
+      data: { unitvUsuario: parsed.data.unitvUsuario, unitvSenhaCriptografada: criptografar(parsed.data.unitvSenha), unitvConectadoEm: null },
+    });
+    await registrarLog(revendedor.id, "config.credenciais_unitv", "Salvou credenciais da UniTV (teste de conexão falhou)");
+    revalidatePath("/configuracoes");
+    return { erro: mensagem };
+  }
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: {
+      unitvUsuario: parsed.data.unitvUsuario,
+      unitvSenhaCriptografada: criptografar(parsed.data.unitvSenha),
+      unitvConectadoEm: conectadoEm,
+    },
+  });
+  await registrarLog(revendedor.id, "config.credenciais_unitv", "Conectou a conta da UniTV");
+  revalidatePath("/configuracoes");
+  return { ok: true };
+}
+
+export async function removerCredenciaisUnitv() {
+  const revendedor = await exigirDono();
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { unitvUsuario: null, unitvSenhaCriptografada: null, unitvConectadoEm: null },
+  });
+  await registrarLog(revendedor.id, "config.credenciais_unitv", "Removeu a conexão com a UniTV");
+  revalidatePath("/configuracoes");
+}
+
+export async function testarConexaoUnitv(): Promise<{ erro: string } | { ok: true }> {
+  const revendedor = await exigirDono();
+  const atual = await prisma.revendedor.findUnique({
+    where: { id: revendedor.id },
+    select: { unitvUsuario: true, unitvSenhaCriptografada: true },
+  });
+  if (!atual?.unitvUsuario || !atual.unitvSenhaCriptografada) return { erro: "Cadastre usuário e senha da UniTV primeiro." };
+
+  try {
+    const senha = descriptografar(atual.unitvSenhaCriptografada);
+    await loginUnitv(atual.unitvUsuario, senha);
+  } catch (erro) {
+    await prisma.revendedor.update({ where: { id: revendedor.id }, data: { unitvConectadoEm: null } });
+    revalidatePath("/configuracoes");
+    return { erro: erro instanceof ErroUnitv ? erro.message : "Não foi possível testar a conexão com a UniTV." };
+  }
+
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { unitvConectadoEm: new Date() } });
+  revalidatePath("/configuracoes");
+  return { ok: true };
 }
 
 export async function enviarSugestao(formData: FormData): Promise<{ ok: true } | { ok: false; erro: string }> {

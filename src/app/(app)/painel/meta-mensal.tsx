@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button, Card, Input, cx } from "@/components/ui";
 import { brl0 } from "@/lib/format";
 import { definirMetaMensal } from "./actions";
@@ -9,15 +9,18 @@ export function MetaMensalCard({ meta, receitaAtual }: { meta: number | null; re
   // Estado local em vez de confiar só na prop `meta`: revalidatePath refaz o
   // fetch do servidor de forma assíncrona, então logo após salvar a prop
   // ainda pode chegar como null por um instante — o que já derrubou a tela
-  // com "Cannot read properties of null" ao formatar a meta antiga.
+  // com "Cannot read properties of null" ao formatar a meta antiga. Ajusta
+  // durante a renderização (não num useEffect) quando a prop muda de
+  // verdade — padrão recomendado pelo próprio React pra isso.
   const [metaAtual, setMetaAtual] = useState(meta);
+  const [metaPropAnterior, setMetaPropAnterior] = useState(meta);
+  if (meta !== metaPropAnterior) {
+    setMetaPropAnterior(meta);
+    setMetaAtual(meta);
+  }
   const [editando, setEditando] = useState(meta == null);
   const [valor, setValor] = useState(meta ? String(meta) : "");
   const [pendente, iniciarTransicao] = useTransition();
-
-  useEffect(() => {
-    setMetaAtual(meta);
-  }, [meta]);
 
   function salvar() {
     const numero = Number(valor.replace(",", "."));

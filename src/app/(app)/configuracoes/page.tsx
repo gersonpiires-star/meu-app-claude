@@ -11,6 +11,7 @@ import { NotificacoesPush } from "./notificacoes-push";
 import { LinkIndicacao } from "./link-indicacao";
 import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
 import { SugestaoForm } from "./sugestao-form";
+import { UnitvForm } from "./unitv-form";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -165,6 +166,21 @@ export default async function ConfiguracoesPage() {
         <h2 className="mb-3 text-sm font-bold text-text">Trazer dados de outro sistema</h2>
         <ImportarForm podeZerar={!ehFuncionario} />
       </Card>
+
+      {ehFuncionario ? null : (
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Integração UniTV</h2>
+            <Badge tone="warning">Beta</Badge>
+          </div>
+          <p className="mb-3 text-sm text-text-dim">
+            Conecte sua conta de revenda da UniTV pra, no futuro, renovar clientes direto pelo GestorPro sem
+            abrir o painel deles. A UniTV não tem API oficial — essa integração é experimental e pode falhar
+            ou parar de funcionar sem aviso.
+          </p>
+          <UnitvForm usuarioAtual={revendedor.unitvUsuario} conectadoEm={revendedor.unitvConectadoEm} />
+        </Card>
+      )}
 
       {ehFuncionario ? null : (
         <Card>

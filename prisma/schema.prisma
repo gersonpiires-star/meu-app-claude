@@ -114,6 +114,16 @@ model Revendedor {
   // não definiu nenhuma; vale pra todo mês até ele mudar.
   metaReceitaMensal Float?
 
+  // Integração BETA com o painel da UniTV (resell.media) — login da conta
+  // de revenda do usuário lá, pra permitir renovar clientes direto pelo
+  // GestorPro sem abrir o painel deles. A UniTV não tem API pública
+  // documentada; isso depende de engenharia reversa do painel deles e pode
+  // quebrar se mudarem algo (ver src/lib/integracoes/unitv.ts). Senha
+  // guardada criptografada (lib/crypto.ts), nunca em texto puro.
+  unitvUsuario            String?
+  unitvSenhaCriptografada String?
+  unitvConectadoEm        DateTime?
+
   // Taxas de parcelamento da própria maquininha do revendedor (substitui a
   // tabela de referência genérica) — { "<parcelas>": percentualComoNumero },
   // uma chave por número de parcelas de 1 a 12. Null/chave ausente = usa a
