@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
 import { dadosMes } from "@/lib/relatorio";
@@ -92,18 +93,27 @@ export async function GET(req: NextRequest) {
       });
       if (!jaFechou) {
         const dados = await dadosMes(revendedor.id, agoraCivil.ano, agoraCivil.mes);
-        await prisma.fechamentoMes.create({
-          data: {
-            revendedorId: revendedor.id,
-            ano: agoraCivil.ano,
-            mes: agoraCivil.mes,
-            receita: dados.receita,
-            custo: dados.custo,
-            lucro: dados.lucro,
-            clientesAtivos: clientes.length,
-          },
-        });
-        fechados++;
+        try {
+          await prisma.fechamentoMes.create({
+            data: {
+              revendedorId: revendedor.id,
+              ano: agoraCivil.ano,
+              mes: agoraCivil.mes,
+              receita: dados.receita,
+              custo: dados.custo,
+              lucro: dados.lucro,
+              clientesAtivos: clientes.length,
+            },
+          });
+          fechados++;
+        } catch (erro) {
+          // Duas execuções desse cron sobrepostas podiam ambas passar pela
+          // checagem "jaFechou" acima e colidir aqui na constraint única —
+          // sem esse catch, o erro não tratado interrompia o loop inteiro,
+          // pulando suspensão automática e notificações de TODOS os
+          // revendedores seguintes na lista, não só desse.
+          if (!(erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002")) throw erro;
+        }
       }
     }
 

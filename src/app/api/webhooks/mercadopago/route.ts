@@ -131,6 +131,14 @@ export async function POST(request: Request) {
     let recompensaIndicacao: { indicadorId: string; codigo: string } | null = null;
 
     if (pagamento.tipo === "ASSINATURA") {
+      // Trava a linha do revendedor antes de ler o status — sem isso, duas
+      // aprovações concorrentes da primeira assinatura da mesma conta (ex:
+      // dois pagamentos pendentes, dois webhooks quase simultâneos) podiam
+      // ambas ler statusAssinatura ainda como TRIAL (uma SELECT simples não
+      // espera o UPDATE da outra comitar) e conceder 2 cupons de indicação
+      // pra 1 conversão só. Com o FOR UPDATE, a segunda só lê depois que a
+      // primeira já comitou o ATIVO.
+      await tx.$queryRaw`SELECT 1 FROM "Revendedor" WHERE id = ${pagamento.revendedorId} FOR UPDATE`;
       const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
       // TRIAL aqui significa que essa pessoa nunca tinha pago o GestorPro
       // antes — é a conversão de verdade que a recompensa de indicação
@@ -162,9 +170,24 @@ export async function POST(request: Request) {
       await tx.pagamento.update({ where: { id: pagamento.id }, data: { valorLiquido } });
 
       // Só conta o uso do cupom quando o pagamento realmente aprova — um
-      // checkout abandonado não deveria consumir o limite de usos.
+      // checkout abandonado não deveria consumir o limite de usos. O
+      // incremento condicional na própria query SQL (em vez de checar
+      // usoMaximo antes e incrementar depois) é atômico no Postgres — duas
+      // aprovações concorrentes do mesmo cupom com 1 uso restante nunca
+      // conseguem as duas passar: a segunda UPDATE espera o lock de linha da
+      // primeira, recomeça e já não bate mais no WHERE.
       if (pagamento.cupomId) {
-        await tx.cupom.update({ where: { id: pagamento.cupomId }, data: { usosCount: { increment: 1 } } });
+        const linhasAfetadas = await tx.$executeRaw`
+          UPDATE "Cupom"
+          SET "usosCount" = "usosCount" + 1
+          WHERE id = ${pagamento.cupomId}
+            AND ("usoMaximo" IS NULL OR "usosCount" < "usoMaximo")
+        `;
+        if (linhasAfetadas === 0) {
+          console.error(
+            `Webhook MP: cupom ${pagamento.cupomId} já tinha atingido o limite de usos ao aprovar o pagamento ${pagamento.id} — pagamento segue aprovado, só não incrementou o contador.`
+          );
+        }
       }
 
       // Recompensa de indicação: quem indicou essa conta ganha um cupom de
