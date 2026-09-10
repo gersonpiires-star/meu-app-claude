@@ -16,19 +16,26 @@
 
 const BASE_URL = "https://panel-web.resell.media";
 
+// 1ª rodada (já descartada): caminhos sem "/api" batem direto no 404 padrão
+// do Nginx/openresty — nem chegam a existir nessa camada. Só "/api/..."
+// chega no backend de verdade, que responde "404 page not found" em texto
+// puro (assinatura típica de Go/Gin) quando a rota não existe. Essa 2ª
+// rodada foca só em variações de /api/ prováveis pra painel de
+// revendedor/agente ("agent" é o termo comum em inglês pra esse tipo de
+// painel IPTV chinês de revenda).
 const CAMINHOS_CANDIDATOS = [
-  "/api/login",
-  "/api/user/login",
-  "/api/auth/login",
-  "/api/v1/login",
-  "/api/v1/auth/login",
-  "/api/v1/user/login",
-  "/login",
-  "/user/login",
-  "/passport/login",
-  "/api/passport/login",
-  "/sys/login",
-  "/api/sys/login",
+  "/api/admin/login",
+  "/api/agent/login",
+  "/api/reseller/login",
+  "/api/account/login",
+  "/api/v2/login",
+  "/api/v2/user/login",
+  "/api/v2/auth/login",
+  "/api/signin",
+  "/api/auth/signin",
+  "/api/member/login",
+  "/api/customer/login",
+  "/api/reseller/user/login",
 ];
 
 export type SessaoUnitv = { token: string };
