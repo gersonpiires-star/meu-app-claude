@@ -7,13 +7,14 @@ import { LogoMark } from "@/components/logo-mark";
 import { NotificacoesAvisos } from "@/components/notificacoes-avisos";
 import { cx } from "@/components/ui";
 import type { NotificacaoRevendedor } from "@/lib/avisos";
+import { IconPainel, IconPessoas, IconSacola, IconCaixa, IconGrafico } from "@/components/nav-icons";
 
 const ITENS = [
-  { href: "/painel", label: "Painel" },
-  { href: "/clientes", label: "Clientes" },
-  { href: "/vendas", label: "Vendas" },
-  { href: "/estoque", label: "Estoque" },
-  { href: "/relatorio", label: "Relatório" },
+  { href: "/painel", label: "Painel", icone: IconPainel },
+  { href: "/clientes", label: "Clientes", icone: IconPessoas },
+  { href: "/vendas", label: "Vendas", icone: IconSacola },
+  { href: "/estoque", label: "Estoque", icone: IconCaixa },
+  { href: "/relatorio", label: "Relatório", icone: IconGrafico },
 ];
 
 export function NavShell({
@@ -147,18 +148,22 @@ export function NavShell({
         navegador), não no que está realmente visível. Isso fazia essa
         barra flutuar bem abaixo da tela em vez de grudar no rodapé. */}
         <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
-          {ITENS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cx(
-                "flex-1 py-2.5 text-center text-[11px] font-semibold",
-                pathname.startsWith(item.href) ? "text-accent" : "text-text-dim"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {ITENS.map((item) => {
+            const ativo = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+                  ativo ? "text-accent" : "text-text-dim"
+                )}
+              >
+                <item.icone className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </div>

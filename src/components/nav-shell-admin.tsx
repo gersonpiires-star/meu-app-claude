@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 import { SairButton } from "@/components/sair-button";
 import { LogoMark } from "@/components/logo-mark";
 import { cx } from "@/components/ui";
+import { IconPainel, IconPessoas, IconTag, IconPessoaMais, IconPontos } from "@/components/nav-icons";
 
 const ITENS = [
-  { href: "/admin", label: "Painel" },
+  { href: "/admin", label: "Painel", icone: IconPainel },
   {
     href: "/admin/assinantes",
     label: "Assinantes",
+    icone: IconPessoas,
     sub: [
       { aba: "assinantes", label: "Ativos" },
       { aba: "trial", label: "Em trial" },
@@ -20,11 +22,16 @@ const ITENS = [
       { aba: "todos", label: "Todos" },
     ],
   },
-  { href: "/admin/cupons", label: "Cupons" },
-  { href: "/admin/interessados", label: "Interessados" },
+  { href: "/admin/cupons", label: "Cupons", icone: IconTag },
+  { href: "/admin/interessados", label: "Interessados", icone: IconPessoaMais },
   { href: "/admin/comunicados", label: "Comunicados" },
   { href: "/admin/sugestoes", label: "Sugestões" },
 ];
+
+// Na barra inferior do celular só cabem uns 4 ícones direitinho — o resto
+// (Comunicados, Sugestões) fica atrás do botão "Mais".
+const ITENS_BARRA = ITENS.slice(0, 4);
+const ITENS_MAIS = ITENS.slice(4);
 
 function ChevronIcon({ aberto }: { aberto: boolean }) {
   return (
@@ -43,6 +50,8 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
   const [expandido, setExpandido] = useState<string | null>(
     ITENS.find((item) => item.sub && pathname === item.href)?.href ?? null
   );
+  const [maisAberto, setMaisAberto] = useState(false);
+  const estaEmItemDoMais = ITENS_MAIS.some((item) => pathname === item.href);
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
@@ -136,19 +145,63 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
-        <nav className="sticky inset-x-0 bottom-0 z-10 flex gap-1 border-t border-border bg-surface px-1 pb-[env(safe-area-inset-bottom)] md:hidden">
-          {ITENS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cx(
-                "flex-1 py-2.5 text-center text-[10px] font-semibold leading-tight",
-                pathname === item.href ? "text-accent" : "text-text-dim"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+          {maisAberto ? (
+            <button
+              type="button"
+              aria-label="Fechar menu"
+              onClick={() => setMaisAberto(false)}
+              className="fixed inset-0 z-10"
+            />
+          ) : null}
+
+          {maisAberto ? (
+            <div className="absolute inset-x-3 bottom-full z-20 mb-2 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
+              {ITENS_MAIS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMaisAberto(false)}
+                  className={cx(
+                    "border-b border-border px-4 py-3 text-sm font-medium last:border-b-0",
+                    pathname === item.href ? "text-accent" : "text-text-muted"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
+          {ITENS_BARRA.map((item) => {
+            const Icone = item.icone!;
+            const ativo = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+                  ativo ? "text-accent" : "text-text-dim"
+                )}
+              >
+                <Icone className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMaisAberto((v) => !v)}
+            aria-expanded={maisAberto}
+            className={cx(
+              "z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+              maisAberto || estaEmItemDoMais ? "text-accent" : "text-text-dim"
+            )}
+          >
+            <IconPontos className="h-5 w-5" />
+            Mais
+          </button>
         </nav>
       </div>
     </div>
