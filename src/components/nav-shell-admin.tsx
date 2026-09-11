@@ -136,13 +136,13 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
 
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
-        <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+        <nav className="sticky inset-x-0 bottom-0 z-10 flex gap-1 border-t border-border bg-surface px-1 pb-[env(safe-area-inset-bottom)] md:hidden">
           {ITENS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cx(
-                "flex-1 py-2.5 text-center text-[11px] font-semibold",
+                "flex-1 py-2.5 text-center text-[10px] font-semibold leading-tight",
                 pathname === item.href ? "text-accent" : "text-text-dim"
               )}
             >
