@@ -4,14 +4,21 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
-import { PLANO_MESES, calcularVencimentoComDiaFixo } from "@/lib/planos";
+import { PLANO_MESES, PLANO_LABEL, calcularVencimentoComDiaFixo } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
+import { registrarLog } from "@/lib/log";
+import { brl } from "@/lib/format";
 import { snapshotDoCliente } from "@/lib/renovacao";
+import type { PlanoCliente } from "@/generated/prisma/enums";
 
 class SemCreditoError extends Error {}
 
 export async function renovarComPlanoAtual(id: string): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
+
+  let clienteNome = "";
+  let planoRenovado: PlanoCliente | undefined;
+  let valorRenovado = 0;
 
   try {
     // Lê e grava dentro da mesma transação serializável — senão um clique
@@ -42,6 +49,10 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
           where: { id },
           data: { vencimento: novoVencimento, status: "ATIVO", testeGratis: false },
         });
+
+        clienteNome = cliente.nome;
+        planoRenovado = cliente.plano;
+        valorRenovado = cliente.valorPlano;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -53,6 +64,17 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
       return { erro: "Esse cliente acabou de ser renovado em outra aba/clique — confira antes de tentar de novo." };
     }
     throw erro;
+  }
+
+  // Faltava esse registro — a renovação manual (tela do cliente) já grava
+  // no histórico, mas essa via "renovar em lote" nunca gravou nada, deixando
+  // esse tipo de renovação invisível na aba Histórico de ações.
+  if (planoRenovado) {
+    await registrarLog(
+      revendedor.id,
+      "cliente.renovar",
+      `Renovou o plano de ${clienteNome} (${PLANO_LABEL[planoRenovado]}, ${brl(valorRenovado)})`
+    );
   }
 
   revalidatePath("/clientes");
