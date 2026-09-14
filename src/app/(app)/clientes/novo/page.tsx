@@ -14,7 +14,8 @@ export default async function NovoClientePage({
   const [servicos, clientes, params] = await Promise.all([
     prisma.servico.findMany({
       where: { revendedorId: revendedor.id },
-      select: { nome: true },
+      select: { id: true, nome: true, custoCredito: true },
+      orderBy: { nome: "asc" },
     }),
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
@@ -23,6 +24,12 @@ export default async function NovoClientePage({
     }),
     searchParams,
   ]);
+
+  // O "interesse" do lead (Interessados > Virar cliente) é texto livre — só
+  // pré-seleciona o app se bater com um já cadastrado, nunca cria um novo.
+  const servicoSugerido = params.servico
+    ? servicos.find((s) => s.nome.toLowerCase() === params.servico!.toLowerCase())
+    : undefined;
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
@@ -33,9 +40,9 @@ export default async function NovoClientePage({
       <Card>
         <ClienteForm
           acao={criarCliente}
-          servicosExistentes={servicos.map((s) => s.nome)}
+          servicos={servicos}
           clientesParaIndicacao={clientes}
-          valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servico: params.servico }}
+          valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servicoId: servicoSugerido?.id }}
           interessadoId={params.interessadoId}
           mostrarCusto
         />

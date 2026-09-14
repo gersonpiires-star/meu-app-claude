@@ -29,7 +29,7 @@ const clienteSchema = z.object({
     .optional()
     .transform((v) => (v ? v.replace(/\D/g, "") : ""))
     .refine((v) => v === "" || v.length >= 10, "WhatsApp inválido — informe DDD + número"),
-  servico: z.string().trim().optional(),
+  servicoId: z.string().trim().optional(),
   telas: z.coerce.number().int().min(1).default(1),
   plano: planoSchema,
   valorPlano: z.coerce.number().min(0),
@@ -48,15 +48,15 @@ function parseDiaFixo(texto?: string): number | null {
   return n;
 }
 
-async function resolverServico(revendedorId: string, nome?: string) {
-  const nomeLimpo = nome?.trim();
-  if (!nomeLimpo) return null;
-  const servico = await prisma.servico.upsert({
-    where: { revendedorId_nome: { revendedorId, nome: nomeLimpo } },
-    update: {},
-    create: { revendedorId, nome: nomeLimpo },
-  });
-  return servico.id;
+// Só aceita um app já cadastrado (em Plataformas) — nunca cria um novo a
+// partir de texto digitado aqui. Isso evitava, antes, que um app "Netflex"
+// digitado com erro de português virasse um serviço solto sem plataforma
+// vinculada, sem controle de crédito e sem entrar no agrupamento certo do
+// relatório.
+async function resolverServico(revendedorId: string, servicoId?: string) {
+  if (!servicoId) return null;
+  const servico = await prisma.servico.findUnique({ where: { id: servicoId, revendedorId } });
+  return servico?.id ?? null;
 }
 
 // Confere que o "indicado por" é mesmo um cliente do revendedor (nunca
@@ -70,7 +70,7 @@ async function resolverIndicadoPor(revendedorId: string, indicadoPorId: string |
 export async function criarCliente(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
-  const servicoId = await resolverServico(revendedor.id, dados.servico);
+  const servicoId = await resolverServico(revendedor.id, dados.servicoId);
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId);
 
   let clienteId: string;
@@ -143,7 +143,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
 export async function atualizarCliente(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
-  const servicoId = await resolverServico(revendedor.id, dados.servico);
+  const servicoId = await resolverServico(revendedor.id, dados.servicoId);
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId, id);
 
   await prisma.cliente.update({

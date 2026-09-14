@@ -2,16 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
-import { PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
+import { PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const PLANOS: PlanoCliente[] = ["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"];
+
+type Servico = { id: string; nome: string; custoCredito: number | null };
 
 type ValoresIniciais = {
   nome?: string;
   cpf?: string | null;
   whatsapp?: string | null;
-  servico?: string;
+  servicoId?: string | null;
   telas?: number;
   plano?: PlanoCliente;
   valorPlano?: number;
@@ -24,7 +26,7 @@ type ValoresIniciais = {
 export function ClienteForm({
   acao,
   valoresIniciais,
-  servicosExistentes,
+  servicos,
   clientesParaIndicacao = [],
   textoBotao = "Salvar cliente",
   interessadoId,
@@ -32,7 +34,7 @@ export function ClienteForm({
 }: {
   acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
   valoresIniciais?: ValoresIniciais;
-  servicosExistentes: string[];
+  servicos: Servico[];
   clientesParaIndicacao?: { id: string; nome: string }[];
   textoBotao?: string;
   interessadoId?: string;
@@ -40,8 +42,15 @@ export function ClienteForm({
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
   const [valor, setValor] = useState<number>(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
+  const [servicoId, setServicoId] = useState<string>(valoresIniciais?.servicoId ?? "");
+  const [custo, setCusto] = useState<number | "">("");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
+
+  function aplicarSugestaoCusto(novoPlano: PlanoCliente, novoServicoId: string) {
+    const servico = servicos.find((s) => s.id === novoServicoId);
+    if (servico?.custoCredito) setCusto(Number((PLANO_MESES[novoPlano] * servico.custoCredito).toFixed(2)));
+  }
 
   return (
     <form
@@ -68,13 +77,27 @@ export function ClienteForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Serviço">
-          <Input name="servico" list="servicos-existentes" defaultValue={valoresIniciais?.servico ?? ""} placeholder="Ex: NetFlex TV" />
-          <datalist id="servicos-existentes">
-            {servicosExistentes.map((s) => (
-              <option key={s} value={s} />
+        <Field label="Serviço (app)">
+          <Select
+            name="servicoId"
+            value={servicoId}
+            onChange={(e) => {
+              setServicoId(e.target.value);
+              aplicarSugestaoCusto(plano, e.target.value);
+            }}
+          >
+            <option value="">Nenhum</option>
+            {servicos.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nome}
+              </option>
             ))}
-          </datalist>
+          </Select>
+          {servicos.length === 0 ? (
+            <p className="mt-1 text-xs text-text-dim">
+              Nenhum app cadastrado ainda — cadastre em Plataformas antes de vincular a um cliente.
+            </p>
+          ) : null}
         </Field>
         <Field label="Quantas telas">
           <Input type="number" name="telas" min={1} defaultValue={valoresIniciais?.telas ?? 1} required />
@@ -90,6 +113,7 @@ export function ClienteForm({
               const novoPlano = e.target.value as PlanoCliente;
               setPlano(novoPlano);
               setValor(PLANO_VALOR_SUGERIDO[novoPlano]);
+              aplicarSugestaoCusto(novoPlano, servicoId);
             }}
           >
             {PLANOS.map((p) => (
@@ -114,7 +138,15 @@ export function ClienteForm({
 
       {mostrarCusto ? (
         <Field label="Custo do crédito (R$)">
-          <Input type="number" name="custo" min={0} step="0.01" placeholder="0,00" />
+          <Input
+            type="number"
+            name="custo"
+            min={0}
+            step="0.01"
+            placeholder="0,00"
+            value={custo}
+            onChange={(e) => setCusto(e.target.value === "" ? "" : Number(e.target.value))}
+          />
         </Field>
       ) : null}
 

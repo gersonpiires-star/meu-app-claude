@@ -12,7 +12,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
 
   const [cliente, servicos, clientes] = await Promise.all([
     prisma.cliente.findUnique({ where: { id, revendedorId: revendedor.id }, include: { servico: true } }),
-    prisma.servico.findMany({ where: { revendedorId: revendedor.id }, select: { nome: true } }),
+    prisma.servico.findMany({ where: { revendedorId: revendedor.id }, select: { id: true, nome: true, custoCredito: true }, orderBy: { nome: "asc" } }),
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" }, id: { not: id } },
       select: { id: true, nome: true },
@@ -31,13 +31,13 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
       <Card>
         <ClienteForm
           acao={atualizarCliente.bind(null, id)}
-          servicosExistentes={servicos.map((s) => s.nome)}
+          servicos={servicos}
           clientesParaIndicacao={clientes}
           valoresIniciais={{
             nome: cliente.nome,
             cpf: cliente.cpf,
             whatsapp: cliente.whatsapp,
-            servico: cliente.servico?.nome,
+            servicoId: cliente.servicoId,
             telas: cliente.telas,
             plano: cliente.plano,
             valorPlano: cliente.valorPlano,
