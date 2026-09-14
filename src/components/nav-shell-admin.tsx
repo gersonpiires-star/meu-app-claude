@@ -146,6 +146,11 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
         <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
 
         <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+          {/* Backdrop invisível pra fechar o "Mais" ao tocar fora — precisa
+          que os ícones/botão da barra sejam `relative` (não só `z-20`
+          isolado), senão um irmão sem position fica sempre atrás de
+          qualquer elemento posicionado, mesmo com z-index maior, e o
+          próprio toque na barra fecharia o menu em vez de navegar. */}
           {maisAberto ? (
             <button
               type="button"
@@ -181,7 +186,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+                  "relative z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
                   ativo ? "text-accent" : "text-text-dim"
                 )}
               >
@@ -195,7 +200,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
             onClick={() => setMaisAberto((v) => !v)}
             aria-expanded={maisAberto}
             className={cx(
-              "z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+              "relative z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
               maisAberto || estaEmItemDoMais ? "text-accent" : "text-text-dim"
             )}
           >

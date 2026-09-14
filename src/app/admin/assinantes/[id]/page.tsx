@@ -18,6 +18,13 @@ const STATUS_PAGAMENTO_LABEL: Record<string, string> = {
   CANCELADO: "Cancelado",
 };
 
+const STATUS_ASSINATURA_LABEL: Record<string, string> = {
+  TRIAL: "Trial",
+  ATIVO: "Ativo",
+  PAUSADO: "Pausado",
+  CANCELADO: "Cancelado",
+};
+
 function statusInfo(statusAssinatura: StatusAssinatura, assinaturaVence: Date | null): { tom: "success" | "danger" | "warning" | "neutral"; label: string } {
   if (statusAssinatura === "ATIVO") {
     const venceu = assinaturaVence && assinaturaVence <= new Date();
@@ -59,11 +66,21 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
   });
   if (!revendedor || revendedor.papel !== "REVENDEDOR") notFound();
 
-  const [ultimaAtividade, totalPagoAgg] = await Promise.all([
+  const [ultimaAtividade, totalPagoAgg, ultimoPagamentoAprovado] = await Promise.all([
     prisma.logAtividade.aggregate({ where: { revendedorId: id }, _max: { criadoEm: true } }),
     prisma.pagamento.aggregate({
       where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
       _sum: { valor: true },
+    }),
+    // Consulta separada da lista de "Histórico de pagamentos" (que só traz
+    // os 5 mais recentes, de qualquer status) — senão um revendedor com 5+
+    // tentativas de pagamento recusadas/pendentes depois do último aprovado
+    // empurrava o aprovado pra fora da lista, e "Último pago" mostrava "—"
+    // ao lado de um "Total pago" com valor real, uma contradição visível.
+    prisma.pagamento.findFirst({
+      where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
+      orderBy: { criadoEm: "desc" },
+      select: { valor: true, meses: true },
     }),
   ]);
 
@@ -72,7 +89,6 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
     : null;
   const totalPago = totalPagoAgg._sum.valor ?? 0;
 
-  const ultimoPagamentoAprovado = revendedor.pagamentos.find((p) => p.status === "APROVADO");
   const plano = revendedor.planoAssinatura ?? (ultimoPagamentoAprovado ? planoDosMeses(ultimoPagamentoAprovado.meses ?? 1) : null);
   const status = statusInfo(revendedor.statusAssinatura, revendedor.assinaturaVence);
 
@@ -222,7 +238,9 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
                         className="flex items-center justify-between gap-3 py-1.5 text-sm hover:text-accent"
                       >
                         <span className="truncate text-text-muted">{i.nome}</span>
-                        <Badge tone={i.statusAssinatura === "ATIVO" ? "accent" : "neutral"}>{i.statusAssinatura}</Badge>
+                        <Badge tone={i.statusAssinatura === "ATIVO" ? "accent" : "neutral"}>
+                          {STATUS_ASSINATURA_LABEL[i.statusAssinatura] ?? i.statusAssinatura}
+                        </Badge>
                       </Link>
                     ))}
                   </div>
@@ -236,7 +254,7 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
           <Card>
             <h2 className="mb-3 text-sm font-bold text-text">Acesso</h2>
             <p className="mb-3 text-sm text-text-muted">
-              Status atual: <strong className="text-text">{revendedor.statusAssinatura}</strong>
+              Status atual: <strong className="text-text">{STATUS_ASSINATURA_LABEL[revendedor.statusAssinatura] ?? revendedor.statusAssinatura}</strong>
               {revendedor.statusAssinatura === "TRIAL"
                 ? ` · trial até ${dataPorExtenso(revendedor.trialFim)}`
                 : revendedor.assinaturaVence
