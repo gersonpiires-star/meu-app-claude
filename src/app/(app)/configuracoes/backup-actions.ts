@@ -144,9 +144,17 @@ export async function restaurarBackup(
         });
         clienteIdAntigoParaNovo.set(c.id as string, criado.id);
         for (const r of renovacoes) {
+          // Backups exportados antes desse campo existir não têm
+          // r.servicoId — cai pro app atual do cliente restaurado, mesma
+          // aproximação usada na importação do app antigo.
+          const servicoIdAntigoRenov = r.servicoId as string | null | undefined;
+          const servicoIdRenov = servicoIdAntigoRenov
+            ? (servicoIdAntigoParaNovo.get(servicoIdAntigoRenov) ?? criado.servicoId)
+            : criado.servicoId;
           await tx.renovacao.create({
             data: {
               clienteId: criado.id,
+              servicoId: servicoIdRenov,
               plano: r.plano as "MENSAL" | "DOIS_MESES" | "TRIMESTRAL" | "SEMESTRAL",
               valor: r.valor as number,
               custo: (r.custo as number) ?? 0,

@@ -396,16 +396,25 @@ async function importar({
       }
       const vendasImportadas = vendasValidas.length;
 
+      // Mesmo app do cliente no momento da importação — se ele trocar de app
+      // depois, essa renovação importada não deve "seguir" pro app novo (ver
+      // Renovacao.servicoId no schema).
+      const servicoIdPorClienteNovo = new Map<string, string | null>(clientesData.map((c) => [c.id, c.servicoId]));
+
       const recebimentosValidos = recebimentos.filter(
         (r) => r.clienteId != null && clienteIdAntigoParaNovo.has(r.clienteId)
       );
-      const renovacoesData = recebimentosValidos.map((r) => ({
-        clienteId: clienteIdAntigoParaNovo.get(r.clienteId!)!,
-        plano: mapearPlano(r.tipo),
-        valor: r.valor,
-        custo: r.custo,
-        data: parseData(r.data),
-      }));
+      const renovacoesData = recebimentosValidos.map((r) => {
+        const clienteId = clienteIdAntigoParaNovo.get(r.clienteId!)!;
+        return {
+          clienteId,
+          servicoId: servicoIdPorClienteNovo.get(clienteId) ?? null,
+          plano: mapearPlano(r.tipo),
+          valor: r.valor,
+          custo: r.custo,
+          data: parseData(r.data),
+        };
+      });
       if (renovacoesData.length > 0) await tx.renovacao.createMany({ data: renovacoesData });
       const renovacoesImportadas = renovacoesData.length;
 

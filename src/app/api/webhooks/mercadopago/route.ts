@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { calcularVencimento } from "@/lib/planos";
@@ -228,6 +229,7 @@ export async function POST(request: Request) {
         await tx.renovacao.create({
           data: {
             clienteId: cliente.id,
+            servicoId: cliente.servicoId,
             plano: pagamento.plano as PlanoCliente,
             valor: pagamento.valor,
             custo: pagamento.custo,
@@ -261,6 +263,12 @@ export async function POST(request: Request) {
   });
 
   if (!resultado.jaProcessado && pagamento.tipo === "RENOVACAO" && pagamento.cliente) {
+    revalidatePath("/clientes");
+    revalidatePath(`/clientes/${pagamento.cliente.id}`);
+    revalidatePath("/painel");
+    revalidatePath("/relatorio");
+    revalidatePath("/plataformas");
+
     for (const inscricao of pagamento.revendedor.pushSubscriptions) {
       const manter = await enviarPush(inscricao, {
         titulo: "Pagamento recebido",
