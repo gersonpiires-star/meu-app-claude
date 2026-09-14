@@ -4,7 +4,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataPorExtenso, dataCurta, brl0, fmtTelefone } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, cx } from "@/components/ui";
 import { AcoesAcesso } from "../acoes-acesso";
 import { planoDosMeses } from "@/lib/planos-assinatura";
 import type { StatusAssinatura } from "@/generated/prisma/enums";
@@ -66,23 +66,41 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
   });
   if (!revendedor || revendedor.papel !== "REVENDEDOR") notFound();
 
-  const [ultimaAtividade, totalPagoAgg, ultimoPagamentoAprovado] = await Promise.all([
-    prisma.logAtividade.aggregate({ where: { revendedorId: id }, _max: { criadoEm: true } }),
-    prisma.pagamento.aggregate({
-      where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
-      _sum: { valor: true },
-    }),
-    // Consulta separada da lista de "Histórico de pagamentos" (que só traz
-    // os 5 mais recentes, de qualquer status) — senão um revendedor com 5+
-    // tentativas de pagamento recusadas/pendentes depois do último aprovado
-    // empurrava o aprovado pra fora da lista, e "Último pago" mostrava "—"
-    // ao lado de um "Total pago" com valor real, uma contradição visível.
-    prisma.pagamento.findFirst({
-      where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
-      orderBy: { criadoEm: "desc" },
-      select: { valor: true, meses: true },
-    }),
-  ]);
+  const [ultimaAtividade, totalPagoAgg, ultimoPagamentoAprovado, receitaClientesAgg, clientesVencidos, atividadesRecentes, sugestoesDele] =
+    await Promise.all([
+      prisma.logAtividade.aggregate({ where: { revendedorId: id }, _max: { criadoEm: true } }),
+      prisma.pagamento.aggregate({
+        where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
+        _sum: { valor: true },
+      }),
+      // Consulta separada da lista de "Histórico de pagamentos" (que só traz
+      // os 5 mais recentes, de qualquer status) — senão um revendedor com 5+
+      // tentativas de pagamento recusadas/pendentes depois do último aprovado
+      // empurrava o aprovado pra fora da lista, e "Último pago" mostrava "—"
+      // ao lado de um "Total pago" com valor real, uma contradição visível.
+      prisma.pagamento.findFirst({
+        where: { revendedorId: id, tipo: "ASSINATURA", status: "APROVADO" },
+        orderBy: { criadoEm: "desc" },
+        select: { valor: true, meses: true },
+      }),
+      // Tamanho do negócio dele: quanto os próprios clientes dele geram por
+      // mês — dá pra admin entender se é uma conta pequena ou grande, e o
+      // quanto ele tem a perder se cancelar a assinatura do GestorPro.
+      prisma.cliente.aggregate({ where: { revendedorId: id, status: "ATIVO" }, _sum: { valorPlano: true }, _count: true }),
+      prisma.cliente.count({ where: { revendedorId: id, status: "VENCIDO" } }),
+      prisma.logAtividade.findMany({
+        where: { revendedorId: id },
+        orderBy: { criadoEm: "desc" },
+        take: 8,
+        select: { id: true, descricao: true, autorNome: true, criadoEm: true },
+      }),
+      prisma.sugestao.findMany({
+        where: { revendedorId: id },
+        orderBy: { criadoEm: "desc" },
+        take: 5,
+        select: { id: true, mensagem: true, criadoEm: true, lida: true },
+      }),
+    ]);
 
   const diasSemAtividade = ultimaAtividade._max.criadoEm
     ? Math.floor((new Date().getTime() - ultimaAtividade._max.criadoEm.getTime()) / 86400000)
@@ -182,6 +200,55 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
               )}
             </div>
           </Card>
+
+          <Card>
+            <h2 className="mb-3 text-sm font-bold text-text">Negócio dele</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-dim">Receita mensal ativa</p>
+                <p className="font-semibold text-text">{brl0(receitaClientesAgg._sum.valorPlano ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-dim">Clientes ativos</p>
+                <p className="font-semibold text-text">{receitaClientesAgg._count}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-dim">Clientes vencidos</p>
+                <p className={cx("font-semibold", clientesVencidos > 0 ? "text-warning" : "text-text")}>{clientesVencidos}</p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-text-dim">
+              O que a operação dele fatura por mês com os próprios clientes — quanto maior, mais ele tem a perder se cancelar.
+            </p>
+          </Card>
+
+          {atividadesRecentes.length > 0 ? (
+            <Card>
+              <h2 className="mb-3 text-sm font-bold text-text">Atividade recente</h2>
+              <div className="flex flex-col divide-y divide-border">
+                {atividadesRecentes.map((a) => (
+                  <div key={a.id} className="flex items-start justify-between gap-3 py-2 text-sm">
+                    <p className="text-text-muted">{a.descricao}</p>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-text-dim">{dataCurta(a.criadoEm)}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
+          {sugestoesDele.length > 0 ? (
+            <Card>
+              <h2 className="mb-3 text-sm font-bold text-text">Sugestões enviadas</h2>
+              <div className="flex flex-col divide-y divide-border">
+                {sugestoesDele.map((s) => (
+                  <div key={s.id} className="flex items-start justify-between gap-3 py-2">
+                    <p className="text-sm text-text-muted">{s.mensagem}</p>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-text-dim">{dataCurta(s.criadoEm)}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
 
           {revendedor.pagamentos.length > 0 ? (
             <Card>
