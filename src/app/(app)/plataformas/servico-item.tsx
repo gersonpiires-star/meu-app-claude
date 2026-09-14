@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button, Card, Field, Input, cx } from "@/components/ui";
 import { brl, brl0 } from "@/lib/format";
-import { atualizarConfigServico } from "./actions";
+import { atualizarConfigServico, excluirServico } from "./actions";
 
 type Servico = {
   id: string;
@@ -14,11 +14,29 @@ type Servico = {
   totalClientes: number;
 };
 
-export function ServicoItem({ servico, plataformas }: { servico: Servico; plataformas: { id: string; nome: string }[] }) {
+export function ServicoItem({
+  servico,
+  plataformas,
+  podeExcluir = false,
+}: {
+  servico: Servico;
+  plataformas: { id: string; nome: string }[];
+  podeExcluir?: boolean;
+}) {
   const [editando, setEditando] = useState(false);
   const [plataformaId, setPlataformaId] = useState(servico.plataformaId ?? "");
   const [pendente, iniciarTransicao] = useTransition();
+  const [erroExcluir, setErroExcluir] = useState<string | null>(null);
   const plataformaAtual = plataformas.find((p) => p.id === servico.plataformaId);
+
+  function excluir() {
+    if (!confirm(`Excluir o app ${servico.nome}? Essa ação não pode ser desfeita.`)) return;
+    setErroExcluir(null);
+    iniciarTransicao(async () => {
+      const resultado = await excluirServico(servico.id);
+      if (!resultado.ok) setErroExcluir(resultado.erro);
+    });
+  }
 
   if (!editando) {
     return (
@@ -33,15 +51,29 @@ export function ServicoItem({ servico, plataformas }: { servico: Servico; plataf
             {servico.cobrancaTelaExtra ? `Taxa de tela extra ${brl0(servico.cobrancaTelaExtra)}` : "Sem taxa por tela extra"}
           </p>
           {!plataformaAtual ? <p className="text-xs font-semibold text-warning">Sem plataforma vinculada</p> : null}
+          {erroExcluir ? <p className="mt-1 text-[11px] text-danger">{erroExcluir}</p> : null}
         </div>
-        <button
-          type="button"
-          onClick={() => setEditando(true)}
-          aria-label={`Editar ${servico.nome}`}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-accent transition hover:brightness-110"
-        >
-          ✎
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            aria-label={`Editar ${servico.nome}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-accent transition hover:brightness-110"
+          >
+            ✎
+          </button>
+          {podeExcluir ? (
+            <button
+              type="button"
+              disabled={pendente}
+              onClick={excluir}
+              aria-label={`Excluir ${servico.nome}`}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-danger transition hover:brightness-110 disabled:opacity-50"
+            >
+              ✕
+            </button>
+          ) : null}
+        </div>
       </Card>
     );
   }

@@ -103,6 +103,7 @@ export default async function PlataformasPage() {
                             totalClientes: s._count.clientes,
                           }}
                           plataformas={listaPlataformas}
+                          podeExcluir={!ehFuncionario}
                         />
                       ))}
                     </div>
@@ -137,6 +138,7 @@ export default async function PlataformasPage() {
                   totalClientes: s._count.clientes,
                 }}
                 plataformas={listaPlataformas}
+                podeExcluir={!ehFuncionario}
               />
             ))}
           </div>

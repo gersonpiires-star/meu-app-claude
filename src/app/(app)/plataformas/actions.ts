@@ -87,6 +87,33 @@ export async function criarAppNaPlataforma(plataformaId: string, formData: FormD
   revalidatePath("/plataformas");
 }
 
+// Só deixa excluir um app lançado errado (sem cliente usando) — se algum
+// cliente já estiver nesse app, bloqueia em vez de apagar silenciosamente
+// (o cliente ficaria sem app vinculado do nada). Mesma trava de
+// excluirPlataforma acima.
+export async function excluirServico(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirDono();
+  const servico = await prisma.servico.findUnique({
+    where: { id, revendedorId: revendedor.id },
+    include: { _count: { select: { clientes: true } } },
+  });
+  if (!servico) return { ok: false, erro: "App não encontrado." };
+
+  if (servico._count.clientes > 0) {
+    return {
+      ok: false,
+      erro: `Esse app tem ${servico._count.clientes} cliente${servico._count.clientes === 1 ? "" : "s"} vinculado${servico._count.clientes === 1 ? "" : "s"}. Troque o app desses clientes antes de excluir.`,
+    };
+  }
+
+  await prisma.servico.delete({ where: { id, revendedorId: revendedor.id } });
+  await registrarLog(revendedor.id, "plataforma.excluir_app", `Excluiu o app ${servico.nome}`);
+
+  revalidatePath("/plataformas");
+  revalidatePath("/clientes/novo");
+  return { ok: true };
+}
+
 const servicoConfigSchema = z.object({
   plataformaId: z.string().trim().optional(),
   custoCredito: z.coerce.number().min(0).optional(),
