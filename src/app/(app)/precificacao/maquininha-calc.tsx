@@ -11,9 +11,11 @@ const PRAZOS: Prazo[] = [0, 1, 2];
 export function MaquininhaCalc({
   margemInicial,
   taxasIniciais,
+  podeEditar = true,
 }: {
   margemInicial: number;
   taxasIniciais: Record<number, number>;
+  podeEditar?: boolean;
 }) {
   const [custo, setCusto] = useState(0);
   const [margem, setMargem] = useState(margemInicial);
@@ -68,11 +70,15 @@ export function MaquininhaCalc({
               max={95}
               value={margem}
               onChange={(e) => setMargem(Number(e.target.value))}
-              onBlur={(e) => salvarMargemPadrao(Number(e.target.value))}
+              onBlur={(e) => podeEditar && salvarMargemPadrao(Number(e.target.value))}
             />
           </Field>
         </div>
-        <p className="mt-1 text-[11px] text-text-dim">A margem fica salva e sugere o preço de venda de aparelhos no registro de venda.</p>
+        <p className="mt-1 text-[11px] text-text-dim">
+          {podeEditar
+            ? "A margem fica salva e sugere o preço de venda de aparelhos no registro de venda."
+            : "Só o dono da conta pode salvar uma nova margem padrão — esse cálculo aqui é só pra essa consulta."}
+        </p>
         <div className="mt-4 flex items-center justify-between rounded-xl bg-accent-soft px-4 py-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-text-dim">Preço à vista · Pix ou dinheiro</span>
           <span className="text-xl font-bold text-accent">{brl(preco)}</span>
@@ -126,11 +132,11 @@ export function MaquininhaCalc({
                 {salvando ? "Salvando…" : "Salvar"}
               </Button>
             </div>
-          ) : (
+          ) : podeEditar ? (
             <Button type="button" variant="ghost" onClick={comecarEdicao} className="shrink-0 px-2.5 py-1 text-xs">
               Editar taxas
             </Button>
-          )}
+          ) : null}
         </div>
         <div className="grid grid-cols-[0.7fr_1.3fr_1fr_0.9fr] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
           <span>Parc</span>

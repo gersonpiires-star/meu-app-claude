@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 
+// Margem e taxas de cartão valem pra toda a precificação futura da conta —
+// só o dono decide isso, não um funcionário.
 export async function salvarMargemPadrao(margemPadrao: number) {
-  const revendedor = await exigirRevendedor();
+  const revendedor = await exigirDono();
   const margem = Math.min(95, Math.max(0, margemPadrao));
 
   await prisma.revendedor.update({
@@ -23,7 +25,7 @@ export async function salvarMargemPadrao(margemPadrao: number) {
 // usando a taxa de referência. Guardado como JSON (chave = número da
 // parcela) pra não precisar de uma tabela nova só pra isso.
 export async function salvarTaxasCartao(taxas: Record<number, number>) {
-  const revendedor = await exigirRevendedor();
+  const revendedor = await exigirDono();
 
   const limpo: Record<string, number> = {};
   for (const [parcela, taxa] of Object.entries(taxas)) {

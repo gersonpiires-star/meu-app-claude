@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, exigirDono } from "@/lib/sessao";
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
@@ -365,7 +365,9 @@ export async function corrigirVencimento(id: string, formData: FormData) {
 }
 
 export async function excluirCliente(id: string) {
-  const revendedor = await exigirRevendedor();
+  // Apaga o cliente e todo o histórico dele (vendas, renovações) sem volta —
+  // só o dono da conta pode fazer isso, não um funcionário.
+  const revendedor = await exigirDono();
   const excluido = await prisma.cliente.delete({ where: { id, revendedorId: revendedor.id } });
   await registrarLog(revendedor.id, "cliente.excluir", `Excluiu o cliente ${excluido.nome}`);
   revalidatePath("/clientes");

@@ -159,9 +159,11 @@ export default async function ConfiguracoesPage() {
         <BackupForm podeRestaurar={!ehFuncionario} podeExportar={!ehFuncionario} />
       </CardRetratil>
 
-      <CardRetratil titulo="Trazer dados de outro sistema">
-        <ImportarForm podeZerar={!ehFuncionario} />
-      </CardRetratil>
+      {ehFuncionario ? null : (
+        <CardRetratil titulo="Trazer dados de outro sistema">
+          <ImportarForm podeZerar={!ehFuncionario} />
+        </CardRetratil>
+      )}
 
       {ehFuncionario || !podeVerBetaUnitv ? null : (
         <CardRetratil titulo="Integração UniTV" extra={<Badge tone="warning">Beta</Badge>}>

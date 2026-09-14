@@ -4,7 +4,7 @@ import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataHora } from "@/lib/format";
 import { consumirFifo, type Lote } from "@/lib/dados";
@@ -142,7 +142,9 @@ function parseData(texto?: string): Date {
 export async function importarDadosAntigos(
   formData: FormData
 ): Promise<{ ok: true; resumo: string } | { ok: false; erro: string }> {
-  const revendedor = await exigirRevendedor();
+  // Importação em massa pode criar um volume grande de clientes/vendas de
+  // uma vez (e "zerar antes" apaga tudo) — só o dono da conta faz isso.
+  const revendedor = await exigirDono();
   const campo = formData.get("json");
   if (!campo) return { ok: false, erro: "Selecione o arquivo de backup primeiro." };
   const texto = (typeof campo === "string" ? campo : await campo.text()).trim();
@@ -150,9 +152,6 @@ export async function importarDadosAntigos(
 
   const zerarAntes = formData.get("zerarAntes") === "on";
   if (zerarAntes) {
-    if (await souFuncionario()) {
-      return { ok: false, erro: "Só o dono da conta pode apagar os dados atuais." };
-    }
     const confirmacaoZerar = String(formData.get("confirmacaoZerar") ?? "");
     if (confirmacaoZerar !== "ZERAR") {
       return { ok: false, erro: 'Digite exatamente "ZERAR" para confirmar que quer apagar os dados atuais.' };

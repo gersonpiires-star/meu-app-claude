@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { MaquininhaCalc } from "./maquininha-calc";
 
 export default async function PrecificacaoPage() {
   const revendedor = await exigirRevendedor();
+  const ehFuncionario = await souFuncionario();
   const taxasSalvas = (revendedor.taxasCartaoPersonalizadas as Record<string, number> | null) ?? {};
   const taxasIniciais = Object.fromEntries(Object.entries(taxasSalvas).map(([k, v]) => [Number(k), v]));
 
@@ -19,7 +20,7 @@ export default async function PrecificacaoPage() {
           .
         </p>
       </div>
-      <MaquininhaCalc margemInicial={revendedor.margemPadrao} taxasIniciais={taxasIniciais} />
+      <MaquininhaCalc margemInicial={revendedor.margemPadrao} taxasIniciais={taxasIniciais} podeEditar={!ehFuncionario} />
     </div>
   );
 }
