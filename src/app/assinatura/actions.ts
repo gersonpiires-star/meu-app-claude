@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 import { criarPreferencia, tokenPlataforma } from "@/lib/mercadopago";
 import { aplicarDesconto, validarCupom } from "@/lib/cupons";
 import { PLANOS_ASSINATURA } from "@/lib/planos-assinatura";
@@ -12,7 +12,10 @@ function baseUrl() {
 }
 
 export async function iniciarPagamentoAssinatura(formData: FormData) {
-  const revendedor = await exigirRevendedor();
+  // A assinatura do GestorPro é conta/cobrança do dono — um funcionário não
+  // deveria conseguir gerar cobrança, trocar de plano nem aplicar cupom
+  // nessa assinatura (mesmo padrão já usado em cancelarAssinatura).
+  const revendedor = await exigirDono();
   tokenPlataforma(); // lança erro cedo e claro se a plataforma não configurou o MP ainda
 
   const plano = String(formData.get("plano")) as keyof typeof PLANOS_ASSINATURA;

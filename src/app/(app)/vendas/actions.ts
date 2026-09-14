@@ -100,11 +100,11 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
 export async function vincularClienteVenda(vendaId: string, clienteId: string): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
 
-  const venda = await prisma.venda.findUnique({ where: { id: vendaId } });
-  if (!venda || venda.revendedorId !== revendedor.id) return { erro: "Venda não encontrada." };
+  const venda = await prisma.venda.findFirst({ where: { id: vendaId, revendedorId: revendedor.id } });
+  if (!venda) return { erro: "Venda não encontrada." };
 
-  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-  if (!cliente || cliente.revendedorId !== revendedor.id) return { erro: "Cliente não encontrado." };
+  const cliente = await prisma.cliente.findFirst({ where: { id: clienteId, revendedorId: revendedor.id } });
+  if (!cliente) return { erro: "Cliente não encontrado." };
 
   await prisma.venda.update({ where: { id: vendaId }, data: { clienteId } });
   revalidatePath("/vendas");

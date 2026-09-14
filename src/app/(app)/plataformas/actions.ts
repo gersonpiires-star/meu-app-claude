@@ -43,7 +43,7 @@ export async function excluirPlataforma(id: string): Promise<{ ok: true } | { ok
     };
   }
 
-  await prisma.plataforma.delete({ where: { id } });
+  await prisma.plataforma.delete({ where: { id, revendedorId: revendedor.id } });
   revalidatePath("/plataformas");
   return { ok: true };
 }

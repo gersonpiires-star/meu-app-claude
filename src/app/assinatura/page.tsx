@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { iniciarPagamentoAssinatura } from "./actions";
 import {
@@ -34,6 +34,7 @@ export default async function AssinaturaPage({
   searchParams: Promise<{ erroCupom?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
+  const ehFuncionario = await souFuncionario();
   const { erroCupom } = await searchParams;
 
   return (
@@ -61,6 +62,12 @@ export default async function AssinaturaPage({
           </p>
         ) : null}
 
+        {ehFuncionario ? (
+          <p className="mb-4 rounded-xl border border-border bg-surface-2 px-3 py-2 text-center text-sm text-text-dim">
+            Assinar ou trocar de plano é só pro dono da conta — peça pra ele fazer isso por aqui.
+          </p>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="flex flex-col gap-2.5 p-4">
             <span className="text-sm font-bold text-text">Mensal</span>
@@ -68,7 +75,7 @@ export default async function AssinaturaPage({
               <span className="text-xl font-bold text-accent sm:text-2xl">{brl(PRECO_MENSAL)}</span>
               <p className="mt-0.5 text-[11px] text-text-dim">por mês · cancele quando quiser</p>
             </div>
-            {MP_DISPONIVEL ? (
+            {MP_DISPONIVEL && !ehFuncionario ? (
               <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
                 <input type="hidden" name="plano" value="MENSAL" />
                 <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />
@@ -96,7 +103,7 @@ export default async function AssinaturaPage({
               <span className="text-xl font-bold text-accent sm:text-2xl">{brl0(PRECO_SEMESTRAL_MENSALIZADO)}</span>
               <p className="mt-0.5 text-[11px] text-text-dim">por mês · {brl(PRECO_SEMESTRAL)} à vista</p>
             </div>
-            {MP_DISPONIVEL ? (
+            {MP_DISPONIVEL && !ehFuncionario ? (
               <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
                 <input type="hidden" name="plano" value="SEMESTRAL" />
                 <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />
@@ -124,7 +131,7 @@ export default async function AssinaturaPage({
               <span className="text-xl font-bold text-accent sm:text-2xl">{brl0(PRECO_ANUAL_MENSALIZADO)}</span>
               <p className="mt-0.5 text-[11px] text-text-dim">por mês · {brl(PRECO_ANUAL)} à vista</p>
             </div>
-            {MP_DISPONIVEL ? (
+            {MP_DISPONIVEL && !ehFuncionario ? (
               <form action={iniciarPagamentoAssinatura} className="flex flex-col gap-2">
                 <input type="hidden" name="plano" value="ANUAL" />
                 <Input name="cupomCodigo" placeholder="Cupom (opcional)" className="px-2.5 py-2 text-xs" />

@@ -156,7 +156,7 @@ export default async function ConfiguracoesPage() {
         <p className="mb-3 text-sm text-text-dim">
           Cópia congelada dos seus dados — a nuvem não guarda histórico de versões antigas.
         </p>
-        <BackupForm podeRestaurar={!ehFuncionario} />
+        <BackupForm podeRestaurar={!ehFuncionario} podeExportar={!ehFuncionario} />
       </CardRetratil>
 
       <CardRetratil titulo="Trazer dados de outro sistema">

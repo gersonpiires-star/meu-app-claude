@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 
 export async function GET() {
-  const revendedor = await exigirRevendedor();
+  // Backup completo inclui chaves Pix e todo o histórico financeiro — só o
+  // dono da conta pode baixar isso, não um funcionário.
+  const revendedor = await exigirDono();
 
   const [servicos, clientes, produtos, vendas, plataformas, chavesPix, pagamentos] = await Promise.all([
     prisma.servico.findMany({ where: { revendedorId: revendedor.id } }),

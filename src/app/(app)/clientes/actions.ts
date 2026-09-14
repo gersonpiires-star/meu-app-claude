@@ -250,11 +250,11 @@ export async function renovarCliente(
 export async function excluirRenovacao(id: string): Promise<{ ok: true; restaurado: boolean } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
 
-  const renovacao = await prisma.renovacao.findUnique({
-    where: { id },
+  const renovacao = await prisma.renovacao.findFirst({
+    where: { id, cliente: { revendedorId: revendedor.id } },
     include: { cliente: true },
   });
-  if (!renovacao || renovacao.cliente.revendedorId !== revendedor.id) {
+  if (!renovacao) {
     return { ok: false, erro: "Renovação não encontrada." };
   }
 

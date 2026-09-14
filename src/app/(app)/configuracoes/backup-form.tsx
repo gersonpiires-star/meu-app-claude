@@ -5,25 +5,29 @@ import { Button, Field, Input } from "@/components/ui";
 import { CampoArquivo } from "@/components/campo-arquivo";
 import { restaurarBackup } from "./backup-actions";
 
-export function BackupForm({ podeRestaurar = true }: { podeRestaurar?: boolean }) {
+export function BackupForm({ podeRestaurar = true, podeExportar = true }: { podeRestaurar?: boolean; podeExportar?: boolean }) {
   const [restaurando, setRestaurando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <a href="/api/exportar" className="flex-1">
-          <Button variant="ghost" className="w-full">
-            Baixar backup (JSON)
-          </Button>
-        </a>
-        <a href="/api/exportar-csv" className="flex-1">
-          <Button variant="ghost" className="w-full">
-            Exportar clientes (CSV)
-          </Button>
-        </a>
-      </div>
+      {!podeExportar ? (
+        <p className="text-xs text-text-dim">Baixar ou restaurar backup é só pro dono da conta.</p>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <a href="/api/exportar" className="flex-1">
+            <Button variant="ghost" className="w-full">
+              Baixar backup (JSON)
+            </Button>
+          </a>
+          <a href="/api/exportar-csv" className="flex-1">
+            <Button variant="ghost" className="w-full">
+              Exportar clientes (CSV)
+            </Button>
+          </a>
+        </div>
+      )}
 
       {!podeRestaurar ? null : !restaurando ? (
         <button type="button" className="text-xs font-semibold text-text-dim hover:text-text" onClick={() => setRestaurando(true)}>

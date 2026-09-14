@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { exigirRevendedor } from "@/lib/sessao";
+import { exigirDono } from "@/lib/sessao";
 import { PLANO_LABEL } from "@/lib/planos";
 import { dataCurta, diaCivilBr } from "@/lib/format";
 
@@ -10,7 +10,9 @@ function csvEscape(valor: string): string {
 }
 
 export async function GET() {
-  const revendedor = await exigirRevendedor();
+  // Exporta a lista completa de clientes (nome, CPF, WhatsApp, valores) —
+  // só o dono da conta pode baixar isso, não um funcionário.
+  const revendedor = await exigirDono();
   const clientes = await prisma.cliente.findMany({
     where: { revendedorId: revendedor.id },
     include: { servico: true },
