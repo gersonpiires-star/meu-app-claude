@@ -232,6 +232,7 @@ export async function restaurarBackup(
   revalidatePath("/vendas");
   revalidatePath("/plataformas");
   revalidatePath("/configuracoes");
+  revalidatePath("/relatorio");
 
   return { ok: true };
 }

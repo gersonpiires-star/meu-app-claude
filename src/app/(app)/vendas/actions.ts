@@ -91,6 +91,7 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
   revalidatePath("/vendas");
   revalidatePath("/estoque");
   revalidatePath("/painel");
+  revalidatePath("/relatorio");
   redirect(dados.clienteId ? `/vendas?recibo=${vendaId}` : "/vendas");
 }
 
@@ -108,4 +109,5 @@ export async function vincularClienteVenda(vendaId: string, clienteId: string): 
 
   await prisma.venda.update({ where: { id: vendaId }, data: { clienteId } });
   revalidatePath("/vendas");
+  revalidatePath("/relatorio");
 }
