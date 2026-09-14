@@ -83,6 +83,24 @@ export default async function ConfiguracoesPage() {
         </CardRetratil>
       )}
 
+      <CardRetratil titulo="Precificação">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-text-dim">Calculadora de preço e maquininha.</p>
+          <Link href="/precificacao">
+            <Button variant="ghost">Abrir</Button>
+          </Link>
+        </div>
+      </CardRetratil>
+
+      <CardRetratil titulo="Plataformas de crédito">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-text-dim">Fornecedores, lotes de compra e saldo.</p>
+          <Link href="/plataformas">
+            <Button variant="ghost">Abrir</Button>
+          </Link>
+        </div>
+      </CardRetratil>
+
       {ehFuncionario ? null : (
         <CardRetratil titulo="Funcionários">
           <div className="flex items-center justify-between gap-3">
