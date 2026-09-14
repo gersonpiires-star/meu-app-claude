@@ -18,7 +18,7 @@ export async function enviarEmail({ to, subject, html }: { to: string; subject: 
     console.warn(`[email] RESEND_API_KEY não configurada — e-mail não enviado.\nPara: ${to}\nAssunto: ${subject}\n${html}`);
     return;
   }
-  const from = process.env.EMAIL_FROM ?? "GestorPro <naoresponda@gestorpro.app>";
+  const from = process.env.EMAIL_FROM ?? "GestorPro <naoresponda@meugestorpro.app.br>";
   const { error } = await cliente().emails.send({ from, to, subject, html });
   if (error) throw new Error(`Falha ao enviar e-mail via Resend: ${error.message}`);
 }
