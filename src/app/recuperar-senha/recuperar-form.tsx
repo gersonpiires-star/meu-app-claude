@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { Button, Field, Input } from "@/components/ui";
-import { entrarComCredenciais } from "./actions";
+import { pedirRecuperacaoSenha } from "./actions";
 
-export function LoginForm() {
+export function RecuperarForm() {
+  const [enviado, setEnviado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
+
+  if (enviado) {
+    return (
+      <p className="text-sm text-text-muted">
+        Se existir uma conta com esse e-mail, mandamos um link de recuperação — confira sua caixa de entrada
+        (e o spam). O link vale por 1 hora.
+      </p>
+    );
+  }
 
   return (
     <form
@@ -15,24 +24,19 @@ export function LoginForm() {
       action={(formData) => {
         setErro(null);
         iniciarTransicao(async () => {
-          const resultado = await entrarComCredenciais(formData);
-          if (resultado?.error) setErro(resultado.error);
+          const resultado = await pedirRecuperacaoSenha(formData);
+          if (resultado.ok) setEnviado(true);
+          else setErro(resultado.erro);
         });
       }}
     >
       <Field label="E-mail">
         <Input type="email" name="email" autoComplete="email" required />
       </Field>
-      <Field label="Senha">
-        <Input type="password" name="senha" autoComplete="current-password" required />
-      </Field>
       {erro ? <p className="text-sm text-danger">{erro}</p> : null}
       <Button type="submit" disabled={pendente} className="mt-1 w-full">
-        {pendente ? "Entrando…" : "Entrar"}
+        {pendente ? "Enviando…" : "Enviar link de recuperação"}
       </Button>
-      <Link href="/recuperar-senha" className="text-center text-xs text-text-dim hover:text-text-muted">
-        Esqueci minha senha
-      </Link>
     </form>
   );
 }

@@ -208,6 +208,24 @@ model TentativaLogin {
   @@index([email, criadoEm])
 }
 
+// Token de recuperação de senha — vale tanto pra Revendedor quanto pra
+// Funcionario (os dois logam por e-mail/senha na mesma tela), por isso não
+// tem uma foreign key pra nenhuma das duas tabelas: na hora de redefinir, o
+// e-mail é buscado nas duas, igual o próprio login já faz. Só o hash do
+// token fica salvo (nunca o valor cru), pra um vazamento do banco não virar
+// acesso direto às contas — o link enviado por e-mail tem o valor cru, que
+// só existe fora do banco.
+model TokenRecuperacaoSenha {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime  @default(now())
+
+  @@index([email, criadoEm])
+}
+
 // Login adicional para um funcionário do revendedor. Compartilha os
 // mesmos dados (tudo é escopado por revendedorId, que aqui aponta pro
 // dono/tenant), mas não pode gerenciar credenciais de pagamento nem
