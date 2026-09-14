@@ -25,7 +25,7 @@ export async function erroCreditoIndisponivel(
 
   const comprados = plataforma.lotes.reduce((a, l) => a + l.quantidade, 0);
   const servicoIds = plataforma.servicos.map((s) => s.id);
-  const usados = await db.renovacao.count({ where: { cliente: { servicoId: { in: servicoIds } } } });
+  const usados = await db.renovacao.count({ where: { servicoId: { in: servicoIds } } });
   const saldo = comprados - usados;
 
   if (saldo <= 0) {
@@ -46,14 +46,13 @@ export async function saldoTotalCreditos(revendedorId: string): Promise<{ saldo:
   const servicoIds = plataformas.flatMap((p) => p.servicos.map((s) => s.id));
   const renovacoes = servicoIds.length
     ? await prisma.renovacao.findMany({
-        where: { cliente: { servicoId: { in: servicoIds } } },
-        select: { cliente: { select: { servicoId: true } } },
+        where: { servicoId: { in: servicoIds } },
+        select: { servicoId: true },
       })
     : [];
   const usadosPorServico = new Map<string, number>();
   for (const r of renovacoes) {
-    const servicoId = r.cliente.servicoId;
-    if (servicoId) usadosPorServico.set(servicoId, (usadosPorServico.get(servicoId) ?? 0) + 1);
+    if (r.servicoId) usadosPorServico.set(r.servicoId, (usadosPorServico.get(r.servicoId) ?? 0) + 1);
   }
 
   let saldo = 0;
@@ -80,9 +79,7 @@ export async function dadosPlataformas(revendedorId: string) {
     const comprados = p.lotes.reduce((a, l) => a + l.quantidade, 0);
     const valorInvestido = p.lotes.reduce((a, l) => a + l.valorPago, 0);
     const servicoIds = p.servicos.map((s) => s.id);
-    const usados = servicoIds.length
-      ? await prisma.renovacao.count({ where: { cliente: { servicoId: { in: servicoIds } } } })
-      : 0;
+    const usados = servicoIds.length ? await prisma.renovacao.count({ where: { servicoId: { in: servicoIds } } }) : 0;
     resultado.push({
       ...p,
       comprados,

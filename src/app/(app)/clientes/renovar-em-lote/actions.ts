@@ -43,7 +43,14 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
         const custo = PLANO_MESES[cliente.plano] * (cliente.servico?.custoCredito ?? 0);
 
         await tx.renovacao.create({
-          data: { clienteId: id, plano: cliente.plano, valor: cliente.valorPlano, custo, snapshotAnterior: snapshotDoCliente(cliente) },
+          data: {
+            clienteId: id,
+            servicoId: cliente.servicoId,
+            plano: cliente.plano,
+            valor: cliente.valorPlano,
+            custo,
+            snapshotAnterior: snapshotDoCliente(cliente),
+          },
         });
         await tx.cliente.update({
           where: { id },

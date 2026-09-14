@@ -265,8 +265,9 @@ model Servico {
   custoCredito      Float?
   cobrancaTelaExtra Float?
 
-  clientes Cliente[]
-  avisos   Aviso[]
+  clientes   Cliente[]
+  avisos     Aviso[]
+  renovacoes Renovacao[]
 
   @@unique([revendedorId, nome])
 }
@@ -385,6 +386,15 @@ model Renovacao {
   valor     Float
   custo     Float    @default(0)
   data      DateTime @default(now())
+
+  // App do cliente NO MOMENTO dessa renovação — guardado aqui, não só no
+  // Cliente, porque o cliente pode trocar de app depois. Sem isso, trocar o
+  // app de um cliente puxava retroativamente todo o histórico de renovações
+  // dele pra plataforma nova no cálculo de saldo/usados (e devolvia crédito
+  // pra plataforma antiga), mesmo as renovações lançadas quando ele ainda
+  // usava o app anterior.
+  servicoId String?
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
 
   // Estado do cliente (plano/valorPlano/vencimento/status/testeGratis) logo
   // antes desta renovação ser aplicada — guardado só pra permitir desfazer

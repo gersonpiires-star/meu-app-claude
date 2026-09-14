@@ -48,7 +48,7 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   const [renovacoes, vendas, cancelados] = await Promise.all([
     prisma.renovacao.findMany({
       where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } },
-      include: { cliente: { include: { servico: true } } },
+      include: { cliente: true, servico: true },
       orderBy: { data: "desc" },
     }),
     prisma.venda.findMany({

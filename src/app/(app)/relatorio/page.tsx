@@ -50,7 +50,7 @@ export default async function RelatorioPage({
 
   const gruposRenovMap = new Map<string, GrupoRenovacao>();
   for (const r of dados.renovacoes) {
-    const nome = r.cliente.servico?.nome ?? "Sem serviço";
+    const nome = r.servico?.nome ?? "Sem serviço";
     const atual = gruposRenovMap.get(nome) ?? { servico: nome, qtd: 0, meses: 0, bruto: 0, custo: 0, itens: [] };
     atual.qtd += 1;
     atual.meses += PLANO_MESES[r.plano];

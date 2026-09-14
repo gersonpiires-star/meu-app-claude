@@ -107,7 +107,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
 
         if (!dados.testeGratis) {
           await tx.renovacao.create({
-            data: { clienteId: cliente.id, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo: dados.custo },
+            data: { clienteId: cliente.id, servicoId, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo: dados.custo },
           });
         }
 
@@ -236,7 +236,7 @@ export async function renovarCliente(
         const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
 
         await tx.renovacao.create({
-          data: { clienteId: id, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
+          data: { clienteId: id, servicoId: cliente.servicoId, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
         });
         await tx.cliente.update({
           where: { id },

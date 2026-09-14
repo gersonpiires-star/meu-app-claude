@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const renovacao = await prisma.renovacao.findUnique({
     where: { id },
-    include: { cliente: { include: { servico: true } } },
+    include: { cliente: true, servico: true },
   });
   if (!renovacao || renovacao.cliente.revendedorId !== revendedor.id) {
     return NextResponse.json({ erro: "Recibo não encontrado." }, { status: 404 });
@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     subtitulo: "Comprovante de renovação",
     campos: [
       { rotulo: "Cliente", valor: renovacao.cliente.nome },
-      { rotulo: "Serviço", valor: renovacao.cliente.servico?.nome ?? "—" },
+      { rotulo: "Serviço", valor: renovacao.servico?.nome ?? "—" },
       { rotulo: "Plano renovado", valor: PLANO_LABEL[renovacao.plano] },
       { rotulo: "Pago em", valor: dataPorExtenso(renovacao.data) },
       { rotulo: "Novo vencimento", valor: dataPorExtenso(renovacao.cliente.vencimento) },
