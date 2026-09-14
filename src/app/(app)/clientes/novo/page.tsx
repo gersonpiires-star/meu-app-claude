@@ -44,7 +44,6 @@ export default async function NovoClientePage({
           clientesParaIndicacao={clientes}
           valoresIniciais={{ nome: params.nome, whatsapp: params.whatsapp, servicoId: servicoSugerido?.id }}
           interessadoId={params.interessadoId}
-          mostrarCusto
         />
       </Card>
     </div>

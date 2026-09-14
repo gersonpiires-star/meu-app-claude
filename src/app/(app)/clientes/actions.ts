@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
-import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
+import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { brl, parseDataBr } from "@/lib/format";
@@ -33,7 +33,6 @@ const clienteSchema = z.object({
   telas: z.coerce.number().int().min(1).default(1),
   plano: planoSchema,
   valorPlano: z.coerce.number().min(0),
-  custo: z.coerce.number().min(0).default(0),
   diaFixo: z.string().trim().optional(),
   testeGratis: z.coerce.boolean().default(false),
   anotacao: z.string().trim().optional(),
@@ -52,11 +51,12 @@ function parseDiaFixo(texto?: string): number | null {
 // partir de texto digitado aqui. Isso evitava, antes, que um app "Netflex"
 // digitado com erro de português virasse um serviço solto sem plataforma
 // vinculada, sem controle de crédito e sem entrar no agrupamento certo do
-// relatório.
+// relatório. Também devolve o custoCredito cadastrado pra esse app, pra
+// calcular sozinho o custo da primeira mensalidade — sem depender do
+// revendedor digitar isso na mão.
 async function resolverServico(revendedorId: string, servicoId?: string) {
   if (!servicoId) return null;
-  const servico = await prisma.servico.findUnique({ where: { id: servicoId, revendedorId } });
-  return servico?.id ?? null;
+  return prisma.servico.findUnique({ where: { id: servicoId, revendedorId }, select: { id: true, custoCredito: true } });
 }
 
 // Confere que o "indicado por" é mesmo um cliente do revendedor (nunca
@@ -70,7 +70,9 @@ async function resolverIndicadoPor(revendedorId: string, indicadoPorId: string |
 export async function criarCliente(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
-  const servicoId = await resolverServico(revendedor.id, dados.servicoId);
+  const servico = await resolverServico(revendedor.id, dados.servicoId);
+  const servicoId = servico?.id ?? null;
+  const custo = servico?.custoCredito ? PLANO_MESES[dados.plano as PlanoCliente] * servico.custoCredito : 0;
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId);
 
   let clienteId: string;
@@ -107,7 +109,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
 
         if (!dados.testeGratis) {
           await tx.renovacao.create({
-            data: { clienteId: cliente.id, servicoId, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo: dados.custo },
+            data: { clienteId: cliente.id, servicoId, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo },
           });
         }
 
@@ -143,7 +145,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
 export async function atualizarCliente(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
-  const servicoId = await resolverServico(revendedor.id, dados.servicoId);
+  const servicoId = (await resolverServico(revendedor.id, dados.servicoId))?.id ?? null;
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId, id);
 
   await prisma.cliente.update({

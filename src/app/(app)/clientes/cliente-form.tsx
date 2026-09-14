@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
-import { PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
+import { PLANO_LABEL, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 const PLANOS: PlanoCliente[] = ["MENSAL", "DOIS_MESES", "TRIMESTRAL", "SEMESTRAL"];
@@ -30,7 +30,6 @@ export function ClienteForm({
   clientesParaIndicacao = [],
   textoBotao = "Salvar cliente",
   interessadoId,
-  mostrarCusto = false,
 }: {
   acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
   valoresIniciais?: ValoresIniciais;
@@ -38,19 +37,12 @@ export function ClienteForm({
   clientesParaIndicacao?: { id: string; nome: string }[];
   textoBotao?: string;
   interessadoId?: string;
-  mostrarCusto?: boolean;
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
   const [valor, setValor] = useState<number>(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
   const [servicoId, setServicoId] = useState<string>(valoresIniciais?.servicoId ?? "");
-  const [custo, setCusto] = useState<number | "">("");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
-
-  function aplicarSugestaoCusto(novoPlano: PlanoCliente, novoServicoId: string) {
-    const servico = servicos.find((s) => s.id === novoServicoId);
-    if (servico?.custoCredito) setCusto(Number((PLANO_MESES[novoPlano] * servico.custoCredito).toFixed(2)));
-  }
 
   return (
     <form
@@ -78,14 +70,7 @@ export function ClienteForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Serviço (app)">
-          <Select
-            name="servicoId"
-            value={servicoId}
-            onChange={(e) => {
-              setServicoId(e.target.value);
-              aplicarSugestaoCusto(plano, e.target.value);
-            }}
-          >
+          <Select name="servicoId" value={servicoId} onChange={(e) => setServicoId(e.target.value)}>
             <option value="">Nenhum</option>
             {servicos.map((s) => (
               <option key={s.id} value={s.id}>
@@ -113,7 +98,6 @@ export function ClienteForm({
               const novoPlano = e.target.value as PlanoCliente;
               setPlano(novoPlano);
               setValor(PLANO_VALOR_SUGERIDO[novoPlano]);
-              aplicarSugestaoCusto(novoPlano, servicoId);
             }}
           >
             {PLANOS.map((p) => (
@@ -135,20 +119,6 @@ export function ClienteForm({
           />
         </Field>
       </div>
-
-      {mostrarCusto ? (
-        <Field label="Custo do crédito (R$)">
-          <Input
-            type="number"
-            name="custo"
-            min={0}
-            step="0.01"
-            placeholder="0,00"
-            value={custo}
-            onChange={(e) => setCusto(e.target.value === "" ? "" : Number(e.target.value))}
-          />
-        </Field>
-      ) : null}
 
       {clientesParaIndicacao.length > 0 ? (
         <Field label="Indicado por (opcional)">
