@@ -81,6 +81,7 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
   revalidatePath("/painel");
   revalidatePath("/relatorio");
   revalidatePath("/clientes/renovar-em-lote");
+  revalidatePath("/plataformas");
 }
 
 export async function renovarVariosComPlanoAtual(ids: string[]): Promise<{ erro: string } | undefined> {

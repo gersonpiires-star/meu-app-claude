@@ -114,7 +114,7 @@ export function ClienteForm({
 
       {mostrarCusto ? (
         <Field label="Custo do crédito (R$)">
-          <Input type="number" name="custo" min={0} step="0.01" defaultValue={0} />
+          <Input type="number" name="custo" min={0} step="0.01" placeholder="0,00" />
         </Field>
       ) : null}
 

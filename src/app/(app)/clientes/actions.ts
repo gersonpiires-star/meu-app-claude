@@ -136,6 +136,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");
+  revalidatePath("/plataformas");
   redirect(`/clientes/${clienteId}`);
 }
 
@@ -264,6 +265,7 @@ export async function renovarCliente(
   revalidatePath("/clientes");
   revalidatePath("/painel");
   revalidatePath("/relatorio");
+  revalidatePath("/plataformas");
   return { ok: true };
 }
 
