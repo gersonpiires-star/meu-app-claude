@@ -85,7 +85,54 @@ export default async function AdminPainelPage() {
         <StatTile label="Em trial" value={String(dados.trial)} />
         <StatTile label="Ativos" value={String(dados.ativos)} tone="accent" />
         <StatTile label="Pausados" value={String(dados.pausados)} tone="warning" />
+        <StatTile
+          label="Interessados em aberto"
+          value={String(dados.interessadosAbertos)}
+          sub={dados.interessadosAbertos > 0 ? "aguardando retorno de contato" : undefined}
+          tone={dados.interessadosAbertos > 0 ? "warning" : "neutral"}
+        />
+        <StatTile
+          label="Cupons ativos"
+          value={String(dados.cuponsAtivos)}
+          sub="pra campanhas de venda"
+        />
       </div>
+
+      {dados.pagamentosRecusados.length > 0 ? (
+        <Card>
+          <h2 className="mb-1 text-sm font-bold text-text">Pagamentos recusados</h2>
+          <p className="mb-3 text-xs text-text-dim">
+            Assinatura recusada pelo Mercado Pago nos últimos 7 dias — dinheiro que quase entrou. Vale ajudar a
+            tentar de novo antes que o acesso pause.
+          </p>
+          <div className="flex flex-col divide-y divide-border">
+            {dados.pagamentosRecusados.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <Link href={`/admin/assinantes/${p.revendedor.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+                    {p.revendedor.nome}
+                  </Link>
+                  <p className="text-xs text-text-dim">
+                    {brl0(p.valor)} recusado em {dataCurta(p.atualizadoEm)}
+                  </p>
+                </div>
+                {p.revendedor.whatsapp ? (
+                  <a
+                    href={linkWhatsApp(
+                      p.revendedor.whatsapp,
+                      `Oi ${p.revendedor.nome.split(" ")[0]}! Vi que o pagamento da sua assinatura do GestorPro não passou. Posso te ajudar a tentar de novo?`
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Badge tone="danger">Chamar</Badge>
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {sugestoes.length > 0 ? (
         <Card>
@@ -334,33 +381,6 @@ export default async function AdminPainelPage() {
             </Card>
           ) : null}
         </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-4">
-        <Link href="/admin/assinantes">
-          <Card className="h-full hover:border-accent-strong">
-            <h2 className="font-bold text-text">Assinantes</h2>
-            <p className="mt-1 text-sm text-text-dim">Gerencie acesso, veja uso e os serviços que cada um revende.</p>
-          </Card>
-        </Link>
-        <Link href="/admin/interessados">
-          <Card className="h-full hover:border-accent-strong">
-            <h2 className="font-bold text-text">Interessados</h2>
-            <p className="mt-1 text-sm text-text-dim">{dados.interessadosAbertos} em aberto para retornar contato.</p>
-          </Card>
-        </Link>
-        <Link href="/admin/comunicados">
-          <Card className="h-full hover:border-accent-strong">
-            <h2 className="font-bold text-text">Comunicados</h2>
-            <p className="mt-1 text-sm text-text-dim">Aviso em massa por app, publicado para todos os assinantes.</p>
-          </Card>
-        </Link>
-        <Link href="/admin/cupons">
-          <Card className="h-full hover:border-accent-strong">
-            <h2 className="font-bold text-text">Cupons</h2>
-            <p className="mt-1 text-sm text-text-dim">Descontos pra campanhas de venda da assinatura.</p>
-          </Card>
-        </Link>
       </div>
 
       <Card>

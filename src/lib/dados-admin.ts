@@ -7,6 +7,8 @@ export async function dadosAdmin() {
   const { inicio, fim } = limitesDoMes(agora);
   const em3Dias = new Date(agora.getTime() + 3 * 24 * 60 * 60000);
 
+  const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60000);
+
   const [
     total,
     trial,
@@ -16,6 +18,8 @@ export async function dadosAdmin() {
     receitaAgg,
     pausadosMes,
     trialsVencendo,
+    pagamentosRecusadosRaw,
+    cuponsAtivos,
   ] = await Promise.all([
     prisma.revendedor.count({ where: { papel: "REVENDEDOR" } }),
     prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL" } }),
@@ -34,7 +38,42 @@ export async function dadosAdmin() {
       orderBy: { trialFim: "asc" },
       select: { id: true, nome: true, whatsapp: true, trialFim: true },
     }),
+    // Pagamento de assinatura recusado nos últimos 7 dias — hoje só vira um
+    // push de resumo (contagem) pro admin, nunca fica listado em lugar
+    // nenhum com nome/contato pra ele acompanhar quem precisa de ajuda pra
+    // tentar de novo (dinheiro que já quase entrou e ficou parado).
+    prisma.pagamento.findMany({
+      where: { tipo: "ASSINATURA", status: "RECUSADO", atualizadoEm: { gte: seteDiasAtras } },
+      orderBy: { atualizadoEm: "desc" },
+      select: {
+        id: true,
+        valor: true,
+        atualizadoEm: true,
+        revendedor: { select: { id: true, nome: true, whatsapp: true, statusAssinatura: true } },
+      },
+    }),
+    // Só cupom de campanha (uso geral) — cupom com revendedorId preenchido é
+    // recompensa privada de indicação, não representa esforço de venda ativo.
+    prisma.cupom.count({
+      where: {
+        ativo: true,
+        revendedorId: null,
+        OR: [{ validoAte: null }, { validoAte: { gte: agora } }],
+      },
+    }),
   ]);
+
+  // Um revendedor pode ter mais de uma tentativa recusada na janela — só a
+  // mais recente interessa pra lista, e ignora quem já resolveu (voltou a
+  // ficar ATIVO por outro meio, ex: pagou por Pix manual).
+  const pagamentosRecusadosPorRevendedor = new Map<string, (typeof pagamentosRecusadosRaw)[number]>();
+  for (const p of pagamentosRecusadosRaw) {
+    if (p.revendedor.statusAssinatura === "ATIVO") continue;
+    if (!pagamentosRecusadosPorRevendedor.has(p.revendedor.id)) {
+      pagamentosRecusadosPorRevendedor.set(p.revendedor.id, p);
+    }
+  }
+  const pagamentosRecusados = [...pagamentosRecusadosPorRevendedor.values()];
 
   const receitaMes = receitaAgg._sum.valorLiquido ?? 0;
   const baseRetencao = ativos + pausadosMes;
@@ -85,6 +124,8 @@ export async function dadosAdmin() {
     pausadosMes,
     taxaRetencao,
     trialsVencendo,
+    pagamentosRecusados,
+    cuponsAtivos,
     previstoProxMes,
     previstoMensal,
     previstoSemestral,
