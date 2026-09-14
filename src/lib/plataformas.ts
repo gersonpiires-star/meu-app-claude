@@ -29,7 +29,7 @@ export async function erroCreditoIndisponivel(
   const saldo = comprados - usados;
 
   if (saldo <= 0) {
-    return `Sem créditos disponíveis em ${plataforma.nome}. Compre mais créditos em Plataformas antes de renovar.`;
+    return `Sem créditos disponíveis em ${plataforma.nome}. Compre mais créditos em Plataformas antes de continuar.`;
   }
   return null;
 }

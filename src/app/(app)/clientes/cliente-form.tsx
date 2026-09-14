@@ -28,22 +28,30 @@ export function ClienteForm({
   clientesParaIndicacao = [],
   textoBotao = "Salvar cliente",
   interessadoId,
+  mostrarCusto = false,
 }: {
-  acao: (formData: FormData) => Promise<void>;
+  acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
   valoresIniciais?: ValoresIniciais;
   servicosExistentes: string[];
   clientesParaIndicacao?: { id: string; nome: string }[];
   textoBotao?: string;
   interessadoId?: string;
+  mostrarCusto?: boolean;
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
   const [valor, setValor] = useState<number>(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   return (
     <form
       className="flex flex-col gap-4"
-      action={(formData) => iniciarTransicao(() => acao(formData))}
+      action={(formData) =>
+        iniciarTransicao(async () => {
+          const resultado = await acao(formData);
+          if (resultado?.ok === false) setErro(resultado.erro);
+        })
+      }
     >
       {interessadoId ? <input type="hidden" name="interessadoId" value={interessadoId} /> : null}
       <Field label="Nome">
@@ -104,6 +112,12 @@ export function ClienteForm({
         </Field>
       </div>
 
+      {mostrarCusto ? (
+        <Field label="Custo do crédito (R$)">
+          <Input type="number" name="custo" min={0} step="0.01" defaultValue={0} />
+        </Field>
+      ) : null}
+
       {clientesParaIndicacao.length > 0 ? (
         <Field label="Indicado por (opcional)">
           <Select name="indicadoPorId" defaultValue={valoresIniciais?.indicadoPorId ?? ""}>
@@ -141,6 +155,8 @@ export function ClienteForm({
       <Field label="Anotação">
         <Textarea name="anotacao" defaultValue={valoresIniciais?.anotacao ?? ""} />
       </Field>
+
+      {erro ? <p className="text-sm font-semibold text-danger">{erro}</p> : null}
 
       <Button type="submit" disabled={pendente} className="mt-1 w-full">
         {pendente ? "Salvando…" : textoBotao}

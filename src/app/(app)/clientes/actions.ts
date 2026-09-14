@@ -33,6 +33,7 @@ const clienteSchema = z.object({
   telas: z.coerce.number().int().min(1).default(1),
   plano: planoSchema,
   valorPlano: z.coerce.number().min(0),
+  custo: z.coerce.number().min(0).default(0),
   diaFixo: z.string().trim().optional(),
   testeGratis: z.coerce.boolean().default(false),
   anotacao: z.string().trim().optional(),
@@ -66,32 +67,60 @@ async function resolverIndicadoPor(revendedorId: string, indicadoPorId: string |
   return indicador?.id ?? null;
 }
 
-export async function criarCliente(formData: FormData) {
+export async function criarCliente(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
   const dados = clienteSchema.parse(Object.fromEntries(formData));
   const servicoId = await resolverServico(revendedor.id, dados.servico);
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId);
 
-  const cliente = await prisma.cliente.create({
-    data: {
-      revendedorId: revendedor.id,
-      servicoId,
-      nome: dados.nome,
-      cpf: dados.cpf || null,
-      whatsapp: dados.whatsapp || null,
-      telas: dados.telas,
-      plano: dados.plano as PlanoCliente,
-      valorPlano: dados.valorPlano,
-      diaFixo: parseDiaFixo(dados.diaFixo),
-      testeGratis: dados.testeGratis,
-      vencimento: calcularVencimentoComDiaFixo(dados.plano as PlanoCliente, new Date(), parseDiaFixo(dados.diaFixo)),
-      anotacao: dados.anotacao || null,
-      indicadoPorId,
-      status: "ATIVO",
-    },
-  });
+  let clienteId: string;
+  try {
+    clienteId = await prisma.$transaction(
+      async (tx) => {
+        // Teste grátis não gera receita nem consome crédito — só a primeira
+        // mensalidade de um cliente pagante entra no relatório, igual uma
+        // renovação (mesma trava de crédito, pra não vender mais do que tem
+        // disponível na plataforma).
+        if (!dados.testeGratis) {
+          const erroCredito = await erroCreditoIndisponivel(tx, servicoId);
+          if (erroCredito) throw new SemCreditoError(erroCredito);
+        }
 
-  await registrarLog(revendedor.id, "cliente.criar", `Cadastrou o cliente ${cliente.nome}`);
+        const cliente = await tx.cliente.create({
+          data: {
+            revendedorId: revendedor.id,
+            servicoId,
+            nome: dados.nome,
+            cpf: dados.cpf || null,
+            whatsapp: dados.whatsapp || null,
+            telas: dados.telas,
+            plano: dados.plano as PlanoCliente,
+            valorPlano: dados.valorPlano,
+            diaFixo: parseDiaFixo(dados.diaFixo),
+            testeGratis: dados.testeGratis,
+            vencimento: calcularVencimentoComDiaFixo(dados.plano as PlanoCliente, new Date(), parseDiaFixo(dados.diaFixo)),
+            anotacao: dados.anotacao || null,
+            indicadoPorId,
+            status: "ATIVO",
+          },
+        });
+
+        if (!dados.testeGratis) {
+          await tx.renovacao.create({
+            data: { clienteId: cliente.id, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo: dados.custo },
+          });
+        }
+
+        return cliente.id;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (erro) {
+    if (erro instanceof SemCreditoError) return { ok: false, erro: erro.message };
+    throw erro;
+  }
+
+  await registrarLog(revendedor.id, "cliente.criar", `Cadastrou o cliente ${dados.nome}`);
 
   // Só marca o interessado como convertido depois que o cliente realmente
   // foi salvo — se o revendedor abrir "Virou cliente" e desistir sem
@@ -106,7 +135,8 @@ export async function criarCliente(formData: FormData) {
 
   revalidatePath("/clientes");
   revalidatePath("/painel");
-  redirect(`/clientes/${cliente.id}`);
+  revalidatePath("/relatorio");
+  redirect(`/clientes/${clienteId}`);
 }
 
 export async function atualizarCliente(id: string, formData: FormData) {
