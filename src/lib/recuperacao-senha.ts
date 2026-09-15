@@ -44,6 +44,7 @@ export async function solicitarRecuperacaoSenha(emailBruto: string): Promise<voi
 
     const { subject, html } = emailRecuperacaoSenha({
       nome,
+      email,
       linkRecuperacao: `${baseUrl()}/redefinir-senha?token=${token}`,
     });
     await enviarEmail({ to: email, subject, html });
