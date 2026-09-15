@@ -15,6 +15,7 @@ import { SugestaoForm } from "./sugestao-form";
 import { funilIndicacao } from "@/lib/indicacao";
 import { UnitvForm } from "./unitv-form";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WhatsappForm } from "./whatsapp-form";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -296,6 +297,35 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
 
           {catAtiva === "atendimento" ? (
             <>
+              {ehFuncionario ? null : (
+                <Item
+                  titulo="Autoatendimento no WhatsApp"
+                  extra={
+                    revendedor.whatsappTelefoneNumeroId ? (
+                      <Badge tone={revendedor.whatsappBotAtivo ? "accent" : "warning"}>
+                        {revendedor.whatsappBotAtivo ? "Ativo" : "Pausado"}
+                      </Badge>
+                    ) : (
+                      <Badge tone="neutral">Não conectado</Badge>
+                    )
+                  }
+                >
+                  <p className="mb-4 text-sm text-text-dim">
+                    Conecte seu próprio número no WhatsApp Cloud API (oficial da Meta) pra seus clientes
+                    consultarem vencimento, valor, link de renovação e chave Pix automaticamente, direto pelo
+                    WhatsApp, sem depender de você responder. Crie um app em developers.facebook.com, adicione o
+                    produto &quot;WhatsApp&quot;, gere um token de acesso permanente do seu número e configure o
+                    webhook com a URL{" "}
+                    <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">{baseUrl()}/api/webhooks/whatsapp</code>.
+                  </p>
+                  <WhatsappForm
+                    telefoneNumeroId={revendedor.whatsappTelefoneNumeroId}
+                    botAtivo={revendedor.whatsappBotAtivo}
+                    conectadoEm={revendedor.whatsappConectadoEm}
+                  />
+                </Item>
+              )}
+
               <ItemLink
                 titulo="Modelos de mensagem"
                 descricao="Personalize os textos de cobrança e comunicado."

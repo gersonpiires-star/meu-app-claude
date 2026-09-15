@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { criptografar, descriptografar } from "@/lib/crypto";
 import { loginUnitv, ErroUnitv } from "@/lib/integracoes/unitv";
+import { testarCredenciaisWhatsapp, ErroWhatsappCloudApi } from "@/lib/integracoes/whatsapp-cloud-api";
 
 const schema = z.object({
   mpAccessToken: z.string().trim().optional(),
@@ -215,6 +217,76 @@ export async function testarConexaoUnitv(): Promise<{ erro: string } | { ok: tru
   await prisma.revendedor.update({ where: { id: revendedor.id }, data: { unitvConectadoEm: new Date() } });
   revalidatePath("/configuracoes");
   return { ok: true };
+}
+
+const whatsappSchema = z.object({
+  whatsappTelefoneNumeroId: z.string().trim().min(1, "Informe o Phone Number ID"),
+  whatsappToken: z.string().trim().min(1, "Informe o token de acesso"),
+});
+
+// Testa as credenciais na hora de salvar (mesmo espírito da UniTV) — aqui dá
+// pra bloquear de verdade se falhar, diferente da UniTV, porque essa é uma
+// API oficial e documentada: se a Meta recusou, a credencial está errada.
+export async function salvarCredenciaisWhatsapp(formData: FormData): Promise<{ erro: string } | { ok: true }> {
+  const revendedor = await exigirDono();
+  const parsed = whatsappSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+
+  try {
+    await testarCredenciaisWhatsapp({
+      phoneNumberId: parsed.data.whatsappTelefoneNumeroId,
+      token: parsed.data.whatsappToken,
+    });
+  } catch (erro) {
+    return { erro: erro instanceof ErroWhatsappCloudApi ? erro.message : "Não foi possível confirmar essas credenciais." };
+  }
+
+  try {
+    await prisma.revendedor.update({
+      where: { id: revendedor.id },
+      data: {
+        whatsappTelefoneNumeroId: parsed.data.whatsappTelefoneNumeroId,
+        whatsappTokenCriptografado: criptografar(parsed.data.whatsappToken),
+        whatsappBotAtivo: true,
+        whatsappConectadoEm: new Date(),
+      },
+    });
+  } catch (erro) {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") {
+      return { erro: "Esse Phone Number ID já está conectado em outra conta do GestorPro." };
+    }
+    throw erro;
+  }
+
+  await registrarLog(revendedor.id, "config.credenciais_whatsapp", "Conectou o autoatendimento via WhatsApp");
+  revalidatePath("/configuracoes");
+  return { ok: true };
+}
+
+export async function removerCredenciaisWhatsapp() {
+  const revendedor = await exigirDono();
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: {
+      whatsappTelefoneNumeroId: null,
+      whatsappTokenCriptografado: null,
+      whatsappBotAtivo: false,
+      whatsappConectadoEm: null,
+    },
+  });
+  await registrarLog(revendedor.id, "config.credenciais_whatsapp", "Desconectou o autoatendimento via WhatsApp");
+  revalidatePath("/configuracoes");
+}
+
+export async function alternarBotWhatsapp(ativo: boolean) {
+  const revendedor = await exigirDono();
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { whatsappBotAtivo: ativo } });
+  await registrarLog(
+    revendedor.id,
+    "config.bot_whatsapp",
+    ativo ? "Reativou o autoatendimento via WhatsApp" : "Pausou o autoatendimento via WhatsApp"
+  );
+  revalidatePath("/configuracoes");
 }
 
 export async function enviarSugestao(formData: FormData): Promise<{ ok: true } | { ok: false; erro: string }> {

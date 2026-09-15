@@ -140,6 +140,18 @@ model Revendedor {
   unitvSenhaCriptografada String?
   unitvConectadoEm        DateTime?
 
+  // Autoatendimento via WhatsApp Cloud API oficial (Meta) — cada revendedor
+  // conecta seu próprio número/app da Meta (mesmo padrão do Mercado Pago),
+  // e todos apontam o webhook pra mesma URL do GestorPro: o
+  // whatsappTelefoneNumeroId (phone_number_id, único globalmente na Meta)
+  // é o que identifica de qual revendedor é cada mensagem recebida. Token
+  // de acesso guardado criptografado (lib/crypto.ts) — dá pra mandar
+  // mensagem em nome do número, então é tão sensível quanto uma senha.
+  whatsappTelefoneNumeroId   String?   @unique
+  whatsappTokenCriptografado String?
+  whatsappBotAtivo           Boolean   @default(false)
+  whatsappConectadoEm        DateTime?
+
   // Taxas de parcelamento da própria maquininha do revendedor (substitui a
   // tabela de referência genérica) — { "<parcelas>": percentualComoNumero },
   // uma chave por número de parcelas de 1 a 12. Null/chave ausente = usa a
