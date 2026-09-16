@@ -89,6 +89,9 @@ export default async function PainelPage() {
                 Previsto p/ {MESES[dados.proximoMes.getMonth()]}
               </span>
               <span className="font-semibold text-text-muted hover:text-accent">{brl0(dados.previstoProxMes)}</span>
+              <span className="whitespace-nowrap text-[10px] text-text-dim">
+                ≈ {brl0(dados.previstoProxMesRealista)} com {dados.taxaRetencao.toFixed(0)}% de retenção
+              </span>
             </Link>
           </div>
         </Card>

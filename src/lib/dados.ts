@@ -182,6 +182,13 @@ export async function dadosPainel(revendedorId: string) {
   const baseRetencao = naoCancelados.length + canceladosMes;
   const taxaRetencao = baseRetencao > 0 ? (naoCancelados.length / baseRetencao) * 100 : 100;
 
+  // previstoProxMes assume que todo mundo que vence renova — otimista
+  // demais pra decisão de verdade. Essa versão pondera pela taxa de
+  // retenção real dos últimos 30 dias, dando uma estimativa mais honesta
+  // de quanto realmente deve entrar (custo não pondera: quem não renova
+  // também não gera custo de crédito).
+  const previstoProxMesRealista = projReceitaProxMes * (taxaRetencao / 100) - projCustoProxMes * (taxaRetencao / 100);
+
   const aniversariantes = naoCancelados
     .map((c) => ({ cliente: c, ...ehAniversarioDeCasa(c.criadoEm, agora) }))
     .filter((a) => a.ehAniversario);
@@ -194,6 +201,7 @@ export async function dadosPainel(revendedorId: string) {
     lucro,
     proximoMes,
     previstoProxMes,
+    previstoProxMesRealista,
     totalClientes: naoCancelados.length,
     ativos: naoCancelados.length,
     vencendo,
