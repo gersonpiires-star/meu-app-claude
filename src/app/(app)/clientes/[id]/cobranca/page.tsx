@@ -45,6 +45,8 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
         modelos={modelos}
         linkPagamento={revendedor.mpAccessToken ? linkPagamentoCliente(id) : null}
         ultimaRenovacaoId={ultimaRenovacao?.id ?? null}
+        valorNumerico={cliente.valorPlano}
+        nomeRevendedor={revendedor.nome}
         dados={{
           nome: cliente.nome,
           app: cliente.servico?.nome ?? "",
