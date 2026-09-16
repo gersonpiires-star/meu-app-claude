@@ -168,6 +168,41 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
+      {dados.clientesEsfriando.length > 0 ? (
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Clientes esfriando</h2>
+            <Badge tone="warning">Risco de cancelamento silencioso</Badge>
+          </div>
+          <p className="mb-3 text-xs text-text-dim">
+            Historicamente só renovam depois de várias cobranças — e o ciclo deles está vencendo ou já venceu agora.
+          </p>
+          <div className="flex flex-col divide-y divide-border">
+            {dados.clientesEsfriando.map(({ cliente, pontualidade }) => (
+              <div key={cliente.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+                    {cliente.nome}
+                  </Link>
+                  <p className="text-xs text-text-dim">
+                    {pontualidade.label} · vence {dataCurta(cliente.vencimento)}
+                  </p>
+                </div>
+                {cliente.whatsapp ? (
+                  <CobrarBotao
+                    clienteId={cliente.id}
+                    cobradoEm={cobradosHoje.get(cliente.id) ?? null}
+                    label="Cobrar agora"
+                    variant="whatsapp"
+                    className="whitespace-nowrap"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       {dados.aniversariantes.length > 0 ? (
         <Card>
           <h2 className="mb-3 text-sm font-bold text-text">Aniversário de casa 🎉</h2>

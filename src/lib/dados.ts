@@ -4,6 +4,7 @@ import { PLANO_MESES, faixaVencimento } from "@/lib/planos";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { saldoTotalCreditos } from "@/lib/plataformas";
 import { diaCivilBr, inicioDoDiaBr, brMidnightUTC } from "@/lib/format";
+import { faixaPontualidade } from "@/lib/pontualidade";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const { ano, mes } = diaCivilBr(referencia);
@@ -162,6 +163,28 @@ export async function dadosPainel(revendedorId: string) {
   const vencendo = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "ATE_5_DIAS");
   const vencidos = naoCancelados.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO");
 
+  // "Esfriando": quem historicamente só renova depois de várias cobranças
+  // (faixaPontualidade PRECISA_INSISTIR/SO_PAGA_COBRADO) e está bem na hora
+  // do ciclo em que isso normalmente aparece — vencendo ou já vencido. É o
+  // sinal mais parecido com "risco de cancelamento silencioso" que dá pra
+  // tirar dos dados que já existem (não tem como saber se o cliente "sumiu"
+  // sem ter contato dele fora do WhatsApp, que o app não acompanha).
+  const emRiscoIds = [...vencidos, ...vencendo].map((c) => c.id);
+  const [cobrancasPorCliente, renovacoesPorCliente] =
+    emRiscoIds.length > 0
+      ? await Promise.all([
+          prisma.cobranca.groupBy({ by: ["clienteId"], where: { clienteId: { in: emRiscoIds } }, _count: { _all: true } }),
+          prisma.renovacao.groupBy({ by: ["clienteId"], where: { clienteId: { in: emRiscoIds } }, _count: { _all: true } }),
+        ])
+      : [[], []];
+  const cobrancasMap = new Map(cobrancasPorCliente.map((c) => [c.clienteId, c._count._all]));
+  const renovacoesMap = new Map(renovacoesPorCliente.map((r) => [r.clienteId, r._count._all]));
+  const clientesEsfriando = [...vencidos, ...vencendo]
+    .map((c) => ({ cliente: c, pontualidade: faixaPontualidade(cobrancasMap.get(c.id) ?? 0, renovacoesMap.get(c.id) ?? 0) }))
+    .filter((c) => c.pontualidade.faixa === "PRECISA_INSISTIR" || c.pontualidade.faixa === "SO_PAGA_COBRADO")
+    .sort((a, b) => b.pontualidade.razao - a.pontualidade.razao)
+    .slice(0, 8);
+
   const { ano: anoAgora, mes: mesAgora } = diaCivilBr(agora);
   const proximoMes = brMidnightUTC(anoAgora, mesAgora + 1, 1);
   const depoisDoProximoMes = brMidnightUTC(anoAgora, mesAgora + 2, 1);
@@ -208,6 +231,7 @@ export async function dadosPainel(revendedorId: string) {
     vencidos,
     canceladosMes,
     taxaRetencao,
+    clientesEsfriando,
     aniversariantes,
     produtosBaixoEstoque,
     temClientes: clientes.length > 0,
