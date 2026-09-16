@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
+import { prisma } from "@/lib/prisma";
 import { dadosPainel } from "@/lib/dados";
 import { brl0, dataCurta } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
@@ -19,6 +20,24 @@ export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
   const [dados, cobradosHoje] = await Promise.all([dadosPainel(revendedor.id), cobradosHojePorCliente(revendedor.id)]);
   const agora = new Date();
+
+  // Só consulta os contadores de onboarding durante o trial — depois que
+  // assina, esse checklist não faz mais sentido e não vale gastar a
+  // consulta em todo carregamento do Painel.
+  const emTrial = revendedor.statusAssinatura === "TRIAL";
+  const [totalServicosOnboarding, totalClientesOnboarding, totalChavesOnboarding] = emTrial
+    ? await Promise.all([
+        prisma.servico.count({ where: { revendedorId: revendedor.id } }),
+        prisma.cliente.count({ where: { revendedorId: revendedor.id } }),
+        prisma.chavePix.count({ where: { revendedorId: revendedor.id } }),
+      ])
+    : [0, 0, 0];
+  const passosOnboarding = [
+    { label: "Cadastre seu primeiro app/serviço", feito: totalServicosOnboarding > 0, href: "/plataformas" },
+    { label: "Cadastre seu primeiro cliente", feito: totalClientesOnboarding > 0, href: "/clientes/novo" },
+    { label: "Cadastre uma chave Pix pra receber", feito: totalChavesOnboarding > 0, href: "/configuracoes" },
+  ];
+  const mostrarOnboarding = emTrial && passosOnboarding.some((p) => !p.feito);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,7 +59,29 @@ export default async function PainelPage() {
         </div>
       </div>
 
-      {!dados.temClientes ? (
+      {mostrarOnboarding ? (
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Primeiros passos</h2>
+            <Badge tone="accent">Trial</Badge>
+          </div>
+          <p className="mb-3 text-xs text-text-dim">Três passos rápidos pra sentir o GestorPro funcionando de verdade.</p>
+          <div className="flex flex-col gap-2">
+            {passosOnboarding.map((passo) => (
+              <Link
+                key={passo.label}
+                href={passo.href}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border-strong px-3.5 py-2.5 hover:border-accent"
+              >
+                <span className={`text-sm font-semibold ${passo.feito ? "text-text-dim line-through" : "text-text"}`}>
+                  {passo.label}
+                </span>
+                <Badge tone={passo.feito ? "accent" : "neutral"}>{passo.feito ? "Feito" : "Fazer"}</Badge>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      ) : !dados.temClientes ? (
         <Card className="text-center">
           <p className="text-sm text-text-muted">Comece cadastrando seu primeiro cliente</p>
           <Link href="/clientes/novo" className="mt-3 inline-block">
