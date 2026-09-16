@@ -11,6 +11,8 @@ const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome"),
   email: z.string().trim().email("E-mail inválido"),
   senha: z.string().min(6, "A senha precisa de pelo menos 6 caracteres"),
+  podeExcluir: z.coerce.boolean().optional(),
+  podeVerFinanceiro: z.coerce.boolean().optional(),
 });
 
 export async function criarFuncionario(formData: FormData): Promise<{ erro?: string }> {
@@ -36,7 +38,14 @@ export async function criarFuncionario(formData: FormData): Promise<{ erro?: str
     if (existente || existenteFuncionario) return "Já existe uma conta com esse e-mail.";
 
     await tx.funcionario.create({
-      data: { revendedorId: revendedor.id, nome: parsed.data.nome, email, senhaHash },
+      data: {
+        revendedorId: revendedor.id,
+        nome: parsed.data.nome,
+        email,
+        senhaHash,
+        podeExcluir: parsed.data.podeExcluir ?? false,
+        podeVerFinanceiro: parsed.data.podeVerFinanceiro ?? false,
+      },
     });
     return null;
   });
@@ -58,6 +67,25 @@ export async function alternarFuncionarioAtivo(id: string, ativo: boolean) {
     revendedor.id,
     "funcionario.alternar",
     `${ativo ? "Reativou" : "Bloqueou"} o funcionário ${funcionario.nome}`
+  );
+  revalidatePath("/configuracoes/funcionarios");
+}
+
+export async function alternarPermissaoFuncionario(
+  id: string,
+  campo: "podeExcluir" | "podeVerFinanceiro",
+  valor: boolean
+) {
+  const revendedor = await exigirDono();
+  const funcionario = await prisma.funcionario.update({
+    where: { id, revendedorId: revendedor.id },
+    data: { [campo]: valor },
+  });
+  const label = campo === "podeExcluir" ? "excluir cadastros" : "ver o financeiro";
+  await registrarLog(
+    revendedor.id,
+    "funcionario.alternar_permissao",
+    `${valor ? "Liberou" : "Removeu"} a permissão de ${label} do funcionário ${funcionario.nome}`
   );
   revalidatePath("/configuracoes/funcionarios");
 }

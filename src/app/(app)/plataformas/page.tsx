@@ -1,4 +1,4 @@
-import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
+import { exigirRevendedor, permissoesFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dadosPlataformas } from "@/lib/plataformas";
 import { brl } from "@/lib/format";
@@ -13,14 +13,14 @@ import { adicionarLote, editarLote, criarAppNaPlataforma } from "./actions";
 
 export default async function PlataformasPage() {
   const revendedor = await exigirRevendedor();
-  const [plataformas, servicosSemPlataforma, ehFuncionario] = await Promise.all([
+  const [plataformas, servicosSemPlataforma, { podeExcluir }] = await Promise.all([
     dadosPlataformas(revendedor.id),
     prisma.servico.findMany({
       where: { revendedorId: revendedor.id, plataformaId: null },
       include: { _count: { select: { clientes: true } } },
       orderBy: { nome: "asc" },
     }),
-    souFuncionario(),
+    permissoesFuncionario(),
   ]);
 
   const listaPlataformas = plataformas.map((p) => ({ id: p.id, nome: p.nome }));
@@ -54,7 +54,7 @@ export default async function PlataformasPage() {
                   <div className="flex items-center gap-2">
                     {baixo ? <Badge tone="warning">Saldo baixo</Badge> : null}
                     <Badge tone={baixo ? "danger" : "accent"}>Saldo: {p.saldo}</Badge>
-                    {!ehFuncionario ? <ExcluirPlataformaBotao id={p.id} nome={p.nome} /> : null}
+                    {podeExcluir ? <ExcluirPlataformaBotao id={p.id} nome={p.nome} /> : null}
                   </div>
                 </div>
 
@@ -78,7 +78,7 @@ export default async function PlataformasPage() {
                     {[...p.lotes]
                       .sort((a, b) => b.data.getTime() - a.data.getTime())
                       .map((l) => (
-                        <LoteItem key={l.id} lote={l} acao={editarLote} podeEditar={!ehFuncionario} />
+                        <LoteItem key={l.id} lote={l} acao={editarLote} podeEditar={podeExcluir} />
                       ))}
                   </div>
                 ) : null}
@@ -103,7 +103,7 @@ export default async function PlataformasPage() {
                             totalClientes: s._count.clientes,
                           }}
                           plataformas={listaPlataformas}
-                          podeExcluir={!ehFuncionario}
+                          podeExcluir={podeExcluir}
                         />
                       ))}
                     </div>
@@ -138,7 +138,7 @@ export default async function PlataformasPage() {
                   totalClientes: s._count.clientes,
                 }}
                 plataformas={listaPlataformas}
-                podeExcluir={!ehFuncionario}
+                podeExcluir={podeExcluir}
               />
             ))}
           </div>

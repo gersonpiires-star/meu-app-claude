@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
+import { exigirRevendedor, permissoesFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl, brl0, dataCurta, dataHora, dataPorExtenso, diaCivilBr, fmtTelefone, horaCurta, iniciais, inicioDoDiaBr } from "@/lib/format";
 import { PLANO_LABEL, PLANO_MESES, diasParaVencer, faixaVencimento } from "@/lib/planos";
@@ -101,7 +101,7 @@ function InfoTile({ label, value, span2 = false, tom = "neutral" as Tom }: { lab
 
 export default async function ClienteDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const revendedor = await exigirRevendedor();
-  const ehFuncionario = await souFuncionario();
+  const { podeExcluir } = await permissoesFuncionario();
   const { id } = await params;
 
   const [cliente, overridesModelos] = await Promise.all([
@@ -187,7 +187,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
             <Link href={`/clientes/${id}/editar`} className="text-xs font-semibold text-accent hover:underline">
               Editar
             </Link>
-            {ehFuncionario ? null : <ExcluirBotao acao={excluirCliente.bind(null, id)} />}
+            {podeExcluir ? <ExcluirBotao acao={excluirCliente.bind(null, id)} /> : null}
           </div>
         ) : null}
       </div>

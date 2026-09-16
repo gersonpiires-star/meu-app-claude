@@ -45,6 +45,19 @@ export async function souFuncionario() {
   return Boolean(session?.user?.funcionario);
 }
 
+// Dono sempre tem as duas; funcionário só se o dono liberou pra ele
+// especificamente (ver Funcionario.podeExcluir/podeVerFinanceiro).
+export async function permissoesFuncionario(): Promise<{ podeExcluir: boolean; podeVerFinanceiro: boolean }> {
+  const session = await auth();
+  if (!session?.user?.funcionario) return { podeExcluir: true, podeVerFinanceiro: true };
+
+  const funcionario = await prisma.funcionario.findUnique({
+    where: { id: session.user.id },
+    select: { podeExcluir: true, podeVerFinanceiro: true },
+  });
+  return { podeExcluir: funcionario?.podeExcluir ?? false, podeVerFinanceiro: funcionario?.podeVerFinanceiro ?? false };
+}
+
 export async function exigirDono() {
   const revendedor = await exigirRevendedor();
   if (await souFuncionario()) redirect("/configuracoes");

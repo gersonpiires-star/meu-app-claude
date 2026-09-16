@@ -251,6 +251,13 @@ model Funcionario {
   senhaHash    String
   ativo        Boolean @default(true)
   criadoEm     DateTime @default(now())
+
+  // Permissões granulares — default false preserva o comportamento de
+  // antes dessas colunas existirem (funcionário não excluía nada nem via
+  // financeiro) pra quem já estava cadastrado; o dono libera cada uma por
+  // funcionário depois, se quiser.
+  podeExcluir       Boolean @default(false)
+  podeVerFinanceiro Boolean @default(false)
 }
 
 // Inscrição de notificação push (Web Push) de um dispositivo do

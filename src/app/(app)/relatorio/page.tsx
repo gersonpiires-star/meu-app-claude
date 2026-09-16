@@ -1,4 +1,5 @@
-import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
+import { redirect } from "next/navigation";
+import { exigirRevendedor, permissoesFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dadosMes, proximoMes, ultimosMeses } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
@@ -24,7 +25,8 @@ export default async function RelatorioPage({
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const ehFuncionario = await souFuncionario();
+  const { podeVerFinanceiro } = await permissoesFuncionario();
+  if (!podeVerFinanceiro) redirect("/painel");
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
   const { ano: anoParam, mes: mesParam } = await searchParams;
@@ -119,12 +121,12 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Renovações do mês · por serviço</h2>
-        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} acaoExcluir={excluirRenovacao} podeEditar={!ehFuncionario} />
+        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} acaoExcluir={excluirRenovacao} podeEditar={true} />
       </Card>
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Vendas do mês</h2>
-        <VendasDetalhadas vendas={vendasDetalhadas} acao={editarVenda} podeEditar={!ehFuncionario} />
+        <VendasDetalhadas vendas={vendasDetalhadas} acao={editarVenda} podeEditar={true} />
       </Card>
 
       <Card>

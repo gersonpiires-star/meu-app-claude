@@ -19,8 +19,9 @@ export default async function FuncionariosPage() {
       <div>
         <h1 className="text-lg font-bold text-text">Funcionários</h1>
         <p className="text-xs text-text-dim">
-          Logins adicionais com acesso aos mesmos clientes, vendas e relatórios — não podem ver ou
-          trocar suas credenciais de pagamento nem gerenciar outros funcionários.
+          Logins adicionais com acesso aos mesmos clientes e vendas — nunca podem ver ou trocar suas
+          credenciais de pagamento nem gerenciar outros funcionários. Excluir cadastros e ver o
+          financeiro (relatório, margem) são permissões que você libera por pessoa, abaixo.
         </p>
       </div>
       <Card>
