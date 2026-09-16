@@ -61,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id as string;
         token.tenantId = (user as { tenantId?: string }).tenantId ?? (user.id as string);
         token.funcionario = (user as { funcionario?: boolean }).funcionario ?? false;
-        token.papel = (user as { papel?: string }).papel;
+        token.papel = (user as { papel?: "ADMIN" | "REVENDEDOR" }).papel;
       }
       return token;
     },
