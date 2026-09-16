@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  checagens:
+    runs-on: ubuntu-latest
+    env:
+      # Valores fictícios — o build não conecta de verdade a nenhum desses
+      # serviços (nenhuma página estática consulta o banco), só precisa das
+      # variáveis existirem pro código não quebrar ao ler process.env.*.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/gestorpro"
+      AUTH_SECRET: "ci-placeholder-nao-usar-em-producao"
+      CREDENTIALS_ENCRYPTION_KEY: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+      APP_URL: "http://localhost:3000"
+      SUPORTE_WHATSAPP: "5500000000000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
