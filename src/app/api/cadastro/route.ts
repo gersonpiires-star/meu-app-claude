@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome completo"),
@@ -14,6 +15,11 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const ip = ipDoRequest(request);
+  if (await excedeuLimite(`cadastro:${ip}`, 5, 60)) {
+    return NextResponse.json({ error: "Muitas tentativas de cadastro. Tente novamente em alguns minutos." }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {

@@ -208,6 +208,18 @@ model TentativaLogin {
   @@index([email, criadoEm])
 }
 
+// Limite genérico de chamadas por chave (ex: "cadastro:<ip>") numa janela de
+// tempo — usado nas rotas públicas sem login (cadastro, recuperação de
+// senha, pagamento) pra travar abuso automatizado. Cada linha é uma chamada
+// contada; @@index acelera contar só as recentes por chave.
+model LimiteRequisicao {
+  id       String   @id @default(cuid())
+  chave    String
+  criadoEm DateTime @default(now())
+
+  @@index([chave, criadoEm])
+}
+
 // Token de recuperação de senha — vale tanto pra Revendedor quanto pra
 // Funcionario (os dois logam por e-mail/senha na mesma tela), por isso não
 // tem uma foreign key pra nenhuma das duas tabelas: na hora de redefinir, o
