@@ -5,6 +5,7 @@ import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 import { Badge, Card } from "@/components/ui";
 import { gerarPixCopiaCola } from "@/lib/pix";
 import { gerarQrCodePix } from "@/lib/pix-qrcode";
+import { temGatewayConfigurado } from "@/lib/pagamentos";
 import { PagarBotao } from "./pagar-botao";
 import { PixCopiaCola } from "./pix-copia-cola";
 
@@ -13,12 +14,16 @@ export default async function PagarPage({ params }: { params: Promise<{ clienteI
 
   const cliente = await prisma.cliente.findUnique({
     where: { id: clienteId },
-    include: { servico: true, revendedor: { select: { id: true, nome: true, mpAccessToken: true } } },
+    include: {
+      servico: true,
+      revendedor: { select: { id: true, nome: true, mpAccessToken: true, asaasApiKey: true, gatewayPagamento: true } },
+    },
   });
   if (!cliente) notFound();
 
   const cancelado = cliente.status === "CANCELADO";
   const faixa = faixaVencimento(cliente.vencimento);
+  const pagamentoOnlineDisponivel = temGatewayConfigurado(cliente.revendedor);
 
   // Chave Pix independe de ter Mercado Pago configurado — funciona só com
   // uma chave cadastrada em Configurações, sem depender de nenhuma API
@@ -82,7 +87,7 @@ export default async function PagarPage({ params }: { params: Promise<{ clienteI
             <p className="text-center text-sm text-text-dim">Fale com quem te atende para reativar.</p>
           ) : (
             <>
-              {cliente.revendedor.mpAccessToken ? (
+              {pagamentoOnlineDisponivel ? (
                 <PagarBotao clienteId={clienteId} />
               ) : !pixPayload ? (
                 <p className="text-center text-sm text-text-dim">
@@ -92,7 +97,7 @@ export default async function PagarPage({ params }: { params: Promise<{ clienteI
 
               {pixPayload && pixQrCode ? (
                 <div className="flex flex-col gap-2">
-                  {cliente.revendedor.mpAccessToken ? (
+                  {pagamentoOnlineDisponivel ? (
                     <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-text-dim">
                       ou pague direto com Pix
                     </p>

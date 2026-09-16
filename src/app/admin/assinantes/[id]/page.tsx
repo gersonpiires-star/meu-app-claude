@@ -177,6 +177,7 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
               <Badge tone={revendedor.mpAccessToken ? "accent" : "neutral"}>
                 {revendedor.mpAccessToken ? "Mercado Pago configurado" : "Sem Mercado Pago"}
               </Badge>
+              {revendedor.asaasApiKey ? <Badge tone="accent">Asaas configurado</Badge> : null}
               {revendedor.metaReceitaMensal ? (
                 <Badge tone="neutral">Meta do mês {brl0(revendedor.metaReceitaMensal)}</Badge>
               ) : null}

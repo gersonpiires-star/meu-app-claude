@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
-import { calcularVencimento } from "@/lib/planos";
+import { aprovarRenovacaoPaga } from "@/lib/pagamentos";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
-import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
 import { registrarLog } from "@/lib/log";
-import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
   const porQuery = url.searchParams.get("data.id") ?? url.searchParams.get("id");
@@ -113,15 +110,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Renovação de cliente: aprovar o pagamento e aplicar o efeito (estender
+  // vencimento, registrar a renovação, avisar o revendedor) é idêntico pro
+  // Asaas — mora num helper compartilhado em vez de duplicado aqui.
+  if (pagamento.tipo === "RENOVACAO") {
+    const resultado = await aprovarRenovacaoPaga(pagamentoId, String(pagamentoMP.id), "mpPaymentId");
+    return NextResponse.json({ ok: true, ignorado: resultado.jaProcessado ? "já processado" : undefined });
+  }
+
+  // Só resta ASSINATURA daqui pra baixo — pagamento da própria mensalidade
+  // do GestorPro, que tem efeitos (indicação, cupom) que não existem pra
+  // RENOVACAO e por isso não entraram no helper compartilhado.
+  //
   // O Mercado Pago reenvia notificações do mesmo pagamento (rotina pro Pix),
   // então duas entregas podem chegar em paralelo. A troca de status só
   // acontece se AINDA não estava "APROVADO" — updateMany com esse filtro é
   // atômica no Postgres (a segunda entrega concorrente fica bloqueada pelo
   // lock de linha da primeira até ela comitar, e então reavalia o filtro e
   // não encontra mais a linha pra atualizar) — e o side-effect (estender
-  // assinatura, ou criar a renovação e atualizar o vencimento do cliente)
-  // roda dentro da mesma transação, então nunca fica pela metade nem roda
-  // duas vezes pro mesmo pagamento.
+  // assinatura) roda dentro da mesma transação, então nunca fica pela metade
+  // nem roda duas vezes pro mesmo pagamento.
   const resultado = await prisma.$transaction(async (tx) => {
     const trocou = await tx.pagamento.updateMany({
       where: { id: pagamento.id, status: { not: "APROVADO" } },
@@ -131,155 +139,96 @@ export async function POST(request: Request) {
 
     let recompensaIndicacao: { indicadorId: string; codigo: string } | null = null;
 
-    if (pagamento.tipo === "ASSINATURA") {
-      // Trava a linha do revendedor antes de ler o status — sem isso, duas
-      // aprovações concorrentes da primeira assinatura da mesma conta (ex:
-      // dois pagamentos pendentes, dois webhooks quase simultâneos) podiam
-      // ambas ler statusAssinatura ainda como TRIAL (uma SELECT simples não
-      // espera o UPDATE da outra comitar) e conceder 2 cupons de indicação
-      // pra 1 conversão só. Com o FOR UPDATE, a segunda só lê depois que a
-      // primeira já comitou o ATIVO.
-      await tx.$queryRaw`SELECT 1 FROM "Revendedor" WHERE id = ${pagamento.revendedorId} FOR UPDATE`;
-      const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
-      // TRIAL aqui significa que essa pessoa nunca tinha pago o GestorPro
-      // antes — é a conversão de verdade que a recompensa de indicação
-      // recompensa. Reativação de PAUSADO/CANCELADO não conta de novo.
-      const primeiraAssinaturaPaga = revendedorAtual.statusAssinatura === "TRIAL";
-      const meses = pagamento.meses ?? 1;
-      const base =
-        revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
-          ? revendedorAtual.assinaturaVence
-          : new Date();
-      const vence = adicionarMeses(base, meses);
+    // Trava a linha do revendedor antes de ler o status — sem isso, duas
+    // aprovações concorrentes da primeira assinatura da mesma conta (ex:
+    // dois pagamentos pendentes, dois webhooks quase simultâneos) podiam
+    // ambas ler statusAssinatura ainda como TRIAL (uma SELECT simples não
+    // espera o UPDATE da outra comitar) e conceder 2 cupons de indicação
+    // pra 1 conversão só. Com o FOR UPDATE, a segunda só lê depois que a
+    // primeira já comitou o ATIVO.
+    await tx.$queryRaw`SELECT 1 FROM "Revendedor" WHERE id = ${pagamento.revendedorId} FOR UPDATE`;
+    const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
+    // TRIAL aqui significa que essa pessoa nunca tinha pago o GestorPro
+    // antes — é a conversão de verdade que a recompensa de indicação
+    // recompensa. Reativação de PAUSADO/CANCELADO não conta de novo.
+    const primeiraAssinaturaPaga = revendedorAtual.statusAssinatura === "TRIAL";
+    const meses = pagamento.meses ?? 1;
+    const base =
+      revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
+        ? revendedorAtual.assinaturaVence
+        : new Date();
+    const vence = adicionarMeses(base, meses);
 
-      await tx.revendedor.update({
-        where: { id: pagamento.revendedorId },
+    await tx.revendedor.update({
+      where: { id: pagamento.revendedorId },
+      data: {
+        statusAssinatura: "ATIVO",
+        assinaturaVence: vence,
+        planoAssinatura: planoDosMeses(meses),
+      },
+    });
+
+    // Receita que de fato entra pra Administração GestorPro — o Mercado
+    // Pago desconta a taxa dele antes de repassar. net_received_amount é
+    // o valor líquido que a própria API do MP devolve pra esse pagamento;
+    // sem ele (ou transaction_amount), cai pro preço cheio cobrado do
+    // revendedor em vez de quebrar a aprovação por causa disso.
+    const valorLiquido =
+      pagamentoMP.transaction_details?.net_received_amount ?? pagamentoMP.transaction_amount ?? pagamento.valor;
+    await tx.pagamento.update({ where: { id: pagamento.id }, data: { valorLiquido } });
+
+    // Só conta o uso do cupom quando o pagamento realmente aprova — um
+    // checkout abandonado não deveria consumir o limite de usos. O
+    // incremento condicional na própria query SQL (em vez de checar
+    // usoMaximo antes e incrementar depois) é atômico no Postgres — duas
+    // aprovações concorrentes do mesmo cupom com 1 uso restante nunca
+    // conseguem as duas passar: a segunda UPDATE espera o lock de linha da
+    // primeira, recomeça e já não bate mais no WHERE.
+    if (pagamento.cupomId) {
+      const linhasAfetadas = await tx.$executeRaw`
+        UPDATE "Cupom"
+        SET "usosCount" = "usosCount" + 1
+        WHERE id = ${pagamento.cupomId}
+          AND ("usoMaximo" IS NULL OR "usosCount" < "usoMaximo")
+      `;
+      if (linhasAfetadas === 0) {
+        console.error(
+          `Webhook MP: cupom ${pagamento.cupomId} já tinha atingido o limite de usos ao aprovar o pagamento ${pagamento.id} — pagamento segue aprovado, só não incrementou o contador.`
+        );
+      }
+    }
+
+    // Recompensa de indicação: quem indicou essa conta ganha um cupom de
+    // 15% pra usar na própria próxima renovação — só dispara na primeira
+    // assinatura paga de quem foi indicado, nunca em renovações seguintes.
+    if (primeiraAssinaturaPaga && revendedorAtual.indicadoPorId) {
+      const codigo = `INDIC${pagamento.id.slice(-8).toUpperCase()}`;
+      const validoAte = new Date();
+      validoAte.setDate(validoAte.getDate() + 180);
+
+      await tx.cupom.create({
         data: {
-          statusAssinatura: "ATIVO",
-          assinaturaVence: vence,
-          planoAssinatura: planoDosMeses(meses),
+          codigo,
+          tipo: "PERCENTUAL",
+          valor: 15,
+          revendedorId: revendedorAtual.indicadoPorId,
+          usoMaximo: 1,
+          validoAte,
         },
       });
-
-      // Receita que de fato entra pra Administração GestorPro — o Mercado
-      // Pago desconta a taxa dele antes de repassar. net_received_amount é
-      // o valor líquido que a própria API do MP devolve pra esse pagamento;
-      // sem ele (ou transaction_amount), cai pro preço cheio cobrado do
-      // revendedor em vez de quebrar a aprovação por causa disso.
-      const valorLiquido =
-        pagamentoMP.transaction_details?.net_received_amount ?? pagamentoMP.transaction_amount ?? pagamento.valor;
-      await tx.pagamento.update({ where: { id: pagamento.id }, data: { valorLiquido } });
-
-      // Só conta o uso do cupom quando o pagamento realmente aprova — um
-      // checkout abandonado não deveria consumir o limite de usos. O
-      // incremento condicional na própria query SQL (em vez de checar
-      // usoMaximo antes e incrementar depois) é atômico no Postgres — duas
-      // aprovações concorrentes do mesmo cupom com 1 uso restante nunca
-      // conseguem as duas passar: a segunda UPDATE espera o lock de linha da
-      // primeira, recomeça e já não bate mais no WHERE.
-      if (pagamento.cupomId) {
-        const linhasAfetadas = await tx.$executeRaw`
-          UPDATE "Cupom"
-          SET "usosCount" = "usosCount" + 1
-          WHERE id = ${pagamento.cupomId}
-            AND ("usoMaximo" IS NULL OR "usosCount" < "usoMaximo")
-        `;
-        if (linhasAfetadas === 0) {
-          console.error(
-            `Webhook MP: cupom ${pagamento.cupomId} já tinha atingido o limite de usos ao aprovar o pagamento ${pagamento.id} — pagamento segue aprovado, só não incrementou o contador.`
-          );
-        }
-      }
-
-      // Recompensa de indicação: quem indicou essa conta ganha um cupom de
-      // 15% pra usar na própria próxima renovação — só dispara na primeira
-      // assinatura paga de quem foi indicado, nunca em renovações seguintes.
-      if (primeiraAssinaturaPaga && revendedorAtual.indicadoPorId) {
-        const codigo = `INDIC${pagamento.id.slice(-8).toUpperCase()}`;
-        const validoAte = new Date();
-        validoAte.setDate(validoAte.getDate() + 180);
-
-        await tx.cupom.create({
-          data: {
-            codigo,
-            tipo: "PERCENTUAL",
-            valor: 15,
-            revendedorId: revendedorAtual.indicadoPorId,
-            usoMaximo: 1,
-            validoAte,
-          },
-        });
-        await tx.aviso.create({
-          data: {
-            destino: "UM_REVENDEDOR",
-            revendedorId: revendedorAtual.indicadoPorId,
-            tipo: "GERAL",
-            titulo: "Você ganhou 15% de desconto por indicar o GestorPro!",
-            mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 15% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
-          },
-        });
-        recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
-      }
-    } else if (pagamento.tipo === "RENOVACAO" && pagamento.clienteId && pagamento.plano) {
-      const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId } });
-      if (cliente) {
-        const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
-        const novoVencimento = calcularVencimento(pagamento.plano as PlanoCliente, base);
-
-        await tx.renovacao.create({
-          data: {
-            clienteId: cliente.id,
-            servicoId: cliente.servicoId,
-            plano: pagamento.plano as PlanoCliente,
-            valor: pagamento.valor,
-            custo: pagamento.custo,
-            snapshotAnterior: snapshotDoCliente(cliente),
-          },
-        });
-        await tx.cliente.update({
-          where: { id: cliente.id },
-          data: {
-            plano: pagamento.plano as PlanoCliente,
-            valorPlano: pagamento.valor,
-            vencimento: novoVencimento,
-            status: "ATIVO",
-            testeGratis: false,
-          },
-        });
-        // Avisa o revendedor no sininho (e por push) que o cliente pagou
-        // sozinho pelo link — a tela do cliente já atualiza automaticamente,
-        // mas sem isso o revendedor só descobre se for conferir na mão.
-        await tx.notificacaoPagamento.create({
-          data: {
-            revendedorId: pagamento.revendedorId,
-            clienteId: cliente.id,
-            clienteNome: cliente.nome,
-            valor: pagamento.valor,
-          },
-        });
-      }
+      await tx.aviso.create({
+        data: {
+          destino: "UM_REVENDEDOR",
+          revendedorId: revendedorAtual.indicadoPorId,
+          tipo: "GERAL",
+          titulo: "Você ganhou 15% de desconto por indicar o GestorPro!",
+          mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 15% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
+        },
+      });
+      recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
     }
     return { jaProcessado: false, recompensaIndicacao };
   });
-
-  if (!resultado.jaProcessado && pagamento.tipo === "RENOVACAO" && pagamento.cliente) {
-    revalidatePath("/clientes");
-    revalidatePath(`/clientes/${pagamento.cliente.id}`);
-    revalidatePath("/painel");
-    revalidatePath("/relatorio");
-    revalidatePath("/plataformas");
-
-    for (const inscricao of pagamento.revendedor.pushSubscriptions) {
-      const manter = await enviarPush(inscricao, {
-        titulo: "Pagamento recebido",
-        corpo: `${pagamento.cliente.nome} pagou a renovação pelo link — já está tudo atualizado.`,
-        url: `/clientes/${pagamento.cliente.id}`,
-      });
-      if (!manter) {
-        await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
-      }
-    }
-  }
 
   if (!resultado.jaProcessado && resultado.recompensaIndicacao) {
     const { indicadorId, codigo } = resultado.recompensaIndicacao;

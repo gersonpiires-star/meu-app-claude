@@ -13,6 +13,10 @@ const schema = z.object({
   mpPublicKey: z.string().trim().optional(),
 });
 
+const schemaAsaas = z.object({
+  asaasApiKey: z.string().trim().optional(),
+});
+
 const perfilSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome completo"),
   whatsapp: z.string().trim().min(8, "Informe um WhatsApp válido"),
@@ -61,6 +65,39 @@ export async function removerCredenciaisMP() {
     data: { mpAccessToken: null, mpPublicKey: null },
   });
   await registrarLog(revendedor.id, "config.credenciais_mp", "Removeu as credenciais do Mercado Pago");
+  revalidatePath("/configuracoes");
+}
+
+export async function salvarCredenciaisAsaas(formData: FormData) {
+  const revendedor = await exigirDono();
+  const dados = schemaAsaas.parse(Object.fromEntries(formData));
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { asaasApiKey: dados.asaasApiKey || null },
+  });
+
+  await registrarLog(revendedor.id, "config.credenciais_asaas", "Atualizou a credencial do Asaas");
+
+  revalidatePath("/configuracoes");
+}
+
+export async function salvarGatewayPagamento(formData: FormData) {
+  const revendedor = await exigirDono();
+  const gateway = formData.get("gatewayPagamento");
+  if (gateway !== "MERCADOPAGO" && gateway !== "ASAAS") return;
+
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { gatewayPagamento: gateway },
+  });
+
+  await registrarLog(
+    revendedor.id,
+    "config.gateway_pagamento",
+    `Passou a usar ${gateway === "ASAAS" ? "Asaas" : "Mercado Pago"} pra cobrar renovações`
+  );
+
   revalidatePath("/configuracoes");
 }
 

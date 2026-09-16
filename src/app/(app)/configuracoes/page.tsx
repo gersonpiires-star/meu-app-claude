@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { Badge, Button, CardRetratil, Field, Input } from "@/components/ui";
-import { salvarCredenciaisMP, salvarSuspensaoAutomatica } from "./actions";
+import { salvarCredenciaisAsaas, salvarCredenciaisMP, salvarGatewayPagamento, salvarSuspensaoAutomatica } from "./actions";
 import { PerfilForm } from "./perfil-form";
 import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
@@ -33,6 +33,8 @@ export default async function ConfiguracoesPage() {
   const ehFuncionario = await souFuncionario();
   const podeVerBetaUnitv = INTEGRACAO_UNITV_ATIVA && revendedor.email === EMAIL_BETA_UNITV;
   const configurado = Boolean(revendedor.mpAccessToken);
+  const configuradoAsaas = Boolean(revendedor.asaasApiKey);
+  const gatewayAtivo = revendedor.gatewayPagamento;
   const [chaves, indicadosCount] = await Promise.all([
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
     prisma.revendedor.count({ where: { indicadoPorId: revendedor.id } }),
@@ -51,7 +53,12 @@ export default async function ConfiguracoesPage() {
       {ehFuncionario ? null : (
         <CardRetratil
           titulo="Receber pagamentos online (Mercado Pago)"
-          extra={configurado ? <Badge tone="accent">Configurado</Badge> : <Badge tone="neutral">Não configurado</Badge>}
+          extra={
+            <div className="flex items-center gap-1.5">
+              {gatewayAtivo === "MERCADOPAGO" ? <Badge tone="success">Ativo pra cobrar</Badge> : null}
+              {configurado ? <Badge tone="accent">Configurado</Badge> : <Badge tone="neutral">Não configurado</Badge>}
+            </div>
+          }
         >
           <p className="mb-4 text-sm text-text-dim">
             Cole aqui o Access Token da sua própria conta do Mercado Pago para gerar links de pagamento
@@ -80,6 +87,54 @@ export default async function ConfiguracoesPage() {
               Salvar credenciais
             </Button>
           </form>
+          {configurado && gatewayAtivo !== "MERCADOPAGO" ? (
+            <form action={salvarGatewayPagamento} className="mt-2">
+              <input type="hidden" name="gatewayPagamento" value="MERCADOPAGO" />
+              <Button type="submit" variant="ghost" className="w-full">
+                Usar Mercado Pago pra cobrar renovações
+              </Button>
+            </form>
+          ) : null}
+        </CardRetratil>
+      )}
+
+      {ehFuncionario ? null : (
+        <CardRetratil
+          titulo="Receber pagamentos online (Asaas)"
+          extra={
+            <div className="flex items-center gap-1.5">
+              {gatewayAtivo === "ASAAS" ? <Badge tone="success">Ativo pra cobrar</Badge> : null}
+              {configuradoAsaas ? <Badge tone="accent">Configurado</Badge> : <Badge tone="neutral">Não configurado</Badge>}
+            </div>
+          }
+        >
+          <p className="mb-4 text-sm text-text-dim">
+            Alternativa ao Mercado Pago — cole aqui a API Key da sua conta do Asaas pra gerar links de
+            pagamento (Pix, boleto, cartão) na cobrança dos seus clientes; o dinheiro cai direto na sua
+            conta. Pegue sua chave em asaas.com, em Integrações → API. Exige que o cliente tenha CPF ou
+            CNPJ cadastrado — sem isso a cobrança não é gerada.
+          </p>
+          <form action={salvarCredenciaisAsaas} className="flex flex-col gap-3">
+            <Field label="API Key">
+              <Input
+                type="password"
+                name="asaasApiKey"
+                placeholder={configuradoAsaas ? "•••••••••••• (colar nova para trocar)" : "$aact_..."}
+                autoComplete="off"
+              />
+            </Field>
+            <Button type="submit" className="mt-1 w-full">
+              Salvar credencial
+            </Button>
+          </form>
+          {configuradoAsaas && gatewayAtivo !== "ASAAS" ? (
+            <form action={salvarGatewayPagamento} className="mt-2">
+              <input type="hidden" name="gatewayPagamento" value="ASAAS" />
+              <Button type="submit" variant="ghost" className="w-full">
+                Usar Asaas pra cobrar renovações
+              </Button>
+            </form>
+          ) : null}
         </CardRetratil>
       )}
 

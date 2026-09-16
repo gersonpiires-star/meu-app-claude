@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { dataPorExtenso, fmtTelefone, brl } from "@/lib/format";
 import { PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 import { mesclarModelos } from "@/lib/mensagens";
-import { linkPagamentoCliente } from "@/lib/pagamentos";
+import { linkPagamentoCliente, temGatewayConfigurado } from "@/lib/pagamentos";
 import { MensagemWhatsApp } from "../mensagem-whatsapp";
 
 export default async function CobrancaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,7 +43,7 @@ export default async function CobrancaPage({ params }: { params: Promise<{ id: s
         whatsapp={cliente.whatsapp}
         chaves={chaves}
         modelos={modelos}
-        linkPagamento={revendedor.mpAccessToken ? linkPagamentoCliente(id) : null}
+        linkPagamento={temGatewayConfigurado(revendedor) ? linkPagamentoCliente(id) : null}
         ultimaRenovacaoId={ultimaRenovacao?.id ?? null}
         valorNumerico={cliente.valorPlano}
         nomeRevendedor={revendedor.nome}

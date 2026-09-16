@@ -79,6 +79,11 @@ enum TipoCupom {
   FIXO
 }
 
+enum GatewayPagamento {
+  MERCADOPAGO
+  ASAAS
+}
+
 model Revendedor {
   id        String   @id @default(cuid())
   nome      String
@@ -100,6 +105,17 @@ model Revendedor {
   // pagamentos de renovação de seus clientes direto na conta dele.
   mpAccessToken String?
   mpPublicKey   String?
+
+  // Gateway alternativo ao Mercado Pago — mesmo modelo (token de API
+  // próprio do revendedor, dinheiro cai direto na conta dele). Guardado em
+  // texto puro como o mpAccessToken: é um token de API com escopo próprio,
+  // não a senha da conta (diferente do UniTV/WhatsApp acima).
+  asaasApiKey String?
+
+  // Qual dos dois gateways configurados é usado pra gerar o link de
+  // cobrança de renovação — só importa quando o revendedor cadastrou os
+  // dois; com só um configurado, esse é sempre o usado.
+  gatewayPagamento GatewayPagamento @default(MERCADOPAGO)
 
   // Cancela automaticamente o cliente que ficar vencido por mais que esse
   // número de dias. Null/0 = desligado (nunca cancela sozinho).
@@ -593,6 +609,7 @@ model Pagamento {
 
   mpPreferenceId String? @unique
   mpPaymentId    String? @unique
+  asaasPaymentId String? @unique
 
   cupomId String?
   cupom   Cupom?  @relation(fields: [cupomId], references: [id], onDelete: SetNull)
