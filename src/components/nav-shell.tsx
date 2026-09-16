@@ -91,6 +91,15 @@ export function NavShell({
         >
           Precificação
         </Link>
+        <Link
+          href="/ajuda"
+          className={cx(
+            "rounded-lg px-3 py-2 text-sm font-medium transition",
+            pathname.startsWith("/ajuda") ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
+          )}
+        >
+          Ajuda
+        </Link>
         <a
           href="/manual-revendedor.pdf"
           target="_blank"

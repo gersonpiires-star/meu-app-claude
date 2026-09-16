@@ -170,6 +170,15 @@ export default async function ConfiguracoesPage() {
         </CardRetratil>
       )}
 
+      <CardRetratil titulo="Central de ajuda">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-text-dim">Respostas rápidas pras dúvidas mais comuns sobre o app.</p>
+          <Link href="/ajuda">
+            <Button variant="ghost">Abrir</Button>
+          </Link>
+        </div>
+      </CardRetratil>
+
       <CardRetratil titulo="Backup em arquivo">
         <p className="mb-3 text-sm text-text-dim">
           Cópia congelada dos seus dados — a nuvem não guarda histórico de versões antigas.
