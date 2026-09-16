@@ -58,6 +58,14 @@ function layoutEmail({ titulo, corpoHtml }: { titulo: string; corpoHtml: string 
 </html>`;
 }
 
+function escaparHtml(texto: string): string {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function botao(texto: string, href: string): string {
   return `<a href="${href}" style="display:inline-block; margin-top:20px; padding:13px 26px; background-color:${COR_ACCENT}; color:#04211c; font-weight:700; font-size:14px; text-decoration:none; border-radius:10px;">${texto}</a>`;
 }
@@ -101,5 +109,43 @@ export function emailRecuperacaoSenha({
   return {
     subject: "Redefinir sua senha — GestorPro",
     html: layoutEmail({ titulo: "Redefinir sua senha", corpoHtml }),
+  };
+}
+
+// Comunicados da Administração pros revendedores (Aviso com destino
+// TODOS_REVENDEDORES ou UM_REVENDEDOR) — só esses dois destinos têm e-mail
+// de verdade cadastrado. Os outros (TODOS_CLIENTES, CLIENTES_DO_SERVICO)
+// são do revendedor pro cliente final dele, que não tem e-mail no sistema
+// hoje, só WhatsApp.
+export function emailComunicado({
+  nome,
+  titulo,
+  mensagem,
+  atualizacao,
+}: {
+  nome: string;
+  titulo: string;
+  mensagem: string;
+  atualizacao: boolean;
+}): { subject: string; html: string } {
+  const primeiroNome = nome.trim().split(" ")[0] || nome;
+  const paragrafos = escaparHtml(mensagem)
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:${COR_TEXTO_DIM};">${p.replace(/\n/g, "<br />")}</p>`)
+    .join("");
+  const corpoHtml = `
+    <span style="display:inline-block; margin-bottom:10px; padding:3px 10px; background-color:${COR_AVISO_FUNDO}; border:1px solid ${COR_AVISO_BORDA}; border-radius:999px; font-size:11px; font-weight:700; color:${COR_AVISO_TEXTO}; text-transform:uppercase; letter-spacing:0.03em;">
+      ${atualizacao ? "Atualização" : "Comunicado"}
+    </span>
+    <h1 style="margin:0 0 12px; font-size:19px; font-weight:800; color:${COR_TEXTO};">${escaparHtml(titulo)}</h1>
+    <p style="margin:0 0 4px; font-size:14px; color:${COR_TEXTO_DIM};">Oi, ${escaparHtml(primeiroNome)}.</p>
+    ${paragrafos}
+    <p style="margin:20px 0 0; font-size:12px; line-height:1.6; color:${COR_TEXTO_DIM};">
+      Esse aviso também está disponível dentro do app, no sininho de notificações.
+    </p>
+  `;
+  return {
+    subject: `${atualizacao ? "Atualização" : "Comunicado"} GestorPro — ${titulo}`,
+    html: layoutEmail({ titulo, corpoHtml }),
   };
 }

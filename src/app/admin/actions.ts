@@ -9,6 +9,8 @@ import { exigirAdmin } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataCurta } from "@/lib/format";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
+import { enviarEmail } from "@/lib/email";
+import { emailComunicado } from "@/lib/email-templates";
 
 // `valor`, quando informado, é um pagamento recebido fora do Mercado Pago
 // (ex: Pix direto no WhatsApp) que o admin está registrando manualmente —
@@ -250,6 +252,26 @@ export async function publicarAviso(formData: FormData) {
       ? { destino: "UM_REVENDEDOR", revendedorId: dados.destinatarioId, tipo: dados.tipo, titulo: dados.titulo, mensagem: dados.mensagem }
       : { destino: "TODOS_REVENDEDORES", tipo: dados.tipo, titulo: dados.titulo, mensagem: dados.mensagem },
   });
+
+  // Manda por e-mail também, não só dentro do app — só dá pra fazer aqui
+  // (revendedor pra revendedor) porque só eles têm e-mail cadastrado; um
+  // Aviso do revendedor pro cliente final dele não tem pra onde mandar,
+  // já que Cliente não guarda e-mail, só WhatsApp.
+  const destinatarios = await prisma.revendedor.findMany({
+    where: dados.destinatarioId ? { id: dados.destinatarioId } : { papel: "REVENDEDOR" },
+    select: { nome: true, email: true },
+  });
+  await Promise.allSettled(
+    destinatarios.map((r) => {
+      const { subject, html } = emailComunicado({
+        nome: r.nome,
+        titulo: dados.titulo,
+        mensagem: dados.mensagem,
+        atualizacao: dados.tipo === "ATUALIZACAO",
+      });
+      return enviarEmail({ to: r.email, subject, html });
+    })
+  );
 
   revalidatePath("/admin/comunicados");
   redirect("/admin/comunicados");
