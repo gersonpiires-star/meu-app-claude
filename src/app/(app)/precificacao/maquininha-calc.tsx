@@ -17,19 +17,26 @@ export function MaquininhaCalc({
   taxasIniciais: Record<number, number>;
   podeEditar?: boolean;
 }) {
-  const [custo, setCusto] = useState(0);
-  const [margem, setMargem] = useState(margemInicial);
+  const [custo, setCusto] = useState<number | "">(0);
+  const [margem, setMargem] = useState<number | "">(margemInicial);
   const [prazo, setPrazo] = useState<Prazo>(0);
   const [taxasSalvas, setTaxasSalvas] = useState(taxasIniciais);
   const [modoEdicao, setModoEdicao] = useState(false);
-  const [rascunho, setRascunho] = useState<Record<number, number>>({});
+  const [rascunho, setRascunho] = useState<Record<number, number | "">>({});
   const [avisoAberto, setAvisoAberto] = useState(false);
   const [salvando, iniciarTransicao] = useTransition();
 
-  const preco = useMemo(() => precoAVista(custo, margem), [custo, margem]);
+  const preco = useMemo(() => precoAVista(Number(custo) || 0, Number(margem) || 0), [custo, margem]);
+  const taxasParaTabela = useMemo(
+    () =>
+      modoEdicao
+        ? Object.fromEntries(Object.entries(rascunho).map(([parcelas, taxa]) => [parcelas, taxa === "" ? 0 : taxa]))
+        : taxasSalvas,
+    [modoEdicao, rascunho, taxasSalvas]
+  );
   const tabela = useMemo(
-    () => tabelaParcelado(preco, prazo, 12, modoEdicao ? rascunho : taxasSalvas),
-    [preco, prazo, modoEdicao, rascunho, taxasSalvas]
+    () => tabelaParcelado(preco, prazo, 12, taxasParaTabela),
+    [preco, prazo, taxasParaTabela]
   );
 
   function comecarEdicao() {
@@ -43,6 +50,10 @@ export function MaquininhaCalc({
   }
 
   function aoEditarTaxa(parcelas: number, valor: string) {
+    if (valor === "") {
+      setRascunho((atual) => ({ ...atual, [parcelas]: "" }));
+      return;
+    }
     const taxa = Number(valor);
     if (!Number.isFinite(taxa)) return;
     setRascunho((atual) => ({ ...atual, [parcelas]: taxa }));
@@ -50,8 +61,8 @@ export function MaquininhaCalc({
 
   function salvar() {
     iniciarTransicao(async () => {
-      await salvarTaxasCartao(rascunho);
-      setTaxasSalvas(rascunho);
+      await salvarTaxasCartao(taxasParaTabela);
+      setTaxasSalvas(taxasParaTabela);
       setModoEdicao(false);
     });
   }
@@ -61,7 +72,13 @@ export function MaquininhaCalc({
       <Card>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Custo do produto (R$)">
-            <Input type="number" min={0} step="0.01" value={custo} onChange={(e) => setCusto(Number(e.target.value))} />
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={custo}
+              onChange={(e) => setCusto(e.target.value === "" ? "" : Number(e.target.value))}
+            />
           </Field>
           <Field label="Margem desejada (%)">
             <Input
@@ -69,8 +86,8 @@ export function MaquininhaCalc({
               min={0}
               max={95}
               value={margem}
-              onChange={(e) => setMargem(Number(e.target.value))}
-              onBlur={(e) => podeEditar && salvarMargemPadrao(Number(e.target.value))}
+              onChange={(e) => setMargem(e.target.value === "" ? "" : Number(e.target.value))}
+              onBlur={(e) => podeEditar && e.target.value !== "" && salvarMargemPadrao(Number(e.target.value))}
             />
           </Field>
         </div>

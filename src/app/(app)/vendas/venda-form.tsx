@@ -21,23 +21,27 @@ export function VendaForm({
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [produtoId, setProdutoId] = useState("");
-  const [quantidade, setQuantidade] = useState(1);
+  const [quantidade, setQuantidade] = useState<number | "">(1);
   const [erro, setErro] = useState<string | null>(null);
   // Preço à vista que o revendedor quer receber líquido — no cartão, o
   // valor cobrado do cliente é maior pra absorver a taxa da maquininha.
-  const [precoAlvo, setPrecoAlvo] = useState(0);
+  const [precoAlvo, setPrecoAlvo] = useState<number | "">(0);
   const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState<(typeof FORMAS_PAGAMENTO)[number]>("Pix");
   const [parcelas, setParcelas] = useState(1);
-  const [taxaPercentual, setTaxaPercentual] = useState(0);
+  const [taxaPercentual, setTaxaPercentual] = useState<number | "">(0);
+
+  const quantidadeNum = Number(quantidade) || 0;
+  const precoAlvoNum = Number(precoAlvo) || 0;
+  const taxaPercentualNum = Number(taxaPercentual) || 0;
 
   const ehCartao = formaPagamento === "Cartão";
-  const podeRepassarTaxa = ehCartao && taxaPercentual < 100;
+  const podeRepassarTaxa = ehCartao && taxaPercentualNum < 100;
   const valorCobradoUnitario = podeRepassarTaxa
-    ? Math.round((precoAlvo / (1 - taxaPercentual / 100)) * 100) / 100
-    : precoAlvo;
-  const bruto = quantidade * valorCobradoUnitario;
-  const taxaValor = ehCartao ? (bruto * taxaPercentual) / 100 : 0;
+    ? Math.round((precoAlvoNum / (1 - taxaPercentualNum / 100)) * 100) / 100
+    : precoAlvoNum;
+  const bruto = quantidadeNum * valorCobradoUnitario;
+  const taxaValor = ehCartao ? (bruto * taxaPercentualNum) / 100 : 0;
   const liquido = bruto - taxaValor;
   const formaPagamentoFinal = ehCartao ? `Cartão ${parcelas}x` : formaPagamento;
 
@@ -62,7 +66,7 @@ export function VendaForm({
   }
 
   const produtoSelecionado = produtos.find((p) => p.id === produtoId);
-  const semEstoqueSuficiente = !!produtoSelecionado && quantidade > produtoSelecionado.estoqueAtual;
+  const semEstoqueSuficiente = !!produtoSelecionado && quantidadeNum > produtoSelecionado.estoqueAtual;
 
   return (
     <form
@@ -112,7 +116,7 @@ export function VendaForm({
             min={1}
             value={quantidade}
             onChange={(e) => {
-              setQuantidade(Number(e.target.value));
+              setQuantidade(e.target.value === "" ? "" : Number(e.target.value));
               setErro(null);
             }}
             required
@@ -126,7 +130,7 @@ export function VendaForm({
             step="0.01"
             value={precoAlvo}
             onChange={(e) => {
-              setPrecoAlvo(Number(e.target.value));
+              setPrecoAlvo(e.target.value === "" ? "" : Number(e.target.value));
               setValorEditadoManualmente(true);
             }}
             required
@@ -190,7 +194,7 @@ export function VendaForm({
           min={0}
           step="0.01"
           value={taxaPercentual}
-          onChange={(e) => setTaxaPercentual(Number(e.target.value))}
+          onChange={(e) => setTaxaPercentual(e.target.value === "" ? "" : Number(e.target.value))}
           disabled={!ehCartao}
         />
       </Field>
@@ -202,7 +206,7 @@ export function VendaForm({
         </div>
         {ehCartao ? (
           <div className="flex items-center justify-between">
-            <span className="text-text-dim">Taxa ({taxaPercentual.toFixed(2)}%)</span>
+            <span className="text-text-dim">Taxa ({taxaPercentualNum.toFixed(2)}%)</span>
             <span className="font-semibold text-danger">− {brl(taxaValor)}</span>
           </div>
         ) : null}

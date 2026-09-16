@@ -24,8 +24,8 @@ export function RenovarForm({
 }) {
   const [aberto, setAberto] = useState(false);
   const [plano, setPlano] = useState<PlanoCliente>(planoAtual);
-  const [valor, setValor] = useState(valorAtual);
-  const [custo, setCusto] = useState(PLANO_MESES[planoAtual] * custoCredito);
+  const [valor, setValor] = useState<number | "">(valorAtual);
+  const [custo, setCusto] = useState<number | "">(PLANO_MESES[planoAtual] * custoCredito);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
@@ -81,7 +81,7 @@ export function RenovarForm({
             min={0}
             step="0.01"
             value={valor}
-            onChange={(e) => setValor(Number(e.target.value))}
+            onChange={(e) => setValor(e.target.value === "" ? "" : Number(e.target.value))}
             required
           />
         </Field>
@@ -93,7 +93,7 @@ export function RenovarForm({
           min={0}
           step="0.01"
           value={custo}
-          onChange={(e) => setCusto(Number(e.target.value))}
+          onChange={(e) => setCusto(e.target.value === "" ? "" : Number(e.target.value))}
         />
       </Field>
       {custoCredito === 0 ? (

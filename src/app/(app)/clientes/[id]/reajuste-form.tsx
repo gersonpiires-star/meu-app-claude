@@ -18,7 +18,7 @@ export function ReajusteForm({
   podeEditar?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
-  const [novoValor, setNovoValor] = useState(valorAtual);
+  const [novoValor, setNovoValor] = useState<number | "">(valorAtual);
   const [pendente, iniciarTransicao] = useTransition();
 
   return (
@@ -56,10 +56,10 @@ export function ReajusteForm({
             min={0}
             step="0.01"
             value={novoValor}
-            onChange={(e) => setNovoValor(Number(e.target.value))}
+            onChange={(e) => setNovoValor(e.target.value === "" ? "" : Number(e.target.value))}
           />
           <p className="text-xs text-text-dim">
-            Era {brl(valorAtual)} → fica {brl(novoValor)}
+            Era {brl(valorAtual)} → fica {brl(Number(novoValor) || 0)}
           </p>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>

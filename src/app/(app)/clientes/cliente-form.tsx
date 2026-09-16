@@ -39,7 +39,7 @@ export function ClienteForm({
   interessadoId?: string;
 }) {
   const [plano, setPlano] = useState<PlanoCliente>(valoresIniciais?.plano ?? "MENSAL");
-  const [valor, setValor] = useState<number>(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
+  const [valor, setValor] = useState<number | "">(valoresIniciais?.valorPlano ?? PLANO_VALOR_SUGERIDO.MENSAL);
   const [servicoId, setServicoId] = useState<string>(valoresIniciais?.servicoId ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
@@ -114,7 +114,7 @@ export function ClienteForm({
             min={0}
             step="0.01"
             value={valor}
-            onChange={(e) => setValor(Number(e.target.value))}
+            onChange={(e) => setValor(e.target.value === "" ? "" : Number(e.target.value))}
             required
           />
         </Field>

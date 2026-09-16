@@ -45,7 +45,7 @@ export function AvisoEmMassaClient({
   const [titulo, setTitulo] = useState("");
   const [mensagem, setMensagem] = useState(MODELOS_COMUNICADO[Object.keys(MODELOS_COMUNICADO)[0]]);
   const [aplicarReajuste, setAplicarReajuste] = useState(false);
-  const [novoValor, setNovoValor] = useState(0);
+  const [novoValor, setNovoValor] = useState<number | "">(0);
   const [enviado, setEnviado] = useState(false);
   const [enviadosAgora, setEnviadosAgora] = useState<Set<string>>(new Set());
   const [pendente, iniciarTransicao] = useTransition();
@@ -84,7 +84,7 @@ export function AvisoEmMassaClient({
       mensagem,
       servicoId: servicoFiltro || undefined,
       clienteIds: [...selecionados],
-      novoValor: aplicarReajuste ? novoValor : undefined,
+      novoValor: aplicarReajuste ? Number(novoValor) || 0 : undefined,
     });
     if (resultado.ok) setEnviado(true);
   }
@@ -252,11 +252,17 @@ export function AvisoEmMassaClient({
         {aplicarReajuste ? (
           <div className="mt-3">
             <Field label="Novo valor do plano (R$)">
-              <Input type="number" min={0} step="0.01" value={novoValor} onChange={(e) => setNovoValor(Number(e.target.value))} />
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={novoValor}
+                onChange={(e) => setNovoValor(e.target.value === "" ? "" : Number(e.target.value))}
+              />
             </Field>
             {clientesSelecionados.length > 0 ? (
               <p className="mt-1 text-xs text-text-dim">
-                Ex: {clientesSelecionados[0].nome} era {brl(clientesSelecionados[0].valorPlano)} → fica {brl(novoValor)}
+                Ex: {clientesSelecionados[0].nome} era {brl(clientesSelecionados[0].valorPlano)} → fica {brl(Number(novoValor) || 0)}
               </p>
             ) : null}
           </div>
