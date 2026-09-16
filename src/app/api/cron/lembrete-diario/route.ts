@@ -147,9 +147,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Só entra quem a fila de "Cobrar em lote" também mostra (ela exige
+    // WhatsApp cadastrado pra montar a mensagem) — sem esse filtro aqui, o
+    // push contava gente que, ao abrir o link, não aparecia na fila.
     const emRisco = clientes.filter((c) => {
       const faixa = faixaVencimento(c.vencimento, agora);
-      return faixa === "VENCIDO" || faixa === "ATE_5_DIAS";
+      return (faixa === "VENCIDO" || faixa === "ATE_5_DIAS") && c.whatsapp;
     });
     if (emRisco.length === 0) continue;
 
@@ -160,10 +163,13 @@ export async function GET(req: NextRequest) {
     if (vencendoCount > 0) partes.push(`${vencendoCount} vencendo`);
 
     for (const inscricao of revendedor.pushSubscriptions) {
+      // Manda direto pra fila de cobrança já pronta pra disparar (mensagem
+      // preenchida, Pix Copia e Cola incluído) — antes mandava pro Painel,
+      // que só mostra o resumo e exige mais um passo pra achar a fila.
       const manter = await enviarPush(inscricao, {
         titulo: "Clientes pra cobrar hoje",
-        corpo: `Você tem ${partes.join(" e ")}. Toque para ver.`,
-        url: "/painel",
+        corpo: `Você tem ${partes.join(" e ")}. Toque para cobrar agora.`,
+        url: "/clientes/cobrar-em-lote",
       });
       if (!manter) {
         await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
