@@ -2,7 +2,7 @@ import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dadosPainel } from "@/lib/dados";
-import { brl0, dataCurta } from "@/lib/format";
+import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
@@ -20,6 +20,7 @@ export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
   const [dados, cobradosHoje] = await Promise.all([dadosPainel(revendedor.id), cobradosHojePorCliente(revendedor.id)]);
   const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
 
   // Só consulta os contadores de onboarding durante o trial — depois que
   // assina, esse checklist não faz mais sentido e não vale gastar a
@@ -95,7 +96,7 @@ export default async function PainelPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Entrou no mês</span>
             <span className="whitespace-nowrap text-[10px] font-semibold text-text-dim">
-              Entradas de {String(agora.getMonth() + 1).padStart(2, "0")}/{agora.getFullYear()}
+              Entradas de {String(agoraCivil.mes + 1).padStart(2, "0")}/{agoraCivil.ano}
             </span>
           </div>
           <div className="flex items-baseline gap-1">
