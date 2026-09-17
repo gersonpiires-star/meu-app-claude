@@ -15,11 +15,13 @@ function ItemLinha({
   acao,
   acaoExcluir,
   podeEditar,
+  podeExcluir,
 }: {
   item: ItemRenovacao;
   acao?: AcaoEditar;
   acaoExcluir?: AcaoExcluir;
   podeEditar: boolean;
+  podeExcluir: boolean;
 }) {
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -104,7 +106,7 @@ function ItemLinha({
             Editar
           </button>
         ) : null}
-        {podeEditar && acaoExcluir ? (
+        {podeExcluir && acaoExcluir ? (
           <button
             type="button"
             disabled={pendenteExcluir}
@@ -125,11 +127,13 @@ export function RenovacoesPorServico({
   acao,
   acaoExcluir,
   podeEditar = false,
+  podeExcluir = false,
 }: {
   grupos: GrupoRenovacao[];
   acao?: AcaoEditar;
   acaoExcluir?: AcaoExcluir;
   podeEditar?: boolean;
+  podeExcluir?: boolean;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -162,7 +166,7 @@ export function RenovacoesPorServico({
             {expandido ? (
               <div className="flex flex-col divide-y divide-border px-4 pb-3">
                 {g.itens.map((item) => (
-                  <ItemLinha key={item.id} item={item} acao={acao} acaoExcluir={acaoExcluir} podeEditar={podeEditar} />
+                  <ItemLinha key={item.id} item={item} acao={acao} acaoExcluir={acaoExcluir} podeEditar={podeEditar} podeExcluir={podeExcluir} />
                 ))}
               </div>
             ) : null}

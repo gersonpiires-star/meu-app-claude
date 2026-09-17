@@ -420,7 +420,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
                   className="shrink-0"
                 />
               ) : null}
-              {h.excluirId ? <ExcluirRenovacaoBotao id={h.excluirId} /> : null}
+              {h.excluirId && podeExcluir ? <ExcluirRenovacaoBotao id={h.excluirId} /> : null}
               <span className="shrink-0 text-xs text-text-dim">{h.data}</span>
             </div>
           ))}

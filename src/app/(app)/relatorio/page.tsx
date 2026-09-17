@@ -25,7 +25,7 @@ export default async function RelatorioPage({
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const { podeVerFinanceiro } = await permissoesFuncionario();
+  const { podeVerFinanceiro, podeExcluir } = await permissoesFuncionario();
   if (!podeVerFinanceiro) redirect("/painel");
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
@@ -121,7 +121,7 @@ export default async function RelatorioPage({
 
       <Card>
         <h2 className="mb-3 text-sm font-bold text-text">Renovações do mês · por serviço</h2>
-        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} acaoExcluir={excluirRenovacao} podeEditar={true} />
+        <RenovacoesPorServico grupos={gruposRenovacao} acao={editarRenovacao} acaoExcluir={excluirRenovacao} podeEditar={true} podeExcluir={podeExcluir} />
       </Card>
 
       <Card>

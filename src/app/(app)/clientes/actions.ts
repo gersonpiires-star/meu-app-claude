@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { exigirRevendedor, exigirDono } from "@/lib/sessao";
+import { exigirRevendedor, exigirDono, permissoesFuncionario } from "@/lib/sessao";
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
@@ -285,6 +285,8 @@ export async function renovarCliente(
 // engano — sobra só o registro certo).
 export async function excluirRenovacao(id: string): Promise<{ ok: true; restaurado: boolean } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
+  const { podeExcluir } = await permissoesFuncionario();
+  if (!podeExcluir) return { ok: false, erro: "Você não tem permissão para excluir registros." };
 
   const renovacao = await prisma.renovacao.findFirst({
     where: { id, cliente: { revendedorId: revendedor.id } },
@@ -294,29 +296,46 @@ export async function excluirRenovacao(id: string): Promise<{ ok: true; restaura
     return { ok: false, erro: "Renovação não encontrada." };
   }
 
-  const maisRecente = await prisma.renovacao.findFirst({
-    where: { clienteId: renovacao.clienteId },
-    orderBy: { data: "desc" },
-  });
-  const snapshot = snapshotClienteSchema.safeParse(renovacao.snapshotAnterior);
-  const podeRestaurar = maisRecente?.id === renovacao.id && snapshot.success;
+  // A checagem "essa é a renovação mais recente do cliente?" e o
+  // delete+restore precisam estar dentro da MESMA transação serializável —
+  // senão, se uma renovação nova desse cliente for criada bem entre a
+  // checagem e a gravação, o restore ainda rodava com a decisão antiga e
+  // sobrescrevia o efeito dessa renovação novinha com o retrato de antes da
+  // que está sendo excluída (o registro da renovação nova ficava órfão no
+  // histórico, sem nunca ter mexido de fato no cliente). Mesma trava usada
+  // em renovarCliente/renovarComPlanoAtual pro mesmo tipo de corrida.
+  let podeRestaurar = false;
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        const maisRecente = await tx.renovacao.findFirst({
+          where: { clienteId: renovacao.clienteId },
+          orderBy: { data: "desc" },
+        });
+        const snapshot = snapshotClienteSchema.safeParse(renovacao.snapshotAnterior);
+        podeRestaurar = maisRecente?.id === renovacao.id && snapshot.success;
 
-  if (podeRestaurar) {
-    await prisma.$transaction([
-      prisma.renovacao.delete({ where: { id } }),
-      prisma.cliente.update({
-        where: { id: renovacao.clienteId },
-        data: {
-          plano: snapshot.data.plano,
-          valorPlano: snapshot.data.valorPlano,
-          vencimento: new Date(snapshot.data.vencimento),
-          status: snapshot.data.status,
-          testeGratis: snapshot.data.testeGratis,
-        },
-      }),
-    ]);
-  } else {
-    await prisma.renovacao.delete({ where: { id } });
+        await tx.renovacao.delete({ where: { id } });
+        if (podeRestaurar && snapshot.success) {
+          await tx.cliente.update({
+            where: { id: renovacao.clienteId },
+            data: {
+              plano: snapshot.data.plano,
+              valorPlano: snapshot.data.valorPlano,
+              vencimento: new Date(snapshot.data.vencimento),
+              status: snapshot.data.status,
+              testeGratis: snapshot.data.testeGratis,
+            },
+          });
+        }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (erro) {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2034") {
+      return { ok: false, erro: "Uma renovação desse cliente foi registrada bem nesse instante — tente novamente." };
+    }
+    throw erro;
   }
 
   await registrarLog(
