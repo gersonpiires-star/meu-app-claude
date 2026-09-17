@@ -51,8 +51,12 @@ export async function criarCobrancaAsaas({
 }): Promise<{ url: string; asaasPaymentId: string }> {
   const clienteAsaasId = await buscarOuCriarClienteAsaas(apiKey, clienteNome, cpfCnpj);
 
+  // Prazo de alguns dias, não "amanhã" — o pagador escolhe o método (Pix,
+  // boleto ou cartão) só depois de abrir o link, e um boleto emitido com
+  // vencimento pra amanhã costuma já aparecer vencido pros bancos/lotéricas
+  // se ele não pagar no mesmo dia que recebeu o link.
   const vencimento = new Date();
-  vencimento.setDate(vencimento.getDate() + 1);
+  vencimento.setDate(vencimento.getDate() + 3);
 
   const cobranca = await chamarAsaas<{ id: string; invoiceUrl: string }>(apiKey, "/payments", {
     method: "POST",
