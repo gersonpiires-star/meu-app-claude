@@ -124,10 +124,24 @@ export async function atualizarConfigServico(servicoId: string, formData: FormDa
   const revendedor = await exigirRevendedor();
   const dados = servicoConfigSchema.parse(Object.fromEntries(formData));
 
+  // Nunca confia no plataformaId vindo do form sem checar dono — sem isso
+  // dava pra vincular o serviço a uma plataforma de outro revendedor (o id
+  // é só um cuid, não precisa nem vir do seletor da própria tela), o que
+  // fazia esse serviço contar como "usado" no crédito de um estranho.
+  let plataformaId: string | null = null;
+  if (dados.plataformaId) {
+    const plataforma = await prisma.plataforma.findFirst({
+      where: { id: dados.plataformaId, revendedorId: revendedor.id },
+      select: { id: true },
+    });
+    if (!plataforma) throw new Error("Plataforma não encontrada.");
+    plataformaId = plataforma.id;
+  }
+
   await prisma.servico.update({
     where: { id: servicoId, revendedorId: revendedor.id },
     data: {
-      plataformaId: dados.plataformaId || null,
+      plataformaId,
       custoCredito: dados.custoCredito ?? null,
       cobrancaTelaExtra: dados.cobrancaTelaExtra ?? null,
     },
