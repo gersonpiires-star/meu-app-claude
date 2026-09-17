@@ -216,6 +216,8 @@ export async function renovarCliente(
   const plano = planoSchema.parse(formData.get("plano"));
   const valor = Number(formData.get("valor") ?? 0);
   const custo = Number(formData.get("custo") ?? 0);
+  if (!Number.isFinite(valor) || valor < 0) return { ok: false, erro: "Valor inválido." };
+  if (!Number.isFinite(custo) || custo < 0) return { ok: false, erro: "Custo inválido." };
 
   let clienteNome = "";
   try {
