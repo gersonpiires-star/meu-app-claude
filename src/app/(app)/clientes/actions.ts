@@ -353,28 +353,61 @@ export async function excluirRenovacao(id: string): Promise<{ ok: true; restaura
   return { ok: true, restaurado: podeRestaurar };
 }
 
-export async function converterTeste(id: string) {
+export async function converterTeste(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
-  const cliente = await prisma.cliente.findUniqueOrThrow({ where: { id, revendedorId: revendedor.id } });
-  if (!cliente.testeGratis) return;
 
-  const novoVencimento = calcularVencimentoComDiaFixo("MENSAL", new Date(), cliente.diaFixo);
-  await prisma.cliente.update({
-    where: { id },
-    data: {
-      testeGratis: false,
-      plano: "MENSAL",
-      valorPlano: PLANO_VALOR_SUGERIDO.MENSAL,
-      vencimento: novoVencimento,
-      status: "ATIVO",
-    },
-  });
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        const cliente = await tx.cliente.findUniqueOrThrow({ where: { id, revendedorId: revendedor.id } });
+        if (!cliente.testeGratis) return;
 
-  await registrarLog(revendedor.id, "cliente.converter_teste", `Converteu ${cliente.nome} de teste grátis para Mensal`);
+        // Sai do teste grátis e vira a primeira mensalidade paga — mesma
+        // trava de crédito da renovação normal (criarCliente/renovarCliente),
+        // senão dava pra converter teste grátis em pagante sem crédito
+        // disponível na plataforma, e essa primeira mensalidade nunca
+        // aparecia no relatório por não virar um registro de Renovacao.
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        if (erroCredito) throw new SemCreditoError(erroCredito);
+
+        const servico = cliente.servicoId
+          ? await tx.servico.findUnique({ where: { id: cliente.servicoId }, select: { custoCredito: true } })
+          : null;
+        const custo = servico?.custoCredito ? PLANO_MESES.MENSAL * servico.custoCredito : 0;
+
+        const novoVencimento = calcularVencimentoComDiaFixo("MENSAL", new Date(), cliente.diaFixo);
+        await tx.cliente.update({
+          where: { id },
+          data: {
+            testeGratis: false,
+            plano: "MENSAL",
+            valorPlano: PLANO_VALOR_SUGERIDO.MENSAL,
+            vencimento: novoVencimento,
+            status: "ATIVO",
+          },
+        });
+        await tx.renovacao.create({
+          data: { clienteId: id, servicoId: cliente.servicoId, plano: "MENSAL", valor: PLANO_VALOR_SUGERIDO.MENSAL, custo },
+        });
+
+        await registrarLog(revendedor.id, "cliente.converter_teste", `Converteu ${cliente.nome} de teste grátis para Mensal`);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (erro) {
+    if (erro instanceof SemCreditoError) return { ok: false, erro: erro.message };
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2034") {
+      return { ok: false, erro: "Tente novamente em instantes." };
+    }
+    throw erro;
+  }
 
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
   revalidatePath("/painel");
+  revalidatePath("/relatorio");
+  revalidatePath("/plataformas");
+  return { ok: true };
 }
 
 export async function cancelarCliente(id: string, formData: FormData) {
