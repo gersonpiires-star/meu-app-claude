@@ -27,9 +27,12 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
     const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
     const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
     const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
+    // Taxa da maquininha (cartão) também sai do bolso — ver comentário em
+    // dadosMes, abaixo, sobre esse mesmo desconto.
+    const taxaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
 
     const receita = receitaRenov + receitaVendas;
-    const custo = custoRenov + custoVendas;
+    const custo = custoRenov + custoVendas + taxaVendas;
 
     meses.push({ ano, mes, receita, custo, lucro: receita - custo });
   }
@@ -64,9 +67,14 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
   const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
   const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
   const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
+  // Taxa da maquininha (cartão) também sai do bolso — sem descontar aqui,
+  // "Lucro do mês"/"Margem" (abaixo) ficavam maiores do que a soma dos
+  // "líquido" de cada venda mostrados logo depois na mesma tela, que já
+  // descontam essa taxa (ver `liquido` em vendasComCusto).
+  const taxaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
 
   const receita = receitaRenov + receitaVendas;
-  const custo = custoRenov + custoVendas;
+  const custo = custoRenov + custoVendas + taxaVendas;
   const lucro = receita - custo;
   const margem = receita > 0 ? (lucro / receita) * 100 : 0;
 

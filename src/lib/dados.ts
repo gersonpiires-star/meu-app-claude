@@ -154,9 +154,13 @@ export async function dadosPainel(revendedorId: string) {
   const custoRecorrente = renovacoesMes.reduce((a, r) => a + r.custo, 0);
   const receitaApar = vendasMes.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
   const custoApar = vendasMes.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
+  // Taxa da maquininha (cartão) também sai do bolso — sem descontar aqui, o
+  // lucro do painel ficava maior do que a soma dos "líquido" de cada venda
+  // mostrados no Relatório, que já descontam essa taxa.
+  const taxaApar = vendasMes.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
 
   const receitaTotal = receitaRecorrente + receitaApar;
-  const custoTotal = custoRecorrente + custoApar;
+  const custoTotal = custoRecorrente + custoApar + taxaApar;
   const lucro = receitaTotal - custoTotal;
 
   const naoCancelados = clientes.filter((c) => c.status !== "CANCELADO");
