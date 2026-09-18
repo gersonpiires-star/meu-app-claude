@@ -27,6 +27,7 @@ export function ServicoItem({
   const [plataformaId, setPlataformaId] = useState(servico.plataformaId ?? "");
   const [pendente, iniciarTransicao] = useTransition();
   const [erroExcluir, setErroExcluir] = useState<string | null>(null);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const plataformaAtual = plataformas.find((p) => p.id === servico.plataformaId);
 
   function excluir() {
@@ -83,7 +84,12 @@ export function ServicoItem({
       <form
         action={(formData) =>
           iniciarTransicao(async () => {
-            await atualizarConfigServico(servico.id, formData);
+            setErroSalvar(null);
+            const resultado = await atualizarConfigServico(servico.id, formData);
+            if (!resultado.ok) {
+              setErroSalvar(resultado.erro);
+              return;
+            }
             setEditando(false);
           })
         }
@@ -126,6 +132,7 @@ export function ServicoItem({
             ))}
           </div>
         </Field>
+        {erroSalvar ? <p className="text-xs font-semibold text-danger">{erroSalvar}</p> : null}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" className="flex-1" onClick={() => setEditando(false)}>
             Cancelar

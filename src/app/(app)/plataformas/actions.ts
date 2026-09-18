@@ -95,7 +95,7 @@ export async function excluirServico(id: string): Promise<{ ok: true } | { ok: f
   const revendedor = await exigirDono();
   const servico = await prisma.servico.findUnique({
     where: { id, revendedorId: revendedor.id },
-    include: { _count: { select: { clientes: true } } },
+    include: { _count: { select: { clientes: true, renovacoes: true } } },
   });
   if (!servico) return { ok: false, erro: "App não encontrado." };
 
@@ -103,6 +103,18 @@ export async function excluirServico(id: string): Promise<{ ok: true } | { ok: f
     return {
       ok: false,
       erro: `Esse app tem ${servico._count.clientes} cliente${servico._count.clientes === 1 ? "" : "s"} vinculado${servico._count.clientes === 1 ? "" : "s"}. Troque o app desses clientes antes de excluir.`,
+    };
+  }
+
+  // Excluir apagaria o vínculo (servicoId vira null por onDelete: SetNull)
+  // das renovações já registradas contra a plataforma desse app — sumindo
+  // esse uso do cálculo de "usados" e inflando o saldo de crédito dela sem
+  // ela ter ganhado crédito nenhum. Mesmo raciocínio da trava adicionada em
+  // atualizarConfigServico pra troca de plataforma.
+  if (servico._count.renovacoes > 0) {
+    return {
+      ok: false,
+      erro: `Esse app tem ${servico._count.renovacoes} ${servico._count.renovacoes === 1 ? "renovação" : "renovações"} no histórico e não pode ser excluído, pra não perder o controle de crédito da plataforma. Deixe o app sem clientes, sem excluir.`,
     };
   }
 
@@ -120,7 +132,10 @@ const servicoConfigSchema = z.object({
   cobrancaTelaExtra: z.coerce.number().min(0).optional(),
 });
 
-export async function atualizarConfigServico(servicoId: string, formData: FormData) {
+export async function atualizarConfigServico(
+  servicoId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
   const dados = servicoConfigSchema.parse(Object.fromEntries(formData));
 
@@ -138,6 +153,33 @@ export async function atualizarConfigServico(servicoId: string, formData: FormDa
     plataformaId = plataforma.id;
   }
 
+  const servicoAtual = await prisma.servico.findFirst({
+    where: { id: servicoId, revendedorId: revendedor.id },
+    select: { plataformaId: true },
+  });
+  if (!servicoAtual) throw new Error("App não encontrado.");
+
+  // "Usados" de uma plataforma é contado pelas Renovacao dos apps
+  // ATUALMENTE vinculados a ela (veja erroCreditoIndisponivel em
+  // lib/plataformas.ts) — não existe um retrato histórico de qual
+  // plataforma foi debitada em cada renovação. Se um app com renovações já
+  // registradas trocasse de plataforma (ou perdesse o vínculo), esse
+  // histórico de uso sumiria do cálculo da plataforma antiga, fazendo o
+  // saldo dela voltar a subir mesmo sem ela ter ganhado crédito nenhum —
+  // dava pra vender créditos que já foram de fato consumidos. Por isso, uma
+  // vez que o app tenha alguma Renovacao, ele fica travado na plataforma
+  // atual (mesmo espírito de excluirServico/excluirPlataforma, que bloqueiam
+  // em vez de corromper o controle de crédito).
+  if (servicoAtual.plataformaId && plataformaId !== servicoAtual.plataformaId) {
+    const temHistorico = await prisma.renovacao.count({ where: { servicoId } });
+    if (temHistorico > 0) {
+      return {
+        ok: false,
+        erro: "Esse app já tem renovações registradas nessa plataforma e não pode trocar de fornecedor de crédito. Crie um novo app se precisar mudar.",
+      };
+    }
+  }
+
   await prisma.servico.update({
     where: { id: servicoId, revendedorId: revendedor.id },
     data: {
@@ -148,6 +190,7 @@ export async function atualizarConfigServico(servicoId: string, formData: FormDa
   });
 
   revalidatePath("/plataformas");
+  return { ok: true };
 }
 
 const loteSchema = z.object({
