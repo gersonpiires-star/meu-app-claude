@@ -88,6 +88,8 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
               const resultado = await renovarVariosComPlanoAtual(ids);
               if (resultado?.erro) {
                 setErro(resultado.erro);
+                setFeitos((n) => n + resultado.sucesso.length);
+                setFila((f) => f.filter((c) => !resultado.sucesso.includes(c.id)));
                 return;
               }
               setFeitos((n) => n + ids.length);

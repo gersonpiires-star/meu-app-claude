@@ -91,9 +91,13 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
   revalidatePath("/plataformas");
 }
 
-export async function renovarVariosComPlanoAtual(ids: string[]): Promise<{ erro: string } | undefined> {
+export async function renovarVariosComPlanoAtual(
+  ids: string[]
+): Promise<{ erro: string; sucesso: string[] } | undefined> {
+  const sucesso: string[] = [];
   for (const id of ids) {
     const resultado = await renovarComPlanoAtual(id);
-    if (resultado?.erro) return resultado;
+    if (resultado?.erro) return { erro: resultado.erro, sucesso };
+    sucesso.push(id);
   }
 }
