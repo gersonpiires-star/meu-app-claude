@@ -356,6 +356,8 @@ export async function excluirRenovacao(id: string): Promise<{ ok: true; restaura
 export async function converterTeste(id: string): Promise<{ ok: true } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
 
+  let clienteConvertido: string | undefined;
+
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -390,7 +392,7 @@ export async function converterTeste(id: string): Promise<{ ok: true } | { ok: f
           data: { clienteId: id, servicoId: cliente.servicoId, plano: "MENSAL", valor: PLANO_VALOR_SUGERIDO.MENSAL, custo },
         });
 
-        await registrarLog(revendedor.id, "cliente.converter_teste", `Converteu ${cliente.nome} de teste grátis para Mensal`);
+        clienteConvertido = cliente.nome;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -400,6 +402,15 @@ export async function converterTeste(id: string): Promise<{ ok: true } | { ok: f
       return { ok: false, erro: "Tente novamente em instantes." };
     }
     throw erro;
+  }
+
+  // Só depois da transação ter comitado de fato — registrarLog usa o client
+  // global do Prisma, não o `tx`, então rodar ele dentro da transação grava
+  // o log numa transação separada que já comita na hora: se a transação
+  // principal abortasse (ex.: conflito de serialização), o log "converteu"
+  // ficava registrado mesmo sem a conversão ter acontecido.
+  if (clienteConvertido) {
+    await registrarLog(revendedor.id, "cliente.converter_teste", `Converteu ${clienteConvertido} de teste grátis para Mensal`);
   }
 
   revalidatePath(`/clientes/${id}`);
