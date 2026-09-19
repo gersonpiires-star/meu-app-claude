@@ -159,6 +159,12 @@ export async function restaurarBackup(
               valor: r.valor as number,
               custo: (r.custo as number) ?? 0,
               data: r.data ? new Date(r.data as string) : new Date(),
+              // Sem isso, restaurar um backup desativava silenciosamente o
+              // "desfazer renovação" (excluirRenovacao em clientes/actions.ts
+              // só restaura o cliente ao estado anterior quando esse snapshot
+              // existe) — o registro exportado tinha o snapshot, só a
+              // restauração descartava.
+              snapshotAnterior: r.snapshotAnterior ?? undefined,
             },
           });
         }
@@ -206,6 +212,12 @@ export async function restaurarBackup(
       // resto normalmente, só sem o histórico de cobrança online.
       for (const p of dados.pagamentos ?? []) {
         const clienteIdAntigo = p.clienteId as string | null | undefined;
+        // O Cupom em si não é apagado/recriado pela restauração (só os
+        // dados do próprio revendedor são), mas pode ter sido excluído
+        // desde o backup — confirma que ainda existe antes de referenciar,
+        // senão a criação do Pagamento quebraria por violação de FK.
+        const cupomIdAntigo = p.cupomId as string | null | undefined;
+        const cupomExiste = cupomIdAntigo ? await tx.cupom.findUnique({ where: { id: cupomIdAntigo }, select: { id: true } }) : null;
         await tx.pagamento.create({
           data: {
             revendedorId,
@@ -216,6 +228,13 @@ export async function restaurarBackup(
             valor: p.valor as number,
             custo: (p.custo as number) ?? 0,
             meses: (p.meses as number) ?? null,
+            // Faltavam aqui — valorLiquido é a receita líquida real usada
+            // no cálculo de receita/previsão do admin (lib/dados-admin.ts);
+            // sem restaurar, um pagamento de assinatura aprovado voltava
+            // com receita líquida zerada. cupomId perdia o vínculo com o
+            // cupom usado nessa compra.
+            valorLiquido: (p.valorLiquido as number) ?? null,
+            cupomId: cupomExiste ? cupomIdAntigo! : null,
             // mpPreferenceId/mpPaymentId têm restrição de unicidade — não
             // restauramos pra não colidir com um pagamento novo que já use
             // o mesmo id numa conta que reimporta o mesmo backup duas vezes.
