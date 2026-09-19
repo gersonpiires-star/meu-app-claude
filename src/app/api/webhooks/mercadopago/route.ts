@@ -86,9 +86,22 @@ export async function POST(request: Request) {
   const novoStatus = statusMPParaInterno(pagamentoMP.status ?? "pending");
 
   if (novoStatus !== "APROVADO") {
-    await prisma.pagamento.update({
-      where: { id: pagamento.id },
-      data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
+    await prisma.$transaction(async (tx) => {
+      const trocou = await tx.pagamento.updateMany({
+        where: { id: pagamento.id, status: { notIn: ["RECUSADO", "CANCELADO", "APROVADO"] } },
+        data: { status: novoStatus, mpPaymentId: String(pagamentoMP.id) },
+      });
+
+      // Libera o uso do cupom (reservado no checkout, em iniciarPagamentoAssinatura)
+      // só na primeira vez que esse pagamento chega a um status final de
+      // falha — sem essa trava, o Mercado Pago reentregando a mesma
+      // notificação devolveria o uso do cupom mais de uma vez, inflando o
+      // saldo de usos disponíveis pra além do limite real.
+      if (trocou.count > 0 && pagamento.cupomId && (novoStatus === "RECUSADO" || novoStatus === "CANCELADO")) {
+        await tx.$executeRaw`
+          UPDATE "Cupom" SET "usosCount" = GREATEST("usosCount" - 1, 0) WHERE id = ${pagamento.cupomId}
+        `;
+      }
     });
 
     // Pagamento de assinatura recusado: avisa o próprio revendedor (não só
@@ -177,26 +190,13 @@ export async function POST(request: Request) {
       pagamentoMP.transaction_details?.net_received_amount ?? pagamentoMP.transaction_amount ?? pagamento.valor;
     await tx.pagamento.update({ where: { id: pagamento.id }, data: { valorLiquido } });
 
-    // Só conta o uso do cupom quando o pagamento realmente aprova — um
-    // checkout abandonado não deveria consumir o limite de usos. O
-    // incremento condicional na própria query SQL (em vez de checar
-    // usoMaximo antes e incrementar depois) é atômico no Postgres — duas
-    // aprovações concorrentes do mesmo cupom com 1 uso restante nunca
-    // conseguem as duas passar: a segunda UPDATE espera o lock de linha da
-    // primeira, recomeça e já não bate mais no WHERE.
-    if (pagamento.cupomId) {
-      const linhasAfetadas = await tx.$executeRaw`
-        UPDATE "Cupom"
-        SET "usosCount" = "usosCount" + 1
-        WHERE id = ${pagamento.cupomId}
-          AND ("usoMaximo" IS NULL OR "usosCount" < "usoMaximo")
-      `;
-      if (linhasAfetadas === 0) {
-        console.error(
-          `Webhook MP: cupom ${pagamento.cupomId} já tinha atingido o limite de usos ao aprovar o pagamento ${pagamento.id} — pagamento segue aprovado, só não incrementou o contador.`
-        );
-      }
-    }
+    // O uso do cupom já foi reservado atomicamente no checkout (ver
+    // iniciarPagamentoAssinatura) — reservar só na aprovação permitia dois
+    // checkouts concorrentes lerem o mesmo cupom de uso único ainda livre e
+    // criarem dois pagamentos já com o preço descontado, antes de qualquer
+    // trava existir; só o contador (não o preço já fixado) ficava protegido
+    // aqui. Se esse pagamento for recusado/cancelado, o uso é devolvido ao
+    // cupom no branch de status não aprovado, acima.
 
     // Recompensa de indicação: quem indicou essa conta ganha um cupom de
     // 15% pra usar na própria próxima renovação — só dispara na primeira
