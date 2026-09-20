@@ -119,7 +119,16 @@ export async function GET(req: NextRequest) {
 
     if (revendedor.diasParaCancelarAutomatico) {
       for (const cliente of clientes) {
-        const diasVencido = Math.floor((agora.getTime() - cliente.vencimento.getTime()) / 86400000);
+        // Precisa ser diferença de dia CIVIL (Brasília), não de milissegundos
+        // brutos entre dois instantes — vencimento só fica ancorado à meia-
+        // noite de Brasília quando o cliente tem diaFixo configurado
+        // (calcularVencimentoComDiaFixo em lib/planos.ts); sem diaFixo, ele
+        // carrega o horário exato em que a renovação/cadastro foi feito.
+        // Subtrair milissegundos direto contava esse resto de horas como
+        // fração de dia perdida ou ganha, atrasando ou adiantando a
+        // suspensão automática em relação ao que a própria tela já mostra
+        // como "vencido há N dias" (que usa diasParaVencer/diaCivilBr).
+        const diasVencido = diasEntreCivil(cliente.vencimento, agora);
         if (diasVencido >= revendedor.diasParaCancelarAutomatico) {
           await prisma.cliente.update({
             where: { id: cliente.id },
