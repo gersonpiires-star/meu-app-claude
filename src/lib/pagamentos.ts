@@ -1,11 +1,13 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { criarPreferencia } from "@/lib/mercadopago";
 import { criarCobrancaAsaas } from "@/lib/asaas";
 import { PLANO_MESES } from "@/lib/planos";
 import { calcularVencimento } from "@/lib/planos";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
+import { erroCreditoIndisponivel } from "@/lib/plataformas";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -135,50 +137,66 @@ export async function aprovarRenovacaoPaga(
   // Mesma trava por updateMany condicional usada no webhook do MP: duas
   // entregas concorrentes do mesmo pagamento nunca aplicam a renovação duas
   // vezes — a segunda encontra o status já "APROVADO" e não bate no WHERE.
-  const resultado = await prisma.$transaction(async (tx) => {
-    const trocou = await tx.pagamento.updateMany({
-      where: { id: pagamento.id, status: { not: "APROVADO" } },
-      data: { status: "APROVADO", [campoGateway]: gatewayPaymentId },
-    });
-    if (trocou.count === 0) return { jaProcessado: true };
+  // Isolamento serializable pelo mesmo motivo das renovações manuais
+  // (renovarCliente/renovarComPlanoAtual): sem isso, duas renovações desse
+  // cliente por gateways/canais concorrentes podiam ler o vencimento antigo
+  // ao mesmo tempo.
+  const resultado = await prisma.$transaction(
+    async (tx) => {
+      const trocou = await tx.pagamento.updateMany({
+        where: { id: pagamento.id, status: { not: "APROVADO" } },
+        data: { status: "APROVADO", [campoGateway]: gatewayPaymentId },
+      });
+      if (trocou.count === 0) return { jaProcessado: true, semCredito: false };
 
-    const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId! } });
-    if (!cliente) return { jaProcessado: false };
+      const cliente = await tx.cliente.findUnique({ where: { id: pagamento.clienteId! } });
+      if (!cliente) return { jaProcessado: false, semCredito: false };
 
-    const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
-    const novoVencimento = calcularVencimento(pagamento.plano!, base);
+      // O cliente já pagou de verdade nesse ponto — diferente da renovação
+      // manual, não dá pra simplesmente recusar por falta de crédito na
+      // plataforma (isso deixaria o pagamento cobrado sem o serviço
+      // correspondente). Em vez de bloquear, aplica a renovação normalmente
+      // mas sinaliza pro revendedor resolver o crédito, pra não ficar um
+      // saldo negativo silencioso na plataforma como as renovações manuais
+      // já evitam.
+      const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
 
-    await tx.renovacao.create({
-      data: {
-        clienteId: cliente.id,
-        servicoId: cliente.servicoId,
-        plano: pagamento.plano!,
-        valor: pagamento.valor,
-        custo: pagamento.custo,
-        snapshotAnterior: snapshotDoCliente(cliente),
-      },
-    });
-    await tx.cliente.update({
-      where: { id: cliente.id },
-      data: {
-        plano: pagamento.plano!,
-        valorPlano: pagamento.valor,
-        vencimento: novoVencimento,
-        status: "ATIVO",
-        testeGratis: false,
-      },
-    });
-    await tx.notificacaoPagamento.create({
-      data: {
-        revendedorId: pagamento.revendedorId,
-        clienteId: cliente.id,
-        clienteNome: cliente.nome,
-        valor: pagamento.valor,
-      },
-    });
+      const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
+      const novoVencimento = calcularVencimento(pagamento.plano!, base);
 
-    return { jaProcessado: false };
-  });
+      await tx.renovacao.create({
+        data: {
+          clienteId: cliente.id,
+          servicoId: cliente.servicoId,
+          plano: pagamento.plano!,
+          valor: pagamento.valor,
+          custo: pagamento.custo,
+          snapshotAnterior: snapshotDoCliente(cliente),
+        },
+      });
+      await tx.cliente.update({
+        where: { id: cliente.id },
+        data: {
+          plano: pagamento.plano!,
+          valorPlano: pagamento.valor,
+          vencimento: novoVencimento,
+          status: "ATIVO",
+          testeGratis: false,
+        },
+      });
+      await tx.notificacaoPagamento.create({
+        data: {
+          revendedorId: pagamento.revendedorId,
+          clienteId: cliente.id,
+          clienteNome: cliente.nome,
+          valor: pagamento.valor,
+        },
+      });
+
+      return { jaProcessado: false, semCredito: Boolean(erroCredito) };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
 
   if (!resultado.jaProcessado && pagamento.cliente) {
     revalidatePath("/clientes");
@@ -188,11 +206,20 @@ export async function aprovarRenovacaoPaga(
     revalidatePath("/plataformas");
 
     for (const inscricao of pagamento.revendedor.pushSubscriptions) {
-      const manter = await enviarPush(inscricao, {
-        titulo: "Pagamento recebido",
-        corpo: `${pagamento.cliente.nome} pagou a renovação pelo link — já está tudo atualizado.`,
-        url: `/clientes/${pagamento.cliente.id}`,
-      });
+      const manter = await enviarPush(
+        inscricao,
+        resultado.semCredito
+          ? {
+              titulo: "Renovação sem crédito na plataforma",
+              corpo: `${pagamento.cliente.nome} pagou e já foi renovado, mas a plataforma dele ficou sem créditos — compre mais créditos em Plataformas.`,
+              url: "/plataformas",
+            }
+          : {
+              titulo: "Pagamento recebido",
+              corpo: `${pagamento.cliente.nome} pagou a renovação pelo link — já está tudo atualizado.`,
+              url: `/clientes/${pagamento.cliente.id}`,
+            }
+      );
       if (!manter) {
         await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
       }
