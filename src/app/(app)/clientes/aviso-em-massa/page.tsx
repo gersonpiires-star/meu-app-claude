@@ -45,6 +45,7 @@ export default async function AvisoEmMassaPage() {
           whatsapp: c.whatsapp,
           servicoId: c.servicoId,
           servicoNome: c.servico?.nome ?? null,
+          plano: c.plano,
           valorPlano: c.valorPlano,
           status: c.status,
           vencimento: c.vencimento.toISOString(),

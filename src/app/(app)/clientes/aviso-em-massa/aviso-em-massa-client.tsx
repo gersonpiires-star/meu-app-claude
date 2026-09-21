@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
-import { faixaVencimento } from "@/lib/planos";
+import { faixaVencimento, PLANO_LABEL } from "@/lib/planos";
 import { preencherModelo } from "@/lib/mensagens";
 import { brl, dataCurta } from "@/lib/format";
+import type { PlanoCliente } from "@/generated/prisma/enums";
 import { publicarAvisoEmMassa } from "./actions";
 import { RegistrarAvisoLink } from "./registrar-aviso-link";
 
@@ -14,6 +15,7 @@ type ClienteResumo = {
   whatsapp: string | null;
   servicoId: string | null;
   servicoNome: string | null;
+  plano: PlanoCliente;
   valorPlano: number;
   status: string;
   vencimento: string;
@@ -99,7 +101,18 @@ export function AvisoEmMassaClient({
         </p>
         <div className="flex flex-col divide-y divide-border">
           {clientesSelecionados.map((c) => {
-            const texto = preencherModelo(mensagem, { nome: c.nome, app: c.servicoNome ?? "" });
+            // "Boas-vindas" usa {plano}/{valor}/{vencimento} e "Aumento de
+            // plano" usa {novoValor}/{valor} — sem passar esses dados aqui,
+            // esses dois modelos saíam com o placeholder literal ("{plano}",
+            // etc.) na mensagem enviada de verdade ao cliente pelo WhatsApp.
+            const texto = preencherModelo(mensagem, {
+              nome: c.nome,
+              app: c.servicoNome ?? "",
+              plano: PLANO_LABEL[c.plano],
+              valor: brl(c.valorPlano),
+              vencimento: dataCurta(new Date(c.vencimento)),
+              novoValor: aplicarReajuste ? brl(Number(novoValor) || 0) : brl(c.valorPlano),
+            });
             const jaEnviado = enviadosAgora.has(c.id);
             return (
               <div key={c.id} className="flex items-center justify-between gap-3 py-2">
