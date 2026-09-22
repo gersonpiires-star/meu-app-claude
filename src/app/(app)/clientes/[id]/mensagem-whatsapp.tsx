@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
+import { gerarPixCopiaCola } from "@/lib/pix";
 import { CompartilharRecibo } from "@/components/compartilhar-recibo";
 import { BaixarReciboLink } from "@/components/baixar-recibo";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
@@ -25,6 +26,8 @@ export function MensagemWhatsApp({
   modelos,
   linkPagamento = null,
   ultimaRenovacaoId = null,
+  valorNumerico,
+  nomeRevendedor,
 }: {
   clienteId: string;
   whatsapp: string | null;
@@ -33,6 +36,8 @@ export function MensagemWhatsApp({
   modelos: Record<string, string>;
   linkPagamento?: string | null;
   ultimaRenovacaoId?: string | null;
+  valorNumerico: number;
+  nomeRevendedor: string;
 }) {
   const MODELOS = modelos;
   const [modelo, setModelo] = useState(Object.keys(MODELOS)[0]);
@@ -40,6 +45,11 @@ export function MensagemWhatsApp({
   const [chaveId, setChaveId] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [incluirRecibo, setIncluirRecibo] = useState(true);
+  // Desligado por padrão de propósito: o código Pix Copia e Cola (uma
+  // sequência longa) só deve entrar na mensagem se o revendedor marcar
+  // essa opção explicitamente — selecionar a chave sozinha manda só a
+  // chave crua, sem gerar nada.
+  const [usarCopiaCola, setUsarCopiaCola] = useState(false);
 
   if (!whatsapp) {
     return <p className="text-sm text-text-dim">Cadastre o WhatsApp do cliente para enviar mensagens.</p>;
@@ -48,15 +58,27 @@ export function MensagemWhatsApp({
   const ehRenovacao = modelo === "Renovação";
   const ehLink = chaveId === "__link__";
   const chaveSelecionada = chaves.find((c) => c.id === chaveId);
-  // Manda só a chave pedida, sem gerar o BR Code do Pix Copia e Cola — o
-  // código gerado (uma sequência longa) confundia o cliente, que lia como
-  // se fosse um link de pagamento.
+  // O código Pix Copia e Cola só é gerado se o revendedor marcar a opção —
+  // por padrão manda só a chave crua, sem o BR Code (uma sequência longa
+  // que já confundiu cliente lendo como se fosse um link de pagamento).
+  const payloadPix =
+    chaveSelecionada && usarCopiaCola
+      ? gerarPixCopiaCola({
+          tipo: chaveSelecionada.tipo,
+          chave: chaveSelecionada.valor,
+          nomeRecebedor: nomeRevendedor,
+          valor: valorNumerico,
+          identificador: `REN${clienteId.slice(-8).toUpperCase()}`,
+        })
+      : null;
   const linhaAnexo =
     ehLink && linkPagamento
       ? `Pague com Pix ou cartão pelo link: ${linkPagamento}`
-      : chaveSelecionada
-        ? `Chave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
-        : null;
+      : payloadPix
+        ? `Pix Copia e Cola (já vem com o valor de ${dados.valor}) — cole no "Pix" do seu banco:\n${payloadPix}`
+        : chaveSelecionada
+          ? `Chave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
+          : null;
   let mensagemFinal = linhaAnexo ? inserirApos(mensagem, "valor", linhaAnexo) : mensagem;
   if (ehRenovacao && ultimaRenovacaoId && incluirRecibo) {
     mensagemFinal = inserirApos(mensagemFinal, "válido", "📄 Segue o recibo dessa renovação em anexo.");
@@ -124,7 +146,13 @@ export function MensagemWhatsApp({
         </div>
       ) : chaves.length > 0 || linkPagamento ? (
         <Field label="Anexar na mensagem (opcional)">
-          <Select value={chaveId} onChange={(e) => setChaveId(e.target.value)}>
+          <Select
+            value={chaveId}
+            onChange={(e) => {
+              setChaveId(e.target.value);
+              setUsarCopiaCola(false);
+            }}
+          >
             <option value="">Nenhuma</option>
             {chaves.map((c) => (
               <option key={c.id} value={c.id}>
@@ -134,6 +162,17 @@ export function MensagemWhatsApp({
             {linkPagamento ? <option value="__link__">Link de pagamento (Mercado Pago)</option> : null}
           </Select>
         </Field>
+      ) : null}
+      {chaveSelecionada ? (
+        <label className="-mt-2 flex items-center gap-2 text-xs font-medium text-text-dim">
+          <input
+            type="checkbox"
+            checked={usarCopiaCola}
+            onChange={(e) => setUsarCopiaCola(e.target.checked)}
+            className="h-4 w-4 rounded border-border-strong accent-accent"
+          />
+          Gerar código Pix Copia e Cola (já vem com o valor preenchido)
+        </label>
       ) : null}
       {ehLink && linkPagamento ? (
         <p className="-mt-2 text-[11px] text-text-dim">
