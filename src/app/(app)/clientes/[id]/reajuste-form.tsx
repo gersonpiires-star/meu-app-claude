@@ -53,7 +53,8 @@ export function ReajusteForm({
           <Input
             type="number"
             name="novoValor"
-            min={0}
+            required
+            min={0.01}
             step="0.01"
             value={novoValor}
             onChange={(e) => setNovoValor(e.target.value === "" ? "" : Number(e.target.value))}
