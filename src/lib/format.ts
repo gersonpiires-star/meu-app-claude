@@ -77,7 +77,13 @@ export function parseDataBr(texto?: string | null): Date | null {
   if (!texto) return null;
   const [dia, mes, ano] = texto.split("/").map(Number);
   if (!dia || !mes || !ano) return null;
-  return new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0));
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const data = new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0));
+  // Date.UTC normaliza silenciosamente dia/mês fora da faixa (ex: 32/01 vira
+  // 01/02) em vez de rejeitar — sem essa checagem, um dia inválido digitado
+  // errado (typo) salvava uma data de um mês/ano inteiro errado sem avisar.
+  if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) return null;
+  return data;
 }
 
 // Mesma construção de parseDataBr, mas a partir de ano/mês(0-indexado)/dia já
