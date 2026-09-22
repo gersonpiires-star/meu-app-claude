@@ -59,6 +59,13 @@ function gerarMensagemIndicacao(revendedorAlvo: Revendedor | null) {
   };
 }
 
+function gerarMensagemSugestao(revendedorAlvo: Revendedor | null) {
+  return {
+    titulo: "Tem uma sugestão pro GestorPro? Manda pra gente!",
+    mensagem: `${saudacao(revendedorAlvo)} Sabia que você pode mandar sugestões de melhoria direto pra gente pelo próprio app? É só ir em Configurações > Suporte > "Sugestões pro time do GestorPro" e escrever o que você acha que poderia melhorar ou ajustar no seu dia a dia. A gente lê todas e leva em conta nas próximas atualizações!`,
+  };
+}
+
 export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Revendedor[]; cupons: CupomOpcao[] }) {
   const [destinatarioId, setDestinatarioId] = useState("");
   const [modeloSelecionado, setModeloSelecionado] = useState("");
@@ -81,6 +88,12 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
     }
     if (valor === "indicacao") {
       const gerado = gerarMensagemIndicacao(revendedorSelecionado);
+      setTitulo(gerado.titulo);
+      setMensagem(gerado.mensagem);
+      return;
+    }
+    if (valor === "sugestao") {
+      const gerado = gerarMensagemSugestao(revendedorSelecionado);
       setTitulo(gerado.titulo);
       setMensagem(gerado.mensagem);
       return;
@@ -142,6 +155,12 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
       setMensagem(gerado.mensagem);
       return;
     }
+    if (modeloSelecionado === "sugestao") {
+      const gerado = gerarMensagemSugestao(revendedorAlvo);
+      setTitulo(gerado.titulo);
+      setMensagem(gerado.mensagem);
+      return;
+    }
     if (modeloSelecionado === "cupom" && cupomEscolhidoId) {
       const cupom = cupons.find((c) => c.id === cupomEscolhidoId);
       if (cupom && !cupom.revendedorId) {
@@ -169,6 +188,7 @@ export function PublicarAvisoForm({ revendedores, cupons }: { revendedores: Reve
             <option value="atualizacao">Atualização do sistema</option>
             <option value="manual">Manual do usuário do GestorPro</option>
             <option value="indicacao">Indique e ganhe 15%</option>
+            <option value="sugestao">Sugestões pro time do GestorPro</option>
             <option value="cupom">Cupom de desconto</option>
           </Select>
         </Field>
