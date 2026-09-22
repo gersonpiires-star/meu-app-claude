@@ -8,7 +8,7 @@ import { ExcluirCupomBotao } from "./excluir-cupom-botao";
 
 export default async function CupomsPage() {
   await exigirAdmin();
-  const [cupons, revendedores] = await Promise.all([
+  const [cupons, revendedores, aprovadosPorCupomRaw] = await Promise.all([
     prisma.cupom.findMany({
       include: { revendedor: { select: { nome: true, email: true } } },
       orderBy: { criadoEm: "desc" },
@@ -18,7 +18,17 @@ export default async function CupomsPage() {
       orderBy: { nome: "asc" },
       select: { id: true, nome: true, email: true },
     }),
+    // Quantos usos de cada cupom de fato viraram assinatura paga — usosCount
+    // conta toda reserva feita no checkout (inclusive quem desistiu ou teve
+    // o pagamento recusado), então sozinho ele superestima o resultado real
+    // do cupom.
+    prisma.pagamento.groupBy({
+      by: ["cupomId"],
+      where: { cupomId: { not: null }, tipo: "ASSINATURA", status: "APROVADO" },
+      _count: { _all: true },
+    }),
   ]);
+  const aprovadosPorCupom = new Map(aprovadosPorCupomRaw.map((a) => [a.cupomId, a._count._all]));
 
   return (
     <div className="flex flex-col gap-5">
@@ -54,6 +64,11 @@ export default async function CupomsPage() {
                     {c.tipo === "PERCENTUAL" ? `${c.valor}% de desconto` : `${brl(c.valor)} de desconto`}
                     {c.validoAte ? ` · válido até ${dataHora(c.validoAte)}` : ""}
                     {c.usoMaximo != null ? ` · ${c.usosCount}/${c.usoMaximo} usos` : ` · ${c.usosCount} uso${c.usosCount === 1 ? "" : "s"}`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-text-dim">
+                    {aprovadosPorCupom.get(c.id) ?? 0} assinatura{(aprovadosPorCupom.get(c.id) ?? 0) === 1 ? "" : "s"} paga
+                    {(aprovadosPorCupom.get(c.id) ?? 0) === 1 ? "" : "s"} de fato
+                    {c.usosCount > 0 ? ` (${(((aprovadosPorCupom.get(c.id) ?? 0) / c.usosCount) * 100).toFixed(0)}% dos usos)` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
