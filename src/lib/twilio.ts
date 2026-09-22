@@ -11,8 +11,8 @@ function credenciais() {
   return { sid, token, numero };
 }
 
-export function assessorConfigurado(): boolean {
-  return credenciais() !== null && Boolean(process.env.ANTHROPIC_API_KEY);
+export function twilioConfigurado(): boolean {
+  return credenciais() !== null;
 }
 
 // SID do Content Template aprovado pela Meta para lembrete de vencimento

@@ -15,7 +15,7 @@ import { dadosMes } from "@/lib/relatorio";
 import { brl, dataCurta, dataPorExtenso } from "@/lib/format";
 import { mesclarModelos, preencherModelo, normalizarWhatsappBr } from "@/lib/mensagens";
 import { linkPagamentoCliente } from "@/lib/pagamentos";
-import { enviarWhatsApp, enviarWhatsAppTemplate, templateLembreteConfigurado } from "@/lib/twilio";
+import { enviarLivre, enviarProativoTemplate, envioProativoDisponivel, provedorAtivo } from "@/lib/whatsapp";
 
 // Toda ferramenta recebe o revendedorId de quem mandou a mensagem no
 // WhatsApp (já resolvido pelo webhook a partir do número remetente) —
@@ -313,36 +313,58 @@ async function aplicarVenda(ctx: Ctx, payload: PayloadVenda): Promise<ResultadoA
   return { ok: true, produto: produto.modelo, quantidade: payload.quantidade, total: brl(payload.quantidade * payload.valorUnitario) };
 }
 
-// Lembrete em lote via Content Template aprovado pela Meta — diferente de
-// enviar_cobranca (mensagem livre, só funciona na janela de 24h), esse
-// caminho funciona a qualquer momento, então é o certo pra "avisar todo
-// mundo que vence essa semana" de forma proativa.
+// Lembrete em lote — diferente de enviar_cobranca (mensagem livre, só
+// funciona na janela de 24h da Twilio), esse caminho é o certo pra
+// "avisar todo mundo que vence essa semana" de forma proativa. Na Twilio
+// isso exige um Content Template aprovado pela Meta; na Z-API (não
+// oficial, sem janela de 24h) manda a mensagem livre normal, com o mesmo
+// texto configurável usado em enviar_cobranca.
 async function aplicarLembretes(ctx: Ctx, filtro: string): Promise<ResultadoAcao> {
-  const contentSid = process.env.TWILIO_CONTENT_SID_LEMBRETE;
-  if (!contentSid) {
+  if (!envioProativoDisponivel()) {
     return {
       ok: false,
-      erro: "O template de lembrete de vencimento ainda não foi configurado pelo GestorPro (TWILIO_CONTENT_SID_LEMBRETE). Avise o suporte pra habilitar essa função.",
+      erro:
+        provedorAtivo() === "twilio"
+          ? "O template de lembrete de vencimento ainda não foi configurado pelo GestorPro (TWILIO_CONTENT_SID_LEMBRETE). Avise o suporte pra habilitar essa função."
+          : "O canal de WhatsApp ainda não foi configurado pelo GestorPro. Avise o suporte pra habilitar essa função.",
     };
   }
   const faixaAlvo = FAIXA_POR_FILTRO[filtro] ?? "ATE_5_DIAS";
 
-  const candidatos = await prisma.cliente.findMany({
-    where: { revendedorId: ctx.revendedorId, status: { not: "CANCELADO" } },
-    include: { servico: true },
-  });
+  const [candidatos, revendedor, overridesModelos] = await Promise.all([
+    prisma.cliente.findMany({ where: { revendedorId: ctx.revendedorId, status: { not: "CANCELADO" } }, include: { servico: true } }),
+    prisma.revendedor.findUniqueOrThrow({ where: { id: ctx.revendedorId } }),
+    prisma.modeloMensagem.findMany({ where: { revendedorId: ctx.revendedorId } }),
+  ]);
+  const modelos = mesclarModelos(overridesModelos);
+
   const alvo = candidatos.filter((c) => faixaVencimento(c.vencimento) === faixaAlvo);
   const comWhatsapp = alvo.filter((c) => c.whatsapp);
 
   let enviados = 0;
   let falharam = 0;
   for (const cliente of comWhatsapp) {
-    const envio = await enviarWhatsAppTemplate(normalizarWhatsappBr(cliente.whatsapp!), contentSid, {
-      "1": cliente.nome,
-      "2": cliente.servico?.nome ?? "seu serviço",
-      "3": dataPorExtenso(cliente.vencimento),
-      "4": brl(cliente.valorPlano),
-    });
+    const contentSid = process.env.TWILIO_CONTENT_SID_LEMBRETE;
+    const envio =
+      provedorAtivo() === "twilio" && contentSid
+        ? await enviarProativoTemplate(normalizarWhatsappBr(cliente.whatsapp!), contentSid, {
+            "1": cliente.nome,
+            "2": cliente.servico?.nome ?? "seu serviço",
+            "3": dataPorExtenso(cliente.vencimento),
+            "4": brl(cliente.valorPlano),
+          })
+        : await enviarLivre(
+            normalizarWhatsappBr(cliente.whatsapp!),
+            preencherModelo(modelos.Lembrete, {
+              nome: cliente.nome,
+              app: cliente.servico?.nome ?? "",
+              plano: PLANO_LABEL[cliente.plano],
+              vencimento: dataPorExtenso(cliente.vencimento),
+              prazo: faixaAlvo === "VENCIDO" ? "vencido" : "a vencer",
+              valor: brl(cliente.valorPlano),
+            }) + (revendedor.mpAccessToken ? `\n\nPague direto por aqui: ${linkPagamentoCliente(cliente.id)}` : "")
+          );
+
     if (envio.ok) {
       enviados++;
       await prisma.cobranca.create({ data: { clienteId: cliente.id, modelo: "Lembrete" } });
@@ -559,11 +581,13 @@ export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx)
         ? `${mensagem}\n\nPague direto por aqui: ${linkPagamentoCliente(resultado.id)}`
         : mensagem;
 
-      const envio = await enviarWhatsApp(normalizarWhatsappBr(resultado.whatsapp), mensagemComLink);
+      const envio = await enviarLivre(normalizarWhatsappBr(resultado.whatsapp), mensagemComLink);
       if (!envio.ok) {
-        return JSON.stringify({
-          erro: `Não consegui enviar pelo WhatsApp (${envio.erro}). Isso costuma acontecer quando o cliente não mandou mensagem pro número da Twilio nas últimas 24h — pode ser preciso mandar manualmente dessa vez.`,
-        });
+        const dica =
+          provedorAtivo() === "twilio"
+            ? " Isso costuma acontecer quando o cliente não mandou mensagem pro número nas últimas 24h — pode ser preciso mandar manualmente dessa vez."
+            : "";
+        return JSON.stringify({ erro: `Não consegui enviar pelo WhatsApp (${envio.erro}).${dica}` });
       }
 
       await prisma.cobranca.create({ data: { clienteId: resultado.id, modelo: modeloEscolhido } });
@@ -573,9 +597,9 @@ export async function executarFerramenta(nome: string, input: unknown, ctx: Ctx)
 
     case "enviar_lembretes_vencimento": {
       const filtro = String(dados.filtro ?? "VENCENDO_5_DIAS");
-      if (!templateLembreteConfigurado()) {
+      if (!envioProativoDisponivel()) {
         return JSON.stringify({
-          erro: "O template de lembrete de vencimento ainda não foi configurado pelo GestorPro. Avise o suporte pra habilitar essa função.",
+          erro: "O envio de lembrete em lote ainda não foi habilitado pelo GestorPro. Avise o suporte pra habilitar essa função.",
         });
       }
 

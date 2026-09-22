@@ -3,7 +3,7 @@ import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
 import { fmtTelefone } from "@/lib/format";
-import { assessorConfigurado } from "@/lib/twilio";
+import { assessorConfigurado } from "@/lib/whatsapp";
 import { salvarCredenciaisMP, salvarSuspensaoAutomatica, alternarAssessor } from "./actions";
 import { PerfilForm } from "./perfil-form";
 import { ImportarForm } from "./importar-form";
@@ -141,13 +141,13 @@ export default async function ConfiguracoesPage() {
           <p className="mb-3 text-sm text-text-dim">
             Converse pelo WhatsApp com um assessor de IA que consulta e mexe nos seus dados do GestorPro —
             perguntar quem está vencendo, cadastrar cliente, renovar plano, registrar venda ou mandar
-            cobrança pro cliente, tudo por mensagem. Fale com o número da Twilio configurado pelo GestorPro
-            a partir do seu WhatsApp cadastrado ({fmtTelefone(revendedor.whatsapp)}).
+            cobrança pro cliente, tudo por mensagem. Fale com o número configurado pelo GestorPro a partir
+            do seu WhatsApp cadastrado ({fmtTelefone(revendedor.whatsapp)}).
           </p>
           {assessorConfigurado() ? null : (
             <p className="mb-3 text-sm text-amber-600">
-              O GestorPro ainda não configurou a integração (Twilio/Anthropic) neste ambiente — ligar aqui
-              não vai funcionar até isso ser feito.
+              O GestorPro ainda não configurou a integração de WhatsApp/IA neste ambiente — ligar aqui não
+              vai funcionar até isso ser feito.
             </p>
           )}
           <form action={alternarAssessor}>
