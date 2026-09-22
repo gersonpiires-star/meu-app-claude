@@ -12,6 +12,7 @@ import { NotificacoesPush } from "./notificacoes-push";
 import { LinkIndicacao } from "./link-indicacao";
 import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
 import { SugestaoForm } from "./sugestao-form";
+import { funilIndicacao } from "@/lib/indicacao";
 import { UnitvForm } from "./unitv-form";
 
 function baseUrl() {
@@ -67,9 +68,9 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
   const configurado = Boolean(revendedor.mpAccessToken);
   const configuradoAsaas = Boolean(revendedor.asaasApiKey);
   const gatewayAtivo = revendedor.gatewayPagamento;
-  const [chaves, indicadosCount] = await Promise.all([
+  const [chaves, funilIndicacaoRevendedor] = await Promise.all([
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
-    prisma.revendedor.count({ where: { indicadoPorId: revendedor.id } }),
+    funilIndicacao(revendedor.id),
   ]);
 
   const categorias: { key: CategoriaKey; label: string; visivel: boolean }[] = [
@@ -135,11 +136,24 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
                 <p className="mb-3 text-sm text-text-dim">
                   Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago,
                   você ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação.
-                  {indicadosCount > 0
-                    ? ` Você já indicou ${indicadosCount} pessoa${indicadosCount === 1 ? "" : "s"}.`
-                    : ""}
                 </p>
                 <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
+                {funilIndicacaoRevendedor.cliques > 0 ? (
+                  <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cliques}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Cliques no link</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cadastros}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Se cadastraram</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-accent">{funilIndicacaoRevendedor.assinantes}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Assinaram</p>
+                    </div>
+                  </div>
+                ) : null}
               </Item>
 
               <Item titulo="Cancelar assinatura">

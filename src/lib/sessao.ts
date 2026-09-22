@@ -23,6 +23,12 @@ export async function sessaoValida() {
   return session;
 }
 
+// Só regrava ultimoAcessoEm se fizer uma hora ou mais desde o último —
+// senão toda navegação autenticada (múltiplas por minuto de uso normal)
+// viraria um UPDATE, sem ganhar nenhuma precisão útil pro sinal ("ativo
+// nos últimos N dias" não precisa de granularidade de minuto).
+const THROTTLE_ULTIMO_ACESSO_MS = 60 * 60 * 1000;
+
 // Retorna sempre o Revendedor "dono" do tenant — tanto quando quem logou é
 // o próprio dono quanto quando é um funcionário dele (a sessão carrega o
 // tenantId, que aponta pro dono). Assim toda a filtragem `revendedorId:
@@ -33,6 +39,17 @@ export async function exigirRevendedor() {
 
   const revendedor = await prisma.revendedor.findUnique({ where: { id: session.user.tenantId ?? session.user.id } });
   if (!revendedor) redirect("/entrar");
+
+  const agora = new Date();
+  if (!revendedor.ultimoAcessoEm || agora.getTime() - revendedor.ultimoAcessoEm.getTime() > THROTTLE_ULTIMO_ACESSO_MS) {
+    // Aguarda de propósito (não fire-and-forget): numa função serverless a
+    // promise pode nunca terminar de rodar se a resposta já foi enviada.
+    // Só acontece uma vez por hora por conta (throttle acima), então o
+    // custo de latência é desprezível. Falha aqui nunca derruba a página —
+    // é só um sinal de uso, não dado crítico.
+    await prisma.revendedor.update({ where: { id: revendedor.id }, data: { ultimoAcessoEm: agora } }).catch(() => {});
+    revendedor.ultimoAcessoEm = agora;
+  }
 
   return revendedor;
 }

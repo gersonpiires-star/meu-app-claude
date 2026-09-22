@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/ui";
 import { LogoMark } from "@/components/logo-mark";
+import { registrarCliqueIndicacao } from "@/lib/indicacao";
 import { SignupForm } from "./signup-form";
 
 export default async function CadastroPage({
@@ -14,6 +15,11 @@ export default async function CadastroPage({
   // mesmo assim. Criar a conta já loga como o usuário novo por conta
   // própria (ver signup-form.tsx), então não precisa bloquear o acesso aqui.
   const { ref } = await searchParams;
+
+  // Registrado aqui (não em signup-form.tsx) porque o clique conta assim
+  // que a página abre, mesmo que a pessoa nunca chegue a completar o
+  // formulário — é isso que diferencia "cliques no link" de "cadastros".
+  if (ref) await registrarCliqueIndicacao(ref);
 
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center px-4 py-10">
