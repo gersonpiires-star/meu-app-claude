@@ -163,6 +163,20 @@ model Revendedor {
   indicadoPor   Revendedor?  @relation("IndicacaoRevendedor", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados     Revendedor[] @relation("IndicacaoRevendedor")
 
+  // Último momento em que alguém dessa conta (dono ou funcionário) abriu
+  // uma tela autenticada do app — atualizado com throttle em
+  // exigirRevendedor() (ver src/lib/sessao.ts). Sinal direto de uso real,
+  // diferente de LogAtividade (só cobre ações que gravam algo: cadastrar
+  // cliente, vender, etc.) — alguém que só abre o Painel pra olhar não
+  // aparecia em nenhum lugar antes disso existir.
+  ultimoAcessoEm DateTime?
+
+  // Cliques recebidos no link de indicação desse revendedor (/cadastro?ref=
+  // <id>), registrados antes de qualquer cadastro acontecer — sem isso só
+  // dava pra ver quem terminou de se cadastrar pelo link (indicados acima),
+  // nunca quantas pessoas sequer abriram o link e desistiram no meio.
+  cliquesIndicacao CliqueIndicacao[]
+
   servicos   Servico[]
   clientes   Cliente[]
   produtos   Produto[]
@@ -181,6 +195,20 @@ model Revendedor {
   importacoesAntigas ImportacaoAntiga[]
   cuponsRestritos Cupom[]
   sugestoes       Sugestao[]
+}
+
+// Um clique no link de indicação (/cadastro?ref=<revendedorId>), gravado
+// assim que a página abre — independente de a pessoa completar o cadastro
+// ou não. Junto com Revendedor.indicadoPorId (só preenchido quando o
+// cadastro é concluído) dá o funil completo: cliques → cadastros →
+// assinantes.
+model CliqueIndicacao {
+  id           String     @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  criadoEm     DateTime   @default(now())
+
+  @@index([revendedorId, criadoEm])
 }
 
 // Marca cada arquivo de backup do app antigo já importado (pelo hash do
