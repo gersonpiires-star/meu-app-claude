@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button, Field, Select, Textarea, cx } from "@/components/ui";
 import { preencherModelo } from "@/lib/mensagens";
-import { gerarPixCopiaCola } from "@/lib/pix";
 import { CompartilharRecibo } from "@/components/compartilhar-recibo";
 import { BaixarReciboLink } from "@/components/baixar-recibo";
 import { RegistrarCobrancaLink } from "../../painel/registrar-cobranca-link";
@@ -26,8 +25,6 @@ export function MensagemWhatsApp({
   modelos,
   linkPagamento = null,
   ultimaRenovacaoId = null,
-  valorNumerico,
-  nomeRevendedor,
 }: {
   clienteId: string;
   whatsapp: string | null;
@@ -36,8 +33,6 @@ export function MensagemWhatsApp({
   modelos: Record<string, string>;
   linkPagamento?: string | null;
   ultimaRenovacaoId?: string | null;
-  valorNumerico: number;
-  nomeRevendedor: string;
 }) {
   const MODELOS = modelos;
   const [modelo, setModelo] = useState(Object.keys(MODELOS)[0]);
@@ -53,23 +48,14 @@ export function MensagemWhatsApp({
   const ehRenovacao = modelo === "Renovação";
   const ehLink = chaveId === "__link__";
   const chaveSelecionada = chaves.find((c) => c.id === chaveId);
-  // Manda o BR Code inteiro (não só a chave crua) — quem recebe cola no
-  // "Pix Copia e Cola" do banco e o valor já vem preenchido certinho, sem
-  // digitar nada.
-  const payloadPix = chaveSelecionada
-    ? gerarPixCopiaCola({
-        tipo: chaveSelecionada.tipo,
-        chave: chaveSelecionada.valor,
-        nomeRecebedor: nomeRevendedor,
-        valor: valorNumerico,
-        identificador: `REN${clienteId.slice(-8).toUpperCase()}`,
-      })
-    : null;
+  // Manda só a chave pedida, sem gerar o BR Code do Pix Copia e Cola — o
+  // código gerado (uma sequência longa) confundia o cliente, que lia como
+  // se fosse um link de pagamento.
   const linhaAnexo =
     ehLink && linkPagamento
       ? `Pague com Pix ou cartão pelo link: ${linkPagamento}`
-      : payloadPix
-        ? `Pix Copia e Cola (já vem com o valor de ${dados.valor}) — cole no "Pix" do seu banco:\n${payloadPix}`
+      : chaveSelecionada
+        ? `Chave Pix (${chaveSelecionada.tipo}): ${chaveSelecionada.valor}`
         : null;
   let mensagemFinal = linhaAnexo ? inserirApos(mensagem, "valor", linhaAnexo) : mensagem;
   if (ehRenovacao && ultimaRenovacaoId && incluirRecibo) {
