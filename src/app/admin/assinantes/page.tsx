@@ -3,7 +3,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, diaCivilBr, fmtTelefone, iniciais } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Card, EmptyState, Input, cx } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Input, cx } from "@/components/ui";
 import { planoDosMeses } from "@/lib/planos-assinatura";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
@@ -99,7 +99,12 @@ export default async function AssinantesPage({
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-lg font-bold text-text">Assinantes</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-bold text-text">Assinantes</h1>
+        <a href="/api/admin/exportar-assinantes">
+          <Button variant="ghost">Exportar CSV</Button>
+        </a>
+      </div>
 
       <form action="/admin/assinantes" method="get">
         <input type="hidden" name="aba" value={aba} />
