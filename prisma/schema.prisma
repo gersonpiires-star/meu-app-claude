@@ -195,6 +195,8 @@ model Revendedor {
   importacoesAntigas ImportacaoAntiga[]
   cuponsRestritos Cupom[]
   sugestoes       Sugestao[]
+
+  @@index([indicadoPorId])
 }
 
 // Um clique no link de indicação (/cadastro?ref=<revendedorId>), gravado
@@ -302,6 +304,8 @@ model Funcionario {
   // funcionário depois, se quiser.
   podeExcluir       Boolean @default(false)
   podeVerFinanceiro Boolean @default(false)
+
+  @@index([revendedorId])
 }
 
 // Inscrição de notificação push (Web Push) de um dispositivo do
@@ -314,6 +318,8 @@ model PushSubscription {
   p256dh       String
   auth         String
   criadoEm     DateTime @default(now())
+
+  @@index([revendedorId])
 }
 
 model Servico {
@@ -333,6 +339,7 @@ model Servico {
   renovacoes Renovacao[]
 
   @@unique([revendedorId, nome])
+  @@index([plataformaId])
 }
 
 model Plataforma {
@@ -356,6 +363,8 @@ model LotePlataforma {
   quantidade   Int
   valorPago    Float
   data         DateTime @default(now())
+
+  @@index([plataformaId])
 }
 
 model Cliente {
@@ -399,6 +408,8 @@ model Cliente {
 
   @@index([revendedorId, status])
   @@index([revendedorId, vencimento])
+  @@index([indicadoPorId])
+  @@index([servicoId])
 }
 
 // Avisa o revendedor no sininho do painel quando um cliente paga sozinho
@@ -414,6 +425,9 @@ model NotificacaoPagamento {
   clienteNome  String
   valor        Float
   criadoEm     DateTime @default(now())
+
+  @@index([revendedorId])
+  @@index([clienteId])
 }
 
 // Marca quando um cliente recebeu um determinado modelo de aviso em massa,
@@ -466,6 +480,9 @@ model Renovacao {
   // tentar recalcular a data na mão. Renovações de antes dessa coluna
   // existir ficam sem esse snapshot e por isso não podem ser desfeitas.
   snapshotAnterior Json?
+
+  @@index([clienteId])
+  @@index([servicoId])
 }
 
 model Produto {
@@ -491,6 +508,8 @@ model MovimentoEstoque {
   quantidade    Int
   custoUnitario Float
   data          DateTime @default(now())
+
+  @@index([produtoId])
 }
 
 model Venda {
@@ -512,6 +531,10 @@ model Venda {
   formaPagamento  String
   taxaPercentual  Float @default(0)
   data            DateTime @default(now())
+
+  @@index([revendedorId])
+  @@index([produtoId])
+  @@index([clienteId])
 }
 
 model ChavePix {
@@ -521,6 +544,8 @@ model ChavePix {
   tipo         String
   valor        String
   criadoEm     DateTime @default(now())
+
+  @@index([revendedorId])
 }
 
 model ModeloMensagem {
@@ -545,6 +570,9 @@ model Aviso {
   titulo   String
   mensagem String
   criadoEm DateTime @default(now())
+
+  @@index([revendedorId])
+  @@index([servicoId])
 }
 
 // Canal na direção contrária do Aviso: o revendedor manda uma dica/sugestão
@@ -561,6 +589,8 @@ model Sugestao {
   // produto — não muda o fluxo de leitura, só destaca na aba Sugestões.
   destaque Boolean  @default(false)
   criadoEm DateTime @default(now())
+
+  @@index([revendedorId])
 }
 
 model Interessado {
@@ -646,6 +676,8 @@ model Pagamento {
   atualizadoEm DateTime @updatedAt
 
   @@index([revendedorId, status])
+  @@index([clienteId])
+  @@index([cupomId])
 }
 
 // Cupom de desconto pra assinatura do GestorPro (não é dos clientes do
@@ -671,4 +703,6 @@ model Cupom {
   criadoEm DateTime @default(now())
 
   pagamentos Pagamento[]
+
+  @@index([revendedorId])
 }
