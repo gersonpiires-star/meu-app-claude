@@ -8,6 +8,8 @@ export async function dadosAdmin() {
   const em3Dias = new Date(agora.getTime() + 3 * 24 * 60 * 60000);
 
   const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60000);
+  const trintaDiasAtras = new Date(agora.getTime() - 30 * 24 * 60 * 60000);
+  const CATORZE_DIAS_MS = 14 * 24 * 60 * 60000;
 
   const [
     total,
@@ -20,6 +22,9 @@ export async function dadosAdmin() {
     trialsVencendo,
     pagamentosRecusadosRaw,
     cuponsAtivos,
+    ativosUltimos7Dias,
+    ativosUltimos30Dias,
+    semAcessoRecenteRaw,
   ] = await Promise.all([
     prisma.revendedor.count({ where: { papel: "REVENDEDOR" } }),
     prisma.revendedor.count({ where: { papel: "REVENDEDOR", statusAssinatura: "TRIAL" } }),
@@ -61,7 +66,32 @@ export async function dadosAdmin() {
         OR: [{ validoAte: null }, { validoAte: { gte: agora } }],
       },
     }),
+    prisma.revendedor.count({
+      where: { papel: "REVENDEDOR", statusAssinatura: { not: "CANCELADO" }, ultimoAcessoEm: { gte: seteDiasAtras } },
+    }),
+    prisma.revendedor.count({
+      where: { papel: "REVENDEDOR", statusAssinatura: { not: "CANCELADO" }, ultimoAcessoEm: { gte: trintaDiasAtras } },
+    }),
+    // Assinante pagante que não abre o app há um tempo — sinal mais direto
+    // de "vai cancelar" que dá pra agir antes de acontecer (diferente de
+    // assinantesEsfriando em dadosCrescimento, que só olha LogAtividade —
+    // ações que gravam algo — e ignora quem só entra pra olhar o Painel).
+    prisma.revendedor.findMany({
+      where: {
+        papel: "REVENDEDOR",
+        statusAssinatura: "ATIVO",
+        OR: [{ ultimoAcessoEm: null }, { ultimoAcessoEm: { lt: new Date(agora.getTime() - CATORZE_DIAS_MS) } }],
+      },
+      orderBy: { ultimoAcessoEm: { sort: "asc", nulls: "first" } },
+      take: 10,
+      select: { id: true, nome: true, whatsapp: true, ultimoAcessoEm: true },
+    }),
   ]);
+
+  const semAcessoRecente = semAcessoRecenteRaw.map((r) => ({
+    ...r,
+    diasSemAcesso: r.ultimoAcessoEm ? Math.floor((agora.getTime() - r.ultimoAcessoEm.getTime()) / 86400000) : null,
+  }));
 
   // Um revendedor pode ter mais de uma tentativa recusada na janela — só a
   // mais recente interessa pra lista, e ignora quem já resolveu (voltou a
@@ -122,6 +152,9 @@ export async function dadosAdmin() {
     interessadosAbertos,
     receitaMes,
     pausadosMes,
+    ativosUltimos7Dias,
+    ativosUltimos30Dias,
+    semAcessoRecente,
     taxaRetencao,
     trialsVencendo,
     pagamentosRecusados,

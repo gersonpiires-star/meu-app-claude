@@ -2,6 +2,7 @@ import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dadosAdmin, dadosCrescimento } from "@/lib/dados-admin";
+import { rankingIndicacao } from "@/lib/indicacao";
 import { brl0, dataCurta } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
@@ -15,7 +16,7 @@ const MESES = [
 
 export default async function AdminPainelPage() {
   await exigirAdmin();
-  const [dados, crescimento, sugestoes] = await Promise.all([
+  const [dados, crescimento, sugestoes, ranking] = await Promise.all([
     dadosAdmin(),
     dadosCrescimento(),
     prisma.sugestao.findMany({
@@ -24,6 +25,7 @@ export default async function AdminPainelPage() {
       orderBy: { criadoEm: "desc" },
       take: 10,
     }),
+    rankingIndicacao(),
   ]);
   const mrr = dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
   const arr = mrr * 12;
@@ -96,6 +98,57 @@ export default async function AdminPainelPage() {
           value={String(dados.cuponsAtivos)}
           sub="pra campanhas de venda"
         />
+      </div>
+
+      <div>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Acesso ao app</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatTile
+            label="Ativos nos últimos 7 dias"
+            value={String(dados.ativosUltimos7Dias)}
+            sub={`de ${dados.ativos + dados.trial + dados.pausados} contas não canceladas`}
+            tone="accent"
+          />
+          <StatTile
+            label="Ativos nos últimos 30 dias"
+            value={String(dados.ativosUltimos30Dias)}
+          />
+        </div>
+        {dados.semAcessoRecente.length > 0 ? (
+          <Card className="mt-3">
+            <h2 className="mb-1 text-sm font-bold text-text">Assinantes sem acessar recentemente</h2>
+            <p className="mb-3 text-xs text-text-dim">
+              Pagam em dia, mas não abrem o app há 14 dias ou mais — sinal mais direto de que podem cancelar em
+              breve. Vale um contato antes que aconteça.
+            </p>
+            <div className="flex flex-col divide-y divide-border">
+              {dados.semAcessoRecente.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <Link href={`/admin/assinantes/${r.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+                      {r.nome}
+                    </Link>
+                    <p className="text-xs text-text-dim">
+                      {r.diasSemAcesso === null ? "nunca acessou" : `sem acessar há ${r.diasSemAcesso}d`}
+                    </p>
+                  </div>
+                  {r.whatsapp ? (
+                    <a
+                      href={linkWhatsApp(
+                        r.whatsapp,
+                        `Oi ${r.nome.split(" ")[0]}! Passando pra saber se está tudo certo com o GestorPro — precisa de alguma ajuda?`
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Badge tone="warning">Chamar</Badge>
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
       </div>
 
       {dados.pagamentosRecusados.length > 0 ? (
@@ -240,6 +293,34 @@ export default async function AdminPainelPage() {
               </div>
             ) : null}
           </Card>
+
+          {ranking.length > 0 ? (
+            <Card className="p-0">
+              <div className="p-4 pb-0">
+                <h2 className="text-sm font-bold text-text">Indicações — cliques no link</h2>
+                <p className="mt-1 text-xs text-text-dim">
+                  Quem mais divulga o link de indicação de verdade, não só quem tem o link — cliques recebidos,
+                  quantos viraram cadastro e quantos assinaram.
+                </p>
+              </div>
+              <div className="mt-3 flex flex-col divide-y divide-border">
+                {ranking.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                    <Link href={`/admin/assinantes/${r.id}`} className="min-w-0 flex-1 truncate font-semibold text-text hover:text-accent">
+                      {r.nome}
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-3 text-xs text-text-dim">
+                      <span>{r.cliques} clique{r.cliques === 1 ? "" : "s"}</span>
+                      <span>{r.cadastros} cadastro{r.cadastros === 1 ? "" : "s"}</span>
+                      <Badge tone={r.assinantes > 0 ? "accent" : "neutral"}>
+                        {r.assinantes} assinante{r.assinantes === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
 
           {crescimento.trialsVencidosSemConverter.length > 0 ? (
             <Card>
