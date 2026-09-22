@@ -1,3 +1,5 @@
+import { diaCivilBr } from "@/lib/format";
+
 const ASAAS_API_BASE = process.env.ASAAS_API_BASE ?? "https://api.asaas.com/v3";
 
 type ErroAsaas = { errors?: { description?: string }[] };
@@ -55,8 +57,12 @@ export async function criarCobrancaAsaas({
   // boleto ou cartão) só depois de abrir o link, e um boleto emitido com
   // vencimento pra amanhã costuma já aparecer vencido pros bancos/lotéricas
   // se ele não pagar no mesmo dia que recebeu o link.
-  const vencimento = new Date();
-  vencimento.setDate(vencimento.getDate() + 3);
+  // Soma os 3 dias em cima do dia civil de Brasília (não `new Date().setDate`
+  // cru): o servidor roda em UTC, e entre 21h e 23h59 em Brasília o dia civil
+  // UTC já virou o dia seguinte, o que jogava o vencimento do boleto um dia
+  // pra frente do esperado nesse intervalo.
+  const hoje = diaCivilBr(new Date());
+  const vencimento = new Date(Date.UTC(hoje.ano, hoje.mes, hoje.dia + 3));
 
   const cobranca = await chamarAsaas<{ id: string; invoiceUrl: string }>(apiKey, "/payments", {
     method: "POST",
