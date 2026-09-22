@@ -2,10 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { Button, Input } from "@/components/ui";
-import { dataCurta, dataPorExtenso } from "@/lib/format";
+import { dataCurta, dataPorExtenso, diaCivilBr } from "@/lib/format";
 
+// Nunca ler getDate()/getMonth()/getFullYear() direto aqui: isso pega o dia
+// no fuso do navegador de quem está usando o app, não em Brasília — um
+// revendedor com o relógio do aparelho em outro fuso via aqui um dia
+// diferente do que o resto da página (que já usa diaCivilBr) mostra pro
+// mesmo vencimento.
 function paraDDMMAAAA(d: Date): string {
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  const { ano, mes, dia } = diaCivilBr(d);
+  return `${String(dia).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}/${ano}`;
 }
 
 export function CorrigirVencimento({
