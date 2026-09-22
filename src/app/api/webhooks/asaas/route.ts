@@ -59,8 +59,15 @@ export async function POST(request: Request) {
   const novoStatus = statusAsaasParaInterno(pagamentoAsaas.status);
 
   if (novoStatus !== "APROVADO") {
-    await prisma.pagamento.update({
-      where: { id: pagamento.id },
+    // Mesma trava do webhook do Mercado Pago: nunca sobrescrever um
+    // pagamento já APROVADO. Sem isso, uma entrega atrasada/reentregue de um
+    // evento antigo (ex: PAYMENT_CREATED chegando depois do PAYMENT_RECEIVED
+    // já processado) rebaixava o status pra PENDENTE — daí uma reentrega
+    // legítima do evento de aprovação passava de novo pela trava de
+    // idempotência do aprovarRenovacaoPaga (que só olha status !== APROVADO)
+    // e duplicava a renovação (Renovacao extra + vencimento estendido 2x).
+    await prisma.pagamento.updateMany({
+      where: { id: pagamento.id, status: { notIn: ["RECUSADO", "CANCELADO", "APROVADO"] } },
       data: { status: novoStatus, asaasPaymentId },
     });
     return NextResponse.json({ ok: true });
