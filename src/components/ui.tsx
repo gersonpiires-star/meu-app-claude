@@ -158,6 +158,138 @@ export function StatTile({
   );
 }
 
+// Avatar com iniciais e cor fixa por nome — cada cliente ganha sempre a
+// mesma cor (hash simples do nome), pra lista não ficar toda de uma cor só.
+// O status (vencido/vencendo) fica no Badge, nunca na cor do avatar.
+const AVATAR_CORES: Array<[string, string]> = [
+  ["#123a38", "#5eead4"],
+  ["#1e2748", "#a5b4fc"],
+  ["#2e1f48", "#c4b5fd"],
+  ["#3a1f33", "#f9a8d4"],
+  ["#3a2a1a", "#fdba74"],
+  ["#1a2f3a", "#7dd3fc"],
+];
+
+export function Avatar({ nome, size = 36 }: { nome: string; size?: number }) {
+  const partes = nome.replace(/\(.*?\)/g, "").trim().split(/\s+/);
+  const ini = ((partes[0]?.[0] ?? "?") + (partes[1]?.[0] ?? "")).toUpperCase();
+  let h = 0;
+  for (const ch of nome) h = (h + ch.charCodeAt(0)) % 997;
+  const [bg, fg] = AVATAR_CORES[h % AVATAR_CORES.length];
+  return (
+    <span
+      aria-hidden="true"
+      className="flex shrink-0 items-center justify-center rounded-full font-bold"
+      style={{ width: size, height: size, background: bg, color: fg, fontSize: Math.round(size * 0.36) }}
+    >
+      {ini}
+    </span>
+  );
+}
+
+// Minigráfico de linha (sparkline) em SVG puro — funciona em Server
+// Component. Não mostra eixos: é só a tendência ao lado de um número.
+export function Sparkline({
+  valores,
+  width = 120,
+  height = 36,
+  cor = "var(--money)",
+  className,
+}: {
+  valores: number[];
+  width?: number;
+  height?: number;
+  cor?: string;
+  className?: string;
+}) {
+  if (valores.length < 2) return null;
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  const faixa = max - min || 1;
+  const pts = valores.map((v, i) => {
+    const x = (i * (width - 4)) / (valores.length - 1) + 2;
+    const y = height - 3 - ((v - min) / faixa) * (height - 6);
+    return [Number(x.toFixed(1)), Number(y.toFixed(1))] as const;
+  });
+  const linha = pts.map(([x, y]) => `${x},${y}`).join(" ");
+  const [ux, uy] = pts[pts.length - 1];
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      aria-hidden="true"
+      preserveAspectRatio="none"
+      className={cx("block max-w-full", className)}
+    >
+      <polygon points={`2,${height} ${linha} ${ux},${height}`} fill={cor} fillOpacity={0.14} />
+      <polyline points={linha} fill="none" stroke={cor} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={ux} cy={uy} r={3} fill={cor} />
+    </svg>
+  );
+}
+
+// Anel de progresso (ex: meta do mês). `pct` de 0 a 100.
+export function ProgressRing({
+  pct,
+  size = 96,
+  espessura = 10,
+  cor = "var(--money)",
+  children,
+}: {
+  pct: number;
+  size?: number;
+  espessura?: number;
+  cor?: string;
+  children?: ReactNode;
+}) {
+  const r = (size - espessura) / 2;
+  const circ = 2 * Math.PI * r;
+  const p = Math.max(0, Math.min(100, pct));
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-2)" strokeWidth={espessura} />
+        {p > 0 ? (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={cor}
+            strokeWidth={espessura}
+            strokeLinecap="round"
+            strokeDasharray={`${(p / 100) * circ} ${circ}`}
+            className="transition-all duration-700"
+          />
+        ) : null}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
+    </div>
+  );
+}
+
+// Selo de variação ("+18% vs agosto"). Positivo usa a cor de dinheiro,
+// negativo usa danger.
+export function TrendChip({ pct, sufixo }: { pct: number; sufixo?: string }) {
+  const positivo = pct >= 0;
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold",
+        positivo ? "border-money-border bg-money-bg text-money" : "border-danger-border bg-danger-bg text-danger"
+      )}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className={cx("h-3.5 w-3.5", !positivo && "rotate-90")}>
+        <path d="m3 17 6-6 4 4 8-8" />
+        <path d="M15 7h6v6" />
+      </svg>
+      {positivo ? "+" : "−"}
+      {Math.abs(pct).toFixed(0)}%{sufixo ? ` ${sufixo}` : ""}
+    </span>
+  );
+}
+
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-text-dim">

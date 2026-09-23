@@ -244,3 +244,49 @@ export async function dadosPainel(revendedorId: string) {
     leadsParaRetornar,
   };
 }
+
+// Receita acumulada dia a dia no mês atual (até hoje) e no mês anterior —
+// alimenta o minigráfico do Painel e a comparação "vs mês passado", que
+// compara com o MESMO ponto do mês anterior (dia 1 até o dia de hoje), e não
+// com o mês anterior inteiro, pra não parecer queda só porque o mês atual
+// ainda não acabou.
+export async function serieReceitaMes(revendedorId: string, agora: Date = new Date()) {
+  const { ano, mes, dia } = diaCivilBr(agora);
+  const inicioAnterior = brMidnightUTC(ano, mes - 1, 1);
+  const { fim } = limitesDoMes(agora);
+
+  const [renovacoes, vendas] = await Promise.all([
+    prisma.renovacao.findMany({
+      where: { cliente: { revendedorId }, data: { gte: inicioAnterior, lt: fim } },
+      select: { valor: true, data: true },
+    }),
+    prisma.venda.findMany({
+      where: { revendedorId, data: { gte: inicioAnterior, lt: fim } },
+      select: { quantidade: true, valorUnitario: true, data: true },
+    }),
+  ]);
+
+  const diasMesAnterior = diaCivilBr(new Date(brMidnightUTC(ano, mes, 1).getTime() - 1)).dia;
+  const atual = new Array<number>(dia).fill(0);
+  const anterior = new Array<number>(diasMesAnterior).fill(0);
+  const somar = (data: Date, valor: number) => {
+    const d = diaCivilBr(data);
+    if (d.ano === ano && d.mes === mes && d.dia <= dia) atual[d.dia - 1] += valor;
+    else if (d.dia <= diasMesAnterior && brMidnightUTC(d.ano, d.mes, 1).getTime() === inicioAnterior.getTime()) anterior[d.dia - 1] += valor;
+  };
+  renovacoes.forEach((r) => somar(r.data, r.valor));
+  vendas.forEach((v) => somar(v.data, v.quantidade * v.valorUnitario));
+
+  const acumular = (xs: number[]) => {
+    let s = 0;
+    return xs.map((x) => (s += x));
+  };
+  const acumAtual = acumular(atual);
+  const acumAnterior = acumular(anterior);
+  const anteriorAteHoje = acumAnterior[Math.min(dia, diasMesAnterior) - 1] ?? 0;
+  const totalAtual = acumAtual[acumAtual.length - 1] ?? 0;
+  const variacaoPct = anteriorAteHoje > 0 ? ((totalAtual - anteriorAteHoje) / anteriorAteHoje) * 100 : null;
+
+  const diasNoMes = diaCivilBr(new Date(fim.getTime() - 1)).dia;
+  return { acumulado: acumAtual, variacaoPct, diasRestantes: diasNoMes - dia, mesAnteriorIdx: (mes + 11) % 12 };
+}

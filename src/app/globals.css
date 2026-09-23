@@ -22,7 +22,14 @@
   --success: #4cc4b4;
   --success-bg: #08301a;
   --success-border: #1b5e3b;
-  --whatsapp: #25d366;
+  /* Botões de WhatsApp usam a cor de ação do app (accent) — o verde do
+     WhatsApp competia com o accent e com o verde do lucro na mesma tela. */
+  --whatsapp: var(--accent);
+  /* Cor exclusiva pra valores em dinheiro (receita, lucro, preços) —
+     separa "dinheiro" de "ação" (accent) e de "status" (warning/danger). */
+  --money: #a9b8ff;
+  --money-bg: #1e2748;
+  --money-border: #34407a;
   --info: #6aa9ff;
 
   /* Paleta dedicada a gráficos (donut, barras, área) — mais escura/saturada
@@ -58,6 +65,9 @@
   --color-success-bg: var(--success-bg);
   --color-success-border: var(--success-border);
   --color-whatsapp: var(--whatsapp);
+  --color-money: var(--money);
+  --color-money-bg: var(--money-bg);
+  --color-money-border: var(--money-border);
   --color-info: var(--info);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

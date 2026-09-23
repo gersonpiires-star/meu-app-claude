@@ -95,3 +95,57 @@ export function IconGrafico(props: SVGProps<SVGSVGElement>) {
     </Base>
   );
 }
+
+export function IconCamadas(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M12 3 2 8l10 5 10-5z" />
+      <path d="m2 16 10 5 10-5" />
+      <path d="m2 12 10 5 10-5" />
+    </Base>
+  );
+}
+
+export function IconEtiqueta(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
+    </Base>
+  );
+}
+
+export function IconAjustes(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+    </Base>
+  );
+}
+
+export function IconAjuda(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5" />
+      <path d="M12 17h.01" />
+    </Base>
+  );
+}
+
+export function IconLivro(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" />
+      <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" />
+    </Base>
+  );
+}
+
+export function IconEscudo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" />
+    </Base>
+  );
+}

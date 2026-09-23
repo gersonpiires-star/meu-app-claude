@@ -7,7 +7,20 @@ import { LogoMark } from "@/components/logo-mark";
 import { NotificacoesAvisos } from "@/components/notificacoes-avisos";
 import { cx } from "@/components/ui";
 import type { NotificacaoRevendedor } from "@/lib/avisos";
-import { IconPainel, IconPessoas, IconSacola, IconCaixa, IconGrafico } from "@/components/nav-icons";
+import {
+  IconPainel,
+  IconPessoas,
+  IconSacola,
+  IconCaixa,
+  IconGrafico,
+  IconCamadas,
+  IconEtiqueta,
+  IconAjustes,
+  IconAjuda,
+  IconLivro,
+  IconEscudo,
+} from "@/components/nav-icons";
+import { iniciais } from "@/lib/format";
 
 const ITENS = [
   { href: "/painel", label: "Painel", icone: IconPainel },
@@ -16,6 +29,59 @@ const ITENS = [
   { href: "/estoque", label: "Estoque", icone: IconCaixa },
   { href: "/relatorio", label: "Relatório", icone: IconGrafico },
 ];
+
+const ITENS_GESTAO = [
+  { href: "/plataformas", label: "Plataformas", icone: IconCamadas },
+  { href: "/precificacao", label: "Precificação", icone: IconEtiqueta },
+];
+
+function GrupoNav({ titulo, children }: { titulo?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {titulo ? (
+        <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-dim">{titulo}</span>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+function ItemNav({
+  href,
+  label,
+  Icone,
+  ativo,
+  pequeno = false,
+  destaque = false,
+}: {
+  href: string;
+  label: string;
+  Icone: (props: React.SVGProps<SVGSVGElement>) => React.ReactNode;
+  ativo: boolean;
+  pequeno?: boolean;
+  destaque?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={ativo ? "page" : undefined}
+      className={cx(
+        "flex items-center gap-3 rounded-lg px-3 font-medium transition",
+        pequeno ? "py-2 text-sm" : "py-2.5 text-[15px]",
+        ativo
+          ? "bg-accent-soft font-semibold text-text"
+          : destaque
+            ? "text-accent hover:bg-surface-2"
+            : pequeno
+              ? "text-text-dim hover:bg-surface-2 hover:text-text"
+              : "text-text-muted hover:bg-surface-2 hover:text-text"
+      )}
+    >
+      <Icone className={cx(pequeno ? "h-[18px] w-[18px]" : "h-5 w-5", ativo && "text-accent")} />
+      {label}
+    </Link>
+  );
+}
 
 export function NavShell({
   nome,
@@ -34,90 +100,49 @@ export function NavShell({
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
-        <div className="mb-6 flex items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-2">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:flex">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2.5">
             <LogoMark className="h-8 w-8" />
-            <span className="text-sm font-bold">GestorPro</span>
+            <span className="text-base font-bold tracking-tight">GestorPro</span>
           </div>
           <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
         </div>
-        <nav className="flex flex-1 flex-col gap-1">
+
+        <GrupoNav titulo="Operação">
           {ITENS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cx(
-                "rounded-lg px-3 py-2 text-sm font-medium transition",
-                pathname.startsWith(item.href)
-                  ? "bg-accent-soft text-accent"
-                  : "text-text-muted hover:bg-surface-2 hover:text-text"
-              )}
-            >
-              {item.label}
-            </Link>
+            <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname.startsWith(item.href)} />
           ))}
-        </nav>
-        <Link
-          href="/configuracoes"
-          className={cx(
-            "rounded-lg px-3 py-2 text-sm font-medium transition",
-            pathname.startsWith("/configuracoes")
-              ? "bg-accent-soft text-accent"
-              : "text-text-muted hover:bg-surface-2 hover:text-text"
-          )}
-        >
-          Configurações
-        </Link>
-        <Link
-          href="/plataformas"
-          className={cx(
-            "rounded-lg px-3 py-2 text-sm font-medium transition",
-            pathname.startsWith("/plataformas")
-              ? "bg-accent-soft text-accent"
-              : "text-text-muted hover:bg-surface-2 hover:text-text"
-          )}
-        >
-          Plataformas
-        </Link>
-        <Link
-          href="/precificacao"
-          className={cx(
-            "rounded-lg px-3 py-2 text-sm font-medium transition",
-            pathname.startsWith("/precificacao")
-              ? "bg-accent-soft text-accent"
-              : "text-text-muted hover:bg-surface-2 hover:text-text"
-          )}
-        >
-          Precificação
-        </Link>
-        <Link
-          href="/ajuda"
-          className={cx(
-            "rounded-lg px-3 py-2 text-sm font-medium transition",
-            pathname.startsWith("/ajuda") ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
-          )}
-        >
-          Ajuda
-        </Link>
-        <a
-          href="/manual-revendedor.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-text-muted transition hover:bg-surface-2 hover:text-text"
-        >
-          Manual do app
-        </a>
-        {ehAdmin ? (
-          <Link
-            href="/admin"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-surface-2"
+        </GrupoNav>
+
+        <GrupoNav titulo="Gestão">
+          {ITENS_GESTAO.map((item) => (
+            <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname.startsWith(item.href)} />
+          ))}
+          {ehAdmin ? <ItemNav href="/admin" label="Administração" Icone={IconEscudo} ativo={false} destaque /> : null}
+        </GrupoNav>
+
+        <div className="flex-1" />
+
+        <GrupoNav>
+          <ItemNav href="/configuracoes" label="Configurações" Icone={IconAjustes} ativo={pathname.startsWith("/configuracoes")} pequeno />
+          <ItemNav href="/ajuda" label="Ajuda" Icone={IconAjuda} ativo={pathname.startsWith("/ajuda")} pequeno />
+          <a
+            href="/manual-revendedor.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-dim transition hover:bg-surface-2 hover:text-text"
           >
-            Administração GestorPro
-          </Link>
-        ) : null}
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-          <span className="truncate text-xs text-text-dim">{nome}</span>
+            <IconLivro className="h-[18px] w-[18px]" />
+            Manual do app
+          </a>
+        </GrupoNav>
+
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+            {iniciais(nome)}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text">{nome}</span>
           <SairButton />
         </div>
       </aside>

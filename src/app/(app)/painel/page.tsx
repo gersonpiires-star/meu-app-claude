@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dadosPainel } from "@/lib/dados";
+import { dadosPainel, serieReceitaMes } from "@/lib/dados";
 import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Sparkline, StatTile, TrendChip, buttonClassName } from "@/components/ui";
 import { DonutChart } from "@/components/charts";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
@@ -26,9 +26,19 @@ const MESES = [
 
 export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
-  const [dados, cobradosHoje] = await Promise.all([dadosPainel(revendedor.id), cobradosHojePorCliente(revendedor.id)]);
+  const [dados, cobradosHoje, serie] = await Promise.all([
+    dadosPainel(revendedor.id),
+    cobradosHojePorCliente(revendedor.id),
+    serieReceitaMes(revendedor.id),
+  ]);
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
+  const horaBr = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }).format(agora));
+  const saudacao = horaBr < 12 ? "Bom dia" : horaBr < 18 ? "Boa tarde" : "Boa noite";
+  const dataHoje = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(agora);
+  const receitaMes = dados.receitaRecorrente + dados.receitaApar;
+  const fila = [...dados.vencidos, ...dados.vencendo];
+  const vencidosSemCobranca = dados.vencidos.filter((c) => !cobradosHoje.has(c.id)).length;
 
   // Só consulta os contadores de onboarding durante o trial — depois que
   // assina, esse checklist não faz mais sentido e não vale gastar a
@@ -52,8 +62,10 @@ export default async function PainelPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-text">Painel</h1>
-          <p className="text-xs text-text-dim">Olá, {revendedor.nome.split(" ")[0]}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-text">
+            {saudacao}, {revendedor.nome.split(" ")[0]}
+          </h1>
+          <p className="text-sm capitalize text-text-dim">{dataHoje}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/interessados">
@@ -63,7 +75,7 @@ export default async function PainelPage() {
             <Button variant="ghost">Novo cliente</Button>
           </Link>
           <Link href="/vendas/nova">
-            <Button>Nova venda</Button>
+            <Button>+ Nova venda</Button>
           </Link>
         </div>
       </div>
@@ -99,71 +111,103 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.4fr_1fr_0.7fr]">
-        <Card className="glow-card flex flex-col gap-2.5 bg-gradient-to-br from-accent-soft to-surface">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Entrou no mês</span>
-            <span className="whitespace-nowrap text-[10px] font-semibold text-text-dim">
-              Entradas de {String(agoraCivil.mes + 1).padStart(2, "0")}/{agoraCivil.ano}
+      {fila.length > 0 ? (
+        <section
+          aria-label="Atenção hoje"
+          className="flex flex-col gap-3 rounded-2xl border border-danger-border bg-danger-bg/60 p-4 sm:flex-row sm:items-center"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-danger-bg text-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+              <path d="M12 9v4M12 17h.01" />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-text">
+              {vencidosSemCobranca > 0
+                ? `${vencidosSemCobranca} vencido${vencidosSemCobranca === 1 ? "" : "s"} ainda sem cobrança hoje`
+                : "Todos os vencidos já foram cobrados hoje"}
+            </p>
+            <p className="text-sm text-text-muted">
+              <span className="font-semibold text-danger">{dados.vencidos.length} vencidos</span>
+              {" · "}
+              <span className="font-semibold text-warning">{dados.vencendo.length} vencem em até 5 dias</span>
+              {dados.produtosBaixoEstoque.length > 0 ? " · estoque baixo" : ""}
+            </p>
+          </div>
+          {dados.vencidos.length > 0 ? (
+            <Link href="/clientes/cobrar-em-lote" className={buttonClassName("primary", "whitespace-nowrap")}>
+              Cobrar vencidos em lote
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section aria-label="Resultado do mês" className="glow-card grid overflow-hidden rounded-2xl border bg-surface lg:grid-cols-[1fr_360px]">
+        <div className="flex min-w-0 flex-col gap-3 p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-text-muted">Entrou em {MESES[agoraCivil.mes]}</span>
+            {serie.variacaoPct != null ? <TrendChip pct={serie.variacaoPct} sufixo={`vs ${MESES[serie.mesAnteriorIdx]}`} /> : null}
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-6">
+            <p className="whitespace-nowrap text-4xl font-bold tracking-tight text-text md:text-5xl">
+              <span className="text-lg font-semibold text-text-dim md:text-xl">R$ </span>
+              {receitaMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            {serie.acumulado.length >= 2 && receitaMes > 0 ? (
+              <div className="min-w-0 flex-1 pb-1">
+                <Sparkline valores={serie.acumulado} width={460} height={60} className="h-[60px] w-full" />
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span className="text-text-dim">
+              Renovações <strong className="text-money">{brl0(dados.receitaRecorrente)}</strong>
+            </span>
+            <span className="text-text-dim">
+              Aparelhos <strong className="text-money">{brl0(dados.receitaApar)}</strong>
+            </span>
+            <span className="text-text-dim">
+              Custo <strong className="text-danger">− {brl0(dados.custoTotal)}</strong>
+            </span>
+            <span className="text-text-dim">
+              Lucro <strong className={dados.lucro >= 0 ? "text-money" : "text-danger"}>{brl0(dados.lucro)}</strong>
             </span>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-base font-semibold text-text-dim">R$</span>
-            <span className="text-3xl font-bold tracking-tight text-text">
-              {(dados.receitaRecorrente + dados.receitaApar).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+        <div className="flex items-center border-t border-border bg-surface-2 p-5 lg:border-l lg:border-t-0">
+          <MetaMensalCard meta={revendedor.metaReceitaMensal} receitaAtual={receitaMes} diasRestantes={serie.diasRestantes} />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Lucro do mês</span>
+          <span className={`text-2xl font-bold tabular-nums ${dados.lucro >= 0 ? "text-money" : "text-danger"}`}>{brl0(dados.lucro)}</span>
+          <span className="text-xs text-text-dim">
+            {receitaMes > 0 ? `margem de ${Math.round((dados.lucro / receitaMes) * 100)}%` : "sem vendas ainda"}
+          </span>
+        </Card>
+        <Link href="/relatorio" className="flex">
+          <Card className="flex w-full flex-col gap-1 transition hover:border-accent-strong">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+              Previsto p/ {MESES[dados.proximoMes.getMonth()]}
             </span>
-          </div>
-          {dados.receitaRecorrente + dados.receitaApar > 0 ? (
-            <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full">
-              <div className="rounded-full bg-accent" style={{ flex: dados.receitaRecorrente || 0.001 }} />
-              <div className="rounded-full bg-text-dim" style={{ flex: dados.receitaApar || 0.001 }} />
-            </div>
-          ) : (
-            <div className="h-1.5 rounded-full bg-accent-strong" />
-          )}
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-semibold text-text-muted">
-            <span>Renovações {brl0(dados.receitaRecorrente)}</span>
-            <span>Aparelhos {brl0(dados.receitaApar)}</span>
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border-strong pt-2.5 text-sm">
-            <div className="flex flex-col gap-0.5">
-              <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-text-dim">Custo</span>
-              <span className="font-semibold text-danger">− {brl0(dados.custoTotal)}</span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-text-dim">Lucro</span>
-              <span className={`font-semibold ${dados.lucro >= 0 ? "text-accent" : "text-danger"}`}>{brl0(dados.lucro)}</span>
-            </div>
-            <Link href="/relatorio" className="flex flex-col gap-0.5">
-              <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider text-text-dim">
-                Previsto p/ {MESES[dados.proximoMes.getMonth()]}
-              </span>
-              <span className="font-semibold text-text-muted hover:text-accent">{brl0(dados.previstoProxMes)}</span>
-              <span className="whitespace-nowrap text-[10px] text-text-dim">
-                ≈ {brl0(dados.previstoProxMesRealista)} com {dados.taxaRetencao.toFixed(0)}% de retenção
-              </span>
-            </Link>
-          </div>
-        </Card>
-
-        <Card className="glow-card flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Carteira de clientes</span>
-            <Link href="/clientes" className="text-[11px] font-semibold text-accent hover:brightness-110">
-              Ver todos
-            </Link>
-          </div>
-          <DonutChart
-            centroLabel="Total"
-            centroValor={String(dados.ativos + dados.vencendo.length + dados.vencidos.length)}
-            segmentos={[
-              { label: "Ativos", valor: dados.ativos },
-              { label: "Vencendo", valor: dados.vencendo.length },
-              { label: "Vencidos", valor: dados.vencidos.length },
-            ]}
-          />
-        </Card>
-
+            <span className="text-2xl font-bold tabular-nums text-text">{brl0(dados.previstoProxMes)}</span>
+            <span className="text-xs text-text-dim">
+              ≈ {brl0(dados.previstoProxMesRealista)} com {dados.taxaRetencao.toFixed(0)}% de retenção
+            </span>
+          </Card>
+        </Link>
+        <Link href="/clientes" className="flex">
+          <Card className="flex w-full flex-col gap-1 transition hover:border-accent-strong">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
+            <span className="text-2xl font-bold tabular-nums text-text">{dados.ativos}</span>
+            <span className="text-xs text-text-dim">
+              {dados.vencidos.length} vencidos · {dados.vencendo.length} vencendo
+            </span>
+          </Card>
+        </Link>
         <Link href="/plataformas" className="flex">
           <StatTile
             label="Créditos"
@@ -175,7 +219,60 @@ export default async function PainelPage() {
         </Link>
       </div>
 
-      <MetaMensalCard meta={revendedor.metaReceitaMensal} receitaAtual={dados.receitaRecorrente + dados.receitaApar} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex min-w-0 flex-col gap-6">
+      <Card className="p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <h2 className="text-base font-bold text-text">Fila de cobrança</h2>
+          <Link href="/clientes" className="text-xs font-semibold text-accent">
+            Ver todos os clientes
+          </Link>
+        </div>
+
+        {fila.length === 0 ? (
+          <div className="p-5">
+            <EmptyState>Nenhum cliente vencendo nos próximos dias.</EmptyState>
+          </div>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {fila.map((cliente) => {
+              const dias = diasParaVencer(cliente.vencimento);
+              const vencido = dias < 0;
+              const rotulo = vencido
+                ? `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"} vencido`
+                : dias === 0
+                  ? "Vence hoje"
+                  : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`;
+              return (
+                <div key={cliente.id} className="flex flex-wrap items-center gap-3 px-5 py-3 sm:flex-nowrap">
+                  <Avatar nome={cliente.nome} />
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+                      {cliente.nome}
+                    </Link>
+                    <p className="text-xs text-text-dim">
+                      {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
+                    </p>
+                  </div>
+                  <Badge tone={vencido ? "danger" : "warning"}>{rotulo}</Badge>
+                  <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                    {cliente.whatsapp ? (
+                      <CobrarBotao
+                        clienteId={cliente.id}
+                        cobradoEm={cobradosHoje.get(cliente.id) ?? null}
+                        label={vencido ? "Cobrar" : "Lembrar"}
+                        variant="whatsapp"
+                        className="flex-1 whitespace-nowrap sm:flex-none"
+                      />
+                    ) : null}
+                    <RenovarBotao clienteId={cliente.id} className="flex-1 whitespace-nowrap sm:flex-none" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       {dados.leadsParaRetornar.length > 0 ? (
         <Card>
@@ -254,84 +351,66 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
-      {dados.aniversariantes.length > 0 ? (
-        <Card>
-          <h2 className="mb-3 text-sm font-bold text-text">Aniversário de casa 🎉</h2>
-          <div className="flex flex-col gap-2">
-            {dados.aniversariantes.map(({ cliente, anos }) => (
-              <div key={cliente.id} className="flex items-center justify-between text-sm">
-                <Link href={`/clientes/${cliente.id}`} className="text-text-muted hover:text-accent">
-                  {cliente.nome}
-                </Link>
-                <Badge tone="accent">
-                  {anos} ano{anos === 1 ? "" : "s"} de casa
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+      </div>
 
-      {dados.produtosBaixoEstoque.length > 0 ? (
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-text">Estoque de produtos</h2>
-            <Link href="/estoque" className="text-xs font-semibold text-accent">
-              Abrir
+      <aside className="flex flex-col gap-6">
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-text">Carteira de clientes</span>
+            <Link href="/clientes" className="text-xs font-semibold text-accent hover:brightness-110">
+              Ver todos
             </Link>
           </div>
-          <div className="flex flex-col gap-2">
-            {dados.produtosBaixoEstoque.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm">
-                <span className="text-text-muted">{p.modelo}</span>
-                <Link href="/estoque">
+          <DonutChart
+            centroLabel="Total"
+            centroValor={String(dados.ativos + dados.vencendo.length + dados.vencidos.length)}
+            segmentos={[
+              { label: "Ativos", valor: dados.ativos },
+              { label: "Vencendo", valor: dados.vencendo.length },
+              { label: "Vencidos", valor: dados.vencidos.length },
+            ]}
+          />
+        </Card>
+
+        {dados.produtosBaixoEstoque.length > 0 ? (
+          <Card>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-bold text-text">Estoque</h2>
+              <Link href="/estoque" className="text-xs font-semibold text-accent">
+                Abrir
+              </Link>
+            </div>
+            <div className="flex flex-col gap-2">
+              {dados.produtosBaixoEstoque.map((p) => (
+                <Link key={p.id} href="/estoque" className="flex items-center gap-3 rounded-xl bg-surface-2 p-3 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-semibold text-text">{p.modelo}</span>
                   <Badge tone="warning">Repor</Badge>
                 </Link>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+              ))}
+            </div>
+          </Card>
+        ) : null}
 
-      <Card>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-text">Vencendo / vencidos</h2>
-          <Link href="/clientes" className="text-xs font-semibold text-accent">
-            Ver todos os clientes
-          </Link>
-        </div>
-
-        {dados.vencendo.length + dados.vencidos.length === 0 ? (
-          <EmptyState>Nenhum cliente vencendo nos próximos dias.</EmptyState>
-        ) : (
-          <div className="flex flex-col divide-y divide-border">
-            {[...dados.vencidos, ...dados.vencendo].map((cliente) => (
-              <div key={cliente.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+        {dados.aniversariantes.length > 0 ? (
+          <Card>
+            <h2 className="mb-3 text-sm font-bold text-text">Aniversário de casa</h2>
+            <div className="flex flex-col gap-2">
+              {dados.aniversariantes.map(({ cliente, anos }) => (
+                <div key={cliente.id} className="flex items-center gap-3 text-sm">
+                  <Avatar nome={cliente.nome} size={30} />
+                  <Link href={`/clientes/${cliente.id}`} className="min-w-0 flex-1 truncate text-text-muted hover:text-accent">
                     {cliente.nome}
                   </Link>
-                  <p className="text-xs text-text-dim">
-                    {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
-                  </p>
+                  <Badge tone="accent">
+                    {anos} ano{anos === 1 ? "" : "s"}
+                  </Badge>
                 </div>
-                <div className="flex shrink-0 gap-2">
-                  {cliente.whatsapp ? (
-                    <CobrarBotao
-                      clienteId={cliente.id}
-                      cobradoEm={cobradosHoje.get(cliente.id) ?? null}
-                      label="Cobrar agora"
-                      variant="whatsapp"
-                      className="whitespace-nowrap"
-                    />
-                  ) : null}
-                  <RenovarBotao clienteId={cliente.id} className="whitespace-nowrap" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          </Card>
+        ) : null}
+      </aside>
+      </div>
     </div>
   );
 }

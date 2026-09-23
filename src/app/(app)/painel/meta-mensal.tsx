@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Card, Input, cx } from "@/components/ui";
+import { Button, Input, ProgressRing } from "@/components/ui";
 import { brl0 } from "@/lib/format";
 import { definirMetaMensal } from "./actions";
 
-export function MetaMensalCard({ meta, receitaAtual }: { meta: number | null; receitaAtual: number }) {
+// Fica embutida no card de destaque do Painel (lado direito do "Entrou no
+// mês"), por isso não tem Card próprio.
+export function MetaMensalCard({
+  meta,
+  receitaAtual,
+  diasRestantes,
+}: {
+  meta: number | null;
+  receitaAtual: number;
+  diasRestantes: number;
+}) {
   // Estado local em vez de confiar só na prop `meta`: revalidatePath refaz o
   // fetch do servidor de forma assíncrona, então logo após salvar a prop
   // ainda pode chegar como null por um instante — o que já derrubou a tela
@@ -34,9 +44,9 @@ export function MetaMensalCard({ meta, receitaAtual }: { meta: number | null; re
 
   if (editando) {
     return (
-      <Card>
-        <h2 className="mb-1 text-sm font-bold text-text">Meta do mês</h2>
-        <p className="mb-3 text-xs text-text-dim">Defina um alvo de receita (renovações + aparelhos) pra acompanhar seu progresso aqui.</p>
+      <div className="flex flex-col gap-2">
+        <h2 className="text-sm font-bold text-text">Meta do mês</h2>
+        <p className="text-xs text-text-dim">Defina um alvo de receita (renovações + aparelhos) pra acompanhar seu progresso aqui.</p>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-text-dim">R$</span>
           <div className="w-32">
@@ -48,6 +58,7 @@ export function MetaMensalCard({ meta, receitaAtual }: { meta: number | null; re
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               placeholder="ex: 3000"
+              aria-label="Valor da meta em reais"
             />
           </div>
           <Button onClick={salvar} disabled={pendente}>
@@ -59,39 +70,44 @@ export function MetaMensalCard({ meta, receitaAtual }: { meta: number | null; re
             </button>
           ) : null}
         </div>
-      </Card>
+      </div>
     );
   }
 
-  const pct = metaAtual ? Math.min(100, (receitaAtual / metaAtual) * 100) : 0;
+  const pct = metaAtual ? (receitaAtual / metaAtual) * 100 : 0;
   const bateu = metaAtual != null && receitaAtual >= metaAtual;
+  const falta = metaAtual ? Math.max(0, metaAtual - receitaAtual) : 0;
+  const porDia = diasRestantes > 0 ? falta / diasRestantes : falta;
 
   return (
-    <Card>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-text">Meta do mês</h2>
+    <div className="flex items-center gap-4">
+      <ProgressRing pct={pct} size={104} espessura={11} cor={bateu ? "var(--accent)" : "var(--money)"}>
+        <span className="text-xl font-bold text-text">{Math.min(999, Math.round(pct))}%</span>
+        <span className="text-[10px] text-text-dim">da meta</span>
+      </ProgressRing>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Meta do mês</span>
+        <span className="text-sm font-bold text-text">
+          {brl0(receitaAtual)} de {brl0(metaAtual ?? 0)}
+        </span>
+        <span className="text-xs leading-snug text-text-dim">
+          {bateu
+            ? "Meta batida! Que tal subir o alvo do mês que vem?"
+            : diasRestantes > 0
+              ? `Faltam ${diasRestantes} dia${diasRestantes === 1 ? "" : "s"} · ~${brl0(porDia)} por dia`
+              : `Faltam ${brl0(falta)} hoje`}
+        </span>
         <button
           type="button"
           onClick={() => {
             setEditando(true);
             setValor(metaAtual ? String(metaAtual) : "");
           }}
-          className="text-xs font-semibold text-text-dim hover:text-accent"
+          className="self-start text-xs font-semibold text-accent hover:brightness-110"
         >
-          Editar
+          Editar meta
         </button>
       </div>
-      <div className="mb-1.5 flex items-baseline justify-between">
-        <span className="text-lg font-bold text-text">{brl0(receitaAtual)}</span>
-        <span className="text-xs text-text-dim">de {brl0(metaAtual ?? 0)}</span>
-      </div>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
-        <div
-          className={cx("h-full rounded-full transition-all", bateu ? "bg-accent" : "bg-accent-strong")}
-          style={{ width: `${pct > 0 ? Math.max(pct, 3) : 0}%` }}
-        />
-      </div>
-      <p className="mt-1.5 text-xs text-text-dim">{bateu ? "Meta batida! 🎉" : `${pct.toFixed(0)}% da meta`}</p>
-    </Card>
+    </div>
   );
 }
