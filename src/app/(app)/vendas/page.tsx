@@ -121,7 +121,7 @@ export default async function VendasPage({
                 <span className="truncate text-text">{venda.produto.modelo}</span>
                 <span className="truncate text-text-muted">{venda.cliente?.nome ?? "Venda avulsa"}</span>
                 <span className="text-text-muted">{venda.quantidade}</span>
-                <span className="font-semibold text-accent">{brl(venda.quantidade * venda.valorUnitario)}</span>
+                <span className="font-semibold text-money">{brl(venda.quantidade * venda.valorUnitario)}</span>
                 {venda.cliente ? (
                   <div className="flex items-center gap-2.5">
                     <BaixarReciboLink

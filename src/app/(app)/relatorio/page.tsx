@@ -111,7 +111,7 @@ export default async function RelatorioPage({
         </Card>
         <Card className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Lucro do mês</span>
-          <span className="text-xl font-bold text-accent">{brl(dados.lucro)}</span>
+          <span className="text-xl font-bold text-money">{brl(dados.lucro)}</span>
         </Card>
         <Card className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Margem</span>
@@ -165,7 +165,7 @@ export default async function RelatorioPage({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-accent">{brl(f.lucro)}</p>
+                  <p className="font-semibold text-money">{brl(f.lucro)}</p>
                   <p className="text-xs text-text-dim">
                     {brl(f.receita)} − {brl(f.custo)}
                   </p>
@@ -188,7 +188,7 @@ export default async function RelatorioPage({
             <Badge tone="neutral">{futuro.quantidade} clientes vencendo</Badge>
             <div className="text-right">
               <p className="text-[11px] uppercase tracking-wider text-text-dim">Lucro previsto se todos renovarem</p>
-              <p className="text-lg font-bold text-accent">{brl(futuro.previsto)}</p>
+              <p className="text-lg font-bold text-money">{brl(futuro.previsto)}</p>
             </div>
           </div>
         )}

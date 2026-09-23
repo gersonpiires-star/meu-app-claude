@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl0, dataCurta, fmtTelefone, iniciais } from "@/lib/format";
+import { brl0, dataCurta, fmtTelefone } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
-import { Badge, Button, Card, EmptyState, cx } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, cx } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "./cobrar-botao";
@@ -18,13 +18,6 @@ const ABAS = [
 ] as const;
 
 type Tom = "neutral" | "danger" | "warning" | "success";
-
-const AVATAR_TOM: Record<Tom, string> = {
-  neutral: "bg-surface-2 text-text-muted",
-  danger: "bg-danger-bg text-danger",
-  warning: "bg-warning-bg text-warning",
-  success: "bg-accent-soft text-accent",
-};
 
 function estadoCliente(status: string, vencimento: Date): { tom: Tom; label: string } {
   if (status === "CANCELADO") return { tom: "neutral", label: "Cancelado" };
@@ -139,9 +132,7 @@ export default async function ClientesPage({
                 <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
                   {/* Desktop */}
                   <Link href={`/clientes/${cliente.id}`} className="hidden min-w-0 items-center gap-3 md:flex">
-                    <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold", AVATAR_TOM[estado.tom])}>
-                      {iniciais(cliente.nome)}
-                    </span>
+                    <Avatar nome={cliente.nome} size={32} />
                     <span className="truncate text-sm font-semibold text-text">{cliente.nome}</span>
                   </Link>
                   <span className="hidden truncate text-xs text-text-muted md:block">{fmtTelefone(cliente.whatsapp)}</span>
@@ -152,7 +143,7 @@ export default async function ClientesPage({
                     <span className="text-sm font-semibold text-text">{dataCurta(cliente.vencimento)}</span>
                     <span className="text-[11px] text-text-dim">{diasTexto(cliente.vencimento)}</span>
                   </div>
-                  <span className="hidden text-sm font-semibold text-text md:block">{brl0(cliente.valorPlano)}</span>
+                  <span className="hidden text-sm font-semibold text-money md:block">{brl0(cliente.valorPlano)}</span>
                   <span className="hidden md:block">
                     <Badge tone={estado.tom}>{estado.label}</Badge>
                   </span>
@@ -172,9 +163,7 @@ export default async function ClientesPage({
                   {/* Mobile */}
                   <div className="flex flex-col gap-2 px-4 py-3 md:hidden">
                     <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3">
-                      <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", AVATAR_TOM[estado.tom])}>
-                        {iniciais(cliente.nome)}
-                      </span>
+                      <Avatar nome={cliente.nome} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
                         <p className="truncate text-xs text-text-dim">
