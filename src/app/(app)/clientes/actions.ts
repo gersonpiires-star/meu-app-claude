@@ -211,15 +211,24 @@ export async function aplicarReajusteEmGrupo(clienteIds: string[], novoValor: nu
 export async function renovarCliente(
   id: string,
   formData: FormData
-): Promise<{ ok: true } | { ok: false; erro: string }> {
+): Promise<{ ok: true; renovacaoId: string } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
   const plano = planoSchema.parse(formData.get("plano"));
   const valor = Number(formData.get("valor") ?? 0);
   const custo = Number(formData.get("custo") ?? 0);
+  const formaPagamento = String(formData.get("formaPagamento") ?? "").trim() || null;
+  // Opção "contar a partir do vencimento antigo em vez de hoje" — quando
+  // marcada, estende o plano a partir do vencimento mesmo que já tenha
+  // passado (em vez do padrão abaixo, que só faz isso pra quem ainda não
+  // venceu e cai pra "hoje" pra quem já está vencido).
+  const apartirDoVencimento = formData.get("apartirDoVencimento") === "true";
+  const dataTexto = String(formData.get("data") ?? "").trim();
+  const dataLancamento = dataTexto ? new Date(dataTexto) : null;
   if (!Number.isFinite(valor) || valor < 0) return { ok: false, erro: "Valor inválido." };
   if (!Number.isFinite(custo) || custo < 0) return { ok: false, erro: "Custo inválido." };
 
   let clienteNome = "";
+  let renovacaoId = "";
   try {
     // Lê e grava dentro da mesma transação serializável — senão um clique
     // duplo ou duas abas abertas podiam ambos ler o mesmo vencimento/crédito
@@ -236,12 +245,22 @@ export async function renovarCliente(
         const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
-        const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
+        const base = apartirDoVencimento || cliente.vencimento > new Date() ? cliente.vencimento : new Date();
         const novoVencimento = calcularVencimentoComDiaFixo(plano, base, cliente.diaFixo);
 
-        await tx.renovacao.create({
-          data: { clienteId: id, servicoId: cliente.servicoId, plano, valor, custo, snapshotAnterior: snapshotDoCliente(cliente) },
+        const renovacao = await tx.renovacao.create({
+          data: {
+            clienteId: id,
+            servicoId: cliente.servicoId,
+            plano,
+            valor,
+            custo,
+            formaPagamento,
+            snapshotAnterior: snapshotDoCliente(cliente),
+            ...(dataLancamento && !isNaN(dataLancamento.getTime()) ? { data: dataLancamento } : {}),
+          },
         });
+        renovacaoId = renovacao.id;
         await tx.cliente.update({
           where: { id },
           data: {
@@ -270,7 +289,8 @@ export async function renovarCliente(
   revalidatePath("/painel");
   revalidatePath("/relatorio");
   revalidatePath("/plataformas");
-  return { ok: true };
+  revalidatePath("/vendas");
+  return { ok: true, renovacaoId };
 }
 
 // Desfaz uma renovação lançada errada (ex: renovou o cliente errado sem

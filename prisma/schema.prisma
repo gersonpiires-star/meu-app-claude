@@ -477,6 +477,19 @@ model Renovacao {
   custo     Float    @default(0)
   data      DateTime @default(now())
 
+  // Como o pagamento chegou — nulo pros registros antigos (lançados antes
+  // desse campo existir) e pras renovações automáticas via gateway, que já
+  // guardam isso em Pagamento; aqui é só pra tela de Vendas mostrar a forma
+  // junto de cada linha do extrato, igual já faz com Venda.formaPagamento.
+  formaPagamento String?
+
+  // Presente só quando essa renovação nasceu junto de uma venda de aparelho
+  // no mesmo lançamento (opção "Aparelho + assinatura" em Nova venda) — é
+  // essa venda vinculada abaixo, em Venda.renovacaoId, que permite a tela de
+  // Vendas juntar as duas linhas num "Combo" só, em vez de duplicar a
+  // receita/custo como duas vendas separadas.
+  vendaCombo Venda?
+
   // App do cliente NO MOMENTO dessa renovação — guardado aqui, não só no
   // Cliente, porque o cliente pode trocar de app depois. Sem isso, trocar o
   // app de um cliente puxava retroativamente todo o histórico de renovações
@@ -534,6 +547,12 @@ model Venda {
   produto        Produto @relation(fields: [produtoId], references: [id])
   clienteId      String?
   cliente        Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  // Só preenchido no combo "Aparelho + assinatura" de Nova venda — a
+  // renovação lançada junto nesse mesmo combo. Ver comentário em
+  // Renovacao.vendaCombo.
+  renovacaoId    String? @unique
+  renovacaoCombo Renovacao? @relation(fields: [renovacaoId], references: [id], onDelete: SetNull)
 
   quantidade      Int
   valorUnitario   Float
