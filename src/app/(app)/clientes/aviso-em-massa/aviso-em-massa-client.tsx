@@ -212,7 +212,7 @@ export function AvisoEmMassaClient({
                     type="checkbox"
                     checked={selecionados.has(c.id)}
                     onChange={() => alternarSelecionado(c.id)}
-                    className="h-4 w-4 rounded border-border-strong bg-bg-deep accent-accent"
+                    className="h-4 w-4 rounded border-border-strong bg-field accent-accent"
                   />
                   <span className="flex-1 truncate text-sm text-text">{c.nome}</span>
                   {jaRecebeu ? <Badge tone="warning">Já recebeu</Badge> : null}
@@ -257,7 +257,7 @@ export function AvisoEmMassaClient({
             type="checkbox"
             checked={aplicarReajuste}
             onChange={(e) => setAplicarReajuste(e.target.checked)}
-            className="h-4 w-4 rounded border-border-strong bg-bg-deep accent-accent"
+            className="h-4 w-4 rounded border-border-strong bg-field accent-accent"
           />
           Aplicar reajuste nesses clientes
         </label>

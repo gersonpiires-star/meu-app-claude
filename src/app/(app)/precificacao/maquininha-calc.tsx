@@ -174,7 +174,7 @@ export function MaquininhaCalc({
                     step="0.01"
                     value={rascunho[l.parcelas] ?? l.taxa}
                     onChange={(e) => aoEditarTaxa(l.parcelas, e.target.value)}
-                    className="w-14 min-w-0 rounded-md border border-accent bg-bg-deep px-1.5 py-1 text-xs text-accent outline-none focus:border-accent"
+                    className="w-14 min-w-0 rounded-md border border-accent bg-field px-1.5 py-1 text-xs text-accent outline-none focus:border-accent"
                   />
                   <span className="shrink-0">%</span>
                 </span>

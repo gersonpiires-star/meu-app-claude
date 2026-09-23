@@ -149,7 +149,7 @@ export function ClienteForm({
           type="checkbox"
           name="testeGratis"
           defaultChecked={valoresIniciais?.testeGratis}
-          className="h-4 w-4 rounded border-border-strong bg-bg-deep accent-accent"
+          className="h-4 w-4 rounded border-border-strong bg-field accent-accent"
         />
         Teste grátis — sem cobrança, prazo curto
       </label>

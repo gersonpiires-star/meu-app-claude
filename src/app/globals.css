@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
+/* Tema escuro é o padrão de sempre (usuários já acostumados com ele) — vale
+   tanto sem JS quanto antes do script anti-flash em layout.tsx rodar.
+   :root[data-theme="dark"] repete os mesmos valores só pra deixar explícito
+   quando o JS já resolveu o tema (inclusive vindo de "Automático"). */
 :root {
   --bg: #0a2530;
+  /* Só usado como "tinta" (texto sobre botão de accent, moldura de mockup
+     de celular, cor do texto selecionado) — nunca muda entre os temas, por
+     isso fica fora dos blocos de tema claro/escuro abaixo. */
   --bg-deep: #032025;
   --surface: #123441;
   --surface-2: #0e2c38;
+  /* Fundo "recuado" de campo de formulário (input/checkbox) — diferente de
+     --bg-deep (que é reservado pra "tinta"/moldura), pra poder clarear só
+     os campos no tema claro sem mexer no texto sobre botão. */
+  --field: #032025;
   --border: #1a4152;
   --border-strong: #1d4959;
   --text: #e9f4f8;
@@ -36,10 +47,75 @@
      que os tons de UI acima (accent/warning/danger), que são otimizados pra
      texto e botões. Validada com o script de acessibilidade de dataviz
      (separação CVD, contraste e faixa de luminância) contra o fundo
-     --surface-2, então nunca trocar sem revalidar. */
+     --surface-2, então nunca trocar sem revalidar. Reaproveitada tal e
+     qual no tema claro — os três tons já são escuros/saturados o bastante
+     (perto de "600/700" de escalas Tailwind) pra manter contraste também
+     sobre fundo claro. */
   --chart-1: #0d9488;
   --chart-2: #d97706;
   --chart-3: #e11d48;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0a2530;
+  --surface: #123441;
+  --surface-2: #0e2c38;
+  --field: #032025;
+  --border: #1a4152;
+  --border-strong: #1d4959;
+  --text: #e9f4f8;
+  --text-muted: #9dbcc7;
+  --text-dim: #688e9b;
+  --accent: #2ee6c5;
+  --accent-strong: #1d6a70;
+  --accent-soft: #0d3844;
+  --danger: #ff6b5e;
+  --danger-bg: #2a1414;
+  --danger-border: #5a2626;
+  --warning: #f5c542;
+  --warning-bg: #231e10;
+  --warning-border: #574a19;
+  --success: #4cc4b4;
+  --success-bg: #08301a;
+  --success-border: #1b5e3b;
+  --money: #a9b8ff;
+  --money-bg: #1e2748;
+  --money-border: #34407a;
+  --info: #6aa9ff;
+}
+
+/* Tema claro — mesma identidade (teal como accent, "dinheiro" em azulado,
+   paleta de gráfico intacta), só invertendo a escala de luminância. Cores
+   de texto/ação ficam mais escuras que suas equivalentes no tema escuro
+   porque um tom "vivo" como o accent (#2ee6c5) não tem contraste suficiente
+   como texto sobre fundo branco — vira uma versão mais escura e saturada da
+   mesma cor (mesma lógica pra danger/warning/success/money/info). */
+:root[data-theme="light"] {
+  --bg: #f2f6f7;
+  --surface: #ffffff;
+  --surface-2: #eef3f4;
+  --field: #eef3f4;
+  --border: #e0e7e9;
+  --border-strong: #cdd8da;
+  --text: #0e2a31;
+  --text-muted: #4b6870;
+  --text-dim: #7d99a1;
+  --accent: #0f766e;
+  --accent-strong: #0b5c53;
+  --accent-soft: #d9f2ee;
+  --danger: #dc2626;
+  --danger-bg: #fdecec;
+  --danger-border: #f3c6c6;
+  --warning: #b45309;
+  --warning-bg: #fdf1de;
+  --warning-border: #f0d9a8;
+  --success: #0a8f5c;
+  --success-bg: #e3f7ec;
+  --success-border: #b8e6cc;
+  --money: #4338ca;
+  --money-bg: #eef0ff;
+  --money-border: #c7cdf5;
+  --info: #2563eb;
 }
 
 @theme inline {
@@ -47,6 +123,7 @@
   --color-bg-deep: var(--bg-deep);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-field: var(--field);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);

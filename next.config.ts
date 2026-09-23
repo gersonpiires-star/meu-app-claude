@@ -3,6 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  allowedDevOrigins: ["127.0.0.1"],
 };
 
 // Sem SENTRY_AUTH_TOKEN (dev local ou antes de configurar), o plugin só

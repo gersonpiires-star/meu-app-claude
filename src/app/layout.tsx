@@ -41,6 +41,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
     >
+      <head>
+        {/* Resolve o tema (claro/escuro/automático) e marca data-theme antes
+            da primeira pintura — sem isso a página nasce no tema escuro
+            padrão do CSS e só troca pro claro depois que o React hidrata,
+            gerando um flash visível pra quem escolheu claro. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem("gestorpro-theme-mode")||"dark";var r=m==="auto"?(window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):m;document.documentElement.setAttribute("data-theme",r);}catch(e){}})();`,
+          }}
+        />
+      </head>
       {/* 100dvh (não h-full/min-h-full em cascata) porque no Chrome mobile a
       barra de endereço que aparece/some faz o navegador reportar uma altura
       de "layout viewport" maior que a área realmente visível — com % em

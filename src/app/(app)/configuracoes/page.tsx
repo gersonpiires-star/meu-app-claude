@@ -14,6 +14,7 @@ import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
 import { SugestaoForm } from "./sugestao-form";
 import { funilIndicacao } from "@/lib/indicacao";
 import { UnitvForm } from "./unitv-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -130,6 +131,14 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
             <>
               <Item titulo="Seus dados">
                 <PerfilForm nome={revendedor.nome} whatsapp={revendedor.whatsapp} />
+              </Item>
+
+              <Item titulo="Aparência">
+                <p className="mb-3 text-sm text-text-dim">
+                  O escuro é o padrão; o claro ajuda em ambientes iluminados. &quot;Automático&quot; segue o tema do
+                  seu sistema.
+                </p>
+                <ThemeToggle />
               </Item>
 
               <Item titulo="Indique o GestorPro">
