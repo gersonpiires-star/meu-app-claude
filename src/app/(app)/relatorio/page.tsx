@@ -149,19 +149,31 @@ export default async function RelatorioPage({
           <h1 className="text-lg font-bold text-text">Relatório</h1>
           <p className="text-xs text-text-dim">Como o negócio está indo ao longo do tempo</p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-border-strong p-1 text-sm">
-          {PERIODOS.map((p) => (
-            <Link
-              key={p.chave}
-              href={`/relatorio?periodo=${p.chave}`}
-              className={cx(
-                "whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold",
-                periodo.chave === p.chave ? "bg-accent-soft text-accent" : "text-text-dim hover:text-text"
-              )}
-            >
-              {p.label}
-            </Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1 rounded-xl border border-border-strong p-1 text-sm">
+            {PERIODOS.map((p) => (
+              <Link
+                key={p.chave}
+                href={`/relatorio?periodo=${p.chave}`}
+                className={cx(
+                  "whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold",
+                  periodo.chave === p.chave ? "bg-accent-soft text-accent" : "text-text-dim hover:text-text"
+                )}
+              >
+                {p.label}
+              </Link>
+            ))}
+          </div>
+          <a
+            href={`/api/relatorio/pdf?periodo=${periodo.chave}`}
+            className="flex items-center gap-1.5 rounded-xl border border-border-strong px-3 py-2 text-sm font-semibold text-text-muted hover:bg-surface-2 hover:text-text"
+          >
+            <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+              <path d="M10 3v9m0 0-3-3m3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 14v1.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Exportar PDF
+          </a>
         </div>
       </div>
 
@@ -208,6 +220,15 @@ export default async function RelatorioPage({
             <p className="mt-2 text-xs text-text-dim">
               {visaoGeral.emDia} em dia · {visaoGeral.vencendo} vencendo · {visaoGeral.vencidos} vencidos
             </p>
+            {visaoGeral.vencidos > 0 ? (
+              <p className="mt-2 text-xs text-text-dim">
+                Se {visaoGeral.vencidos === 1 ? "o vencido renovar" : `os ${visaoGeral.vencidos} vencidos renovarem`}, a carteira ativa sobe para{" "}
+                <span className="font-semibold text-text">
+                  {visaoGeral.carteiraProjetada} cliente{visaoGeral.carteiraProjetada === 1 ? "" : "s"} ({visaoGeral.pctProjetada.toFixed(0)}%)
+                </span>{" "}
+                e entram mais <span className="font-semibold text-money">{brl0(visaoGeral.valorVencidos)}</span>.
+              </p>
+            ) : null}
           </Card>
 
           <Card>
@@ -220,6 +241,20 @@ export default async function RelatorioPage({
                 <p className="text-xs text-text-dim">
                   {futuro.quantidade} cliente{futuro.quantidade === 1 ? "" : "s"} × se todos renovarem
                 </p>
+                <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">100% renovam</span>
+                    <span className="font-semibold text-text">{brl(futuro.previsto)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">90% renovam</span>
+                    <span className="font-semibold text-text">≈ {brl(futuro.previsto * 0.9)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">75% renovam</span>
+                    <span className="font-semibold text-text">≈ {brl(futuro.previsto * 0.75)}</span>
+                  </div>
+                </div>
               </>
             )}
           </Card>

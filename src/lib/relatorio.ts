@@ -143,7 +143,7 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
     }),
     prisma.cliente.findMany({
       where: { revendedorId, status: { not: "CANCELADO" } },
-      select: { vencimento: true },
+      select: { vencimento: true, valorPlano: true },
     }),
   ]);
 
@@ -157,10 +157,13 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
 
   let vencidos = 0;
   let vencendo = 0;
+  let valorVencidos = 0;
   for (const c of clientesAtivos) {
     const faixa = faixaVencimento(c.vencimento);
-    if (faixa === "VENCIDO") vencidos += 1;
-    else if (faixa === "ATE_5_DIAS") vencendo += 1;
+    if (faixa === "VENCIDO") {
+      vencidos += 1;
+      valorVencidos += c.valorPlano;
+    } else if (faixa === "ATE_5_DIAS") vencendo += 1;
   }
   const ativos = clientesAtivos.length;
   const emDia = Math.max(0, ativos - vencidos - vencendo);
@@ -168,6 +171,10 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
   // Retenção aqui é "da carteira atual, quantos estão em dia" (emDia/ativos)
   // — não envolve quem já cancelou, esse é o papel de taxaPerdaPct abaixo.
   const retencaoPct = ativos > 0 ? (emDia / ativos) * 100 : 0;
+  // "Se os vencidos renovarem": projeção otimista pra motivar a cobrança —
+  // não conta quem tá só vencendo (ainda não perdeu o prazo).
+  const carteiraProjetada = emDia + vencidos;
+  const pctProjetada = ativos > 0 ? (carteiraProjetada / ativos) * 100 : 0;
 
   return {
     porMes,
@@ -183,6 +190,9 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
     vencendo,
     vencidos,
     retencaoPct,
+    carteiraProjetada,
+    pctProjetada,
+    valorVencidos,
   };
 }
 

@@ -11,6 +11,8 @@ import {
 } from "@/lib/planos-assinatura";
 import { brl, brl0 } from "@/lib/format";
 
+const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
+
 const PASSOS = [
   { n: "01", titulo: "Crie sua conta grátis", texto: "Sem cartão, sem compromisso — 7 dias pra testar tudo." },
   { n: "02", titulo: "Cadastre clientes e apps", texto: "Importa ou cadastra na mão, do seu jeito." },
@@ -24,10 +26,56 @@ const CONFIANCA = [
   "Feito pra revenda de streaming, não adaptado de outro nicho",
 ];
 
+const SEM_GESTORPRO = [
+  "Cliente anotado no caderno ou em planilha",
+  "Cobrança esquecida no meio das conversas",
+  "Não sabe quanto lucrou no mês",
+  "Crédito acaba sem aviso",
+];
+
+const COM_GESTORPRO = [
+  "Todos os clientes com vencimento na tela",
+  "Fila de quem cobrar hoje, mensagem pronta",
+  "Lucro líquido e previsão do próximo mês",
+  "Alerta antes de faltar crédito do aparelho",
+];
+
+const FAQ = [
+  {
+    pergunta: "Preciso de cartão de crédito para testar?",
+    resposta: "Não. Você tem 7 dias grátis pra testar tudo, sem precisar cadastrar cartão.",
+  },
+  {
+    pergunta: "Posso cancelar quando quiser?",
+    resposta: "Sim, cancele quando quiser, sem multa e sem fidelidade. Seus dados continuam guardados caso queira voltar depois.",
+  },
+  {
+    pergunta: "Funciona no celular?",
+    resposta: "Funciona como um app de verdade — instala na tela inicial do celular (sem loja de aplicativo) e recebe notificação de vencimento.",
+  },
+  {
+    pergunta: "Consigo levar meus clientes da planilha?",
+    resposta: "Sim, dá pra importar sua planilha ou cadastrar cliente por cliente na mão, do seu jeito.",
+  },
+  {
+    pergunta: "O GestorPro envia as mensagens sozinho?",
+    resposta:
+      "Sim, se você conectar seu WhatsApp: o app manda lembrete de vencimento e cobrança automaticamente, nos dias que você escolher.",
+  },
+];
+
 function CheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
       <path d="M5 12l4.5 4.5L19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -145,6 +193,43 @@ export function LandingPage() {
                   {c}
                 </span>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border py-16 md:py-20">
+          <div className="mx-auto max-w-6xl px-5">
+            <h2 className="text-2xl font-bold text-text md:text-3xl">Chega de revenda no caderno</h2>
+            <p className="mt-2 max-w-xl text-text-muted">
+              O que muda quando tudo o que você controla de cabeça passa a estar num só lugar.
+            </p>
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-surface p-6">
+                <h3 className="text-sm font-bold text-text-dim">Sem o GestorPro</h3>
+                <ul className="mt-4 flex flex-col gap-3">
+                  {SEM_GESTORPRO.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-text-muted">
+                      <span className="mt-0.5 text-danger">
+                        <XIcon />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-2xl border-2 border-accent bg-accent-soft/20 p-6">
+                <h3 className="text-sm font-bold text-accent">Com o GestorPro</h3>
+                <ul className="mt-4 flex flex-col gap-3">
+                  {COM_GESTORPRO.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm font-medium text-text">
+                      <span className="mt-0.5 text-accent">
+                        <CheckIcon />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>
@@ -307,6 +392,26 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section className="border-t border-border py-16 md:py-20">
+          <div className="mx-auto max-w-3xl px-5">
+            <h2 className="text-2xl font-bold text-text md:text-3xl">Perguntas frequentes</h2>
+            <p className="mt-2 text-text-muted">Não achou sua dúvida? Chama a gente no WhatsApp.</p>
+            <div className="mt-8 flex flex-col divide-y divide-border rounded-2xl border border-border bg-surface">
+              {FAQ.map((f) => (
+                <details key={f.pergunta} className="group px-5 py-4 open:pb-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-text marker:content-none">
+                    {f.pergunta}
+                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-text-dim transition group-open:rotate-180">
+                      <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </summary>
+                  <p className="mt-2.5 text-sm leading-relaxed text-text-muted">{f.resposta}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-t border-border py-16 md:py-24">
           <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 px-5 text-center">
             <h2 className="text-3xl font-extrabold tracking-tight text-text md:text-4xl">
@@ -315,9 +420,19 @@ export function LandingPage() {
             <p className="max-w-md text-text-muted">
               Crie sua conta agora e teste todas as funções por 7 dias, de graça.
             </p>
-            <Link href="/cadastro" className={buttonClassName("primary", "px-9 py-4 text-lg")}>
-              Cadastre-se agora e teste grátis
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Link href="/cadastro" className={buttonClassName("primary", "px-9 py-4 text-lg")}>
+                Cadastre-se e teste grátis
+              </Link>
+              <a
+                href={`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent("Oi! Quero saber mais sobre o GestorPro.")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonClassName("ghost", "px-9 py-4 text-lg")}
+              >
+                Falar no WhatsApp
+              </a>
+            </div>
           </div>
         </section>
       </main>

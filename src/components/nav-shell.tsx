@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SairButton } from "@/components/sair-button";
@@ -10,6 +11,7 @@ import type { NotificacaoRevendedor } from "@/lib/avisos";
 import {
   IconPainel,
   IconPessoas,
+  IconPessoaMais,
   IconSacola,
   IconCaixa,
   IconGrafico,
@@ -19,6 +21,7 @@ import {
   IconAjuda,
   IconLivro,
   IconEscudo,
+  IconPontos,
 } from "@/components/nav-icons";
 import { iniciais } from "@/lib/format";
 
@@ -33,6 +36,19 @@ const ITENS = [
 const ITENS_GESTAO = [
   { href: "/plataformas", label: "Plataformas", icone: IconCamadas },
   { href: "/precificacao", label: "Precificação", icone: IconEtiqueta },
+];
+
+// Itens do menu inferior mobile que não cabem nas 4 abas fixas (Painel,
+// Clientes, Vendas + o "+" central) — ficam atrás do "Mais", igual ao
+// mockup. Administração entra condicionalmente logo abaixo, na hora de
+// montar a lista (só quem é admin vê).
+const MOBILE_MAIS_ITENS = [
+  { href: "/estoque", label: "Estoque", icone: IconCaixa },
+  { href: "/relatorio", label: "Relatório", icone: IconGrafico },
+  { href: "/plataformas", label: "Plataformas", icone: IconCamadas },
+  { href: "/precificacao", label: "Precificação", icone: IconEtiqueta },
+  { href: "/configuracoes", label: "Configurações", icone: IconAjustes },
+  { href: "/ajuda", label: "Ajuda", icone: IconAjuda },
 ];
 
 function GrupoNav({ titulo, children }: { titulo?: string; children: React.ReactNode }) {
@@ -97,6 +113,8 @@ export function NavShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [maisAberto, setMaisAberto] = useState(false);
+  const [novoAberto, setNovoAberto] = useState(false);
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
@@ -183,25 +201,152 @@ export function NavShell({
         layout" (o maior, contando a área da barra de endereço do
         navegador), não no que está realmente visível. Isso fazia essa
         barra flutuar bem abaixo da tela em vez de grudar no rodapé. */}
-        <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
-          {ITENS.map((item) => {
-            const ativo = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cx(
-                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
-                  ativo ? "text-accent" : "text-text-dim"
-                )}
-              >
-                <item.icone className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="sticky inset-x-0 bottom-0 z-10 flex items-stretch border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+          <TabMobile href="/painel" label="Painel" Icone={IconPainel} ativo={pathname.startsWith("/painel")} />
+          <TabMobile href="/clientes" label="Clientes" Icone={IconPessoas} ativo={pathname.startsWith("/clientes")} />
+
+          <div className="flex flex-1 items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setNovoAberto((v) => !v)}
+              aria-label="Nova ação"
+              aria-expanded={novoAberto}
+              className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-bg-deep shadow-lg shadow-accent/30 transition active:scale-95"
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="h-6 w-6">
+                <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          <TabMobile href="/vendas" label="Vendas" Icone={IconSacola} ativo={pathname.startsWith("/vendas")} />
+          <button
+            type="button"
+            onClick={() => setMaisAberto(true)}
+            aria-label="Mais opções"
+            className={cx(
+              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+              maisAberto || MOBILE_MAIS_ITENS.some((i) => pathname.startsWith(i.href)) || (ehAdmin && pathname.startsWith("/administracao"))
+                ? "text-accent"
+                : "text-text-dim"
+            )}
+          >
+            <IconPontos className="h-5 w-5" />
+            Mais
+          </button>
         </nav>
+
+        {novoAberto ? (
+          <div className="fixed inset-0 z-20 md:hidden" onClick={() => setNovoAberto(false)}>
+            <div className="absolute inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] flex flex-col gap-2 rounded-2xl border border-border-strong bg-surface p-2 shadow-2xl">
+              <Link
+                href="/clientes/novo"
+                onClick={() => setNovoAberto(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                  <IconPessoaMais className="h-5 w-5" />
+                </span>
+                Novo cliente
+              </Link>
+              <Link
+                href="/vendas/nova"
+                onClick={() => setNovoAberto(false)}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-text hover:bg-surface-2"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                  <IconSacola className="h-5 w-5" />
+                </span>
+                Nova venda
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
+        {maisAberto ? (
+          <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={() => setMaisAberto(false)}>
+            <div
+              className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border-strong bg-surface p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-strong" />
+              <div className="grid grid-cols-4 gap-y-4">
+                {MOBILE_MAIS_ITENS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMaisAberto(false)}
+                    className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-text-muted"
+                  >
+                    <span
+                      className={cx(
+                        "flex h-11 w-11 items-center justify-center rounded-xl",
+                        pathname.startsWith(item.href) ? "bg-accent-soft text-accent" : "bg-surface-2 text-text-dim"
+                      )}
+                    >
+                      <item.icone className="h-5 w-5" />
+                    </span>
+                    {item.label}
+                  </Link>
+                ))}
+                {ehAdmin ? (
+                  <Link
+                    href="/administracao"
+                    onClick={() => setMaisAberto(false)}
+                    className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-accent"
+                  >
+                    <span
+                      className={cx(
+                        "flex h-11 w-11 items-center justify-center rounded-xl",
+                        pathname.startsWith("/administracao") ? "bg-accent-soft" : "bg-surface-2"
+                      )}
+                    >
+                      <IconEscudo className="h-5 w-5" />
+                    </span>
+                    Administração
+                  </Link>
+                ) : null}
+                <a
+                  href="/manual-revendedor.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-text-muted"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-text-dim">
+                    <IconLivro className="h-5 w-5" />
+                  </span>
+                  Manual
+                </a>
+              </div>
+              <div className="mt-5 flex justify-center border-t border-border pt-4">
+                <SairButton className="text-sm font-semibold text-danger" />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function TabMobile({
+  href,
+  label,
+  Icone,
+  ativo,
+}: {
+  href: string;
+  label: string;
+  Icone: (props: React.SVGProps<SVGSVGElement>) => React.ReactNode;
+  ativo: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cx("flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold", ativo ? "text-accent" : "text-text-dim")}
+    >
+      <Icone className="h-5 w-5" />
+      {label}
+    </Link>
   );
 }
