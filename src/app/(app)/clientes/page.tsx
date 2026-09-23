@@ -8,6 +8,7 @@ import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "./cobrar-botao";
 import { InteressadoItem } from "../interessados/interessado-item";
+import { PainelDetalhe, PainelVazio } from "./painel-detalhe";
 
 const ABAS = [
   { chave: "todos", label: "Todos" },
@@ -35,12 +36,12 @@ function diasTexto(vencimento: Date): string {
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string }>;
+  searchParams: Promise<{ aba?: string; id?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const { aba = "ativos" } = await searchParams;
+  const { aba = "ativos", id: selecionadoId } = await searchParams;
 
-  const [clientes, cobradosHoje, interessados] = await Promise.all([
+  const [clientes, cobradosHoje, interessados, clienteSelecionado] = await Promise.all([
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id },
       include: { servico: true },
@@ -53,6 +54,12 @@ export default async function ClientesPage({
           orderBy: [{ retornarEm: "asc" }, { criadoEm: "desc" }],
         })
       : Promise.resolve([]),
+    selecionadoId
+      ? prisma.cliente.findUnique({
+          where: { id: selecionadoId, revendedorId: revendedor.id },
+          include: { servico: true, renovacoes: { orderBy: { data: "desc" } }, vendas: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const filtrados = clientes.filter((c) => {
@@ -113,86 +120,102 @@ export default async function ClientesPage({
       ) : filtrados.length === 0 ? (
         <EmptyState>Nenhum cliente nesta lista ainda.</EmptyState>
       ) : (
-        <Card className="p-0">
-          {/* Desktop: tabela no padrão do app original (Cliente / WhatsApp / Plano · App / Vencimento / Valor / Status / Cobrar) */}
-          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
-            <span>Cliente</span>
-            <span>WhatsApp</span>
-            <span>Plano · App</span>
-            <span>Vencimento</span>
-            <span>Valor</span>
-            <span>Status</span>
-            <span />
-          </div>
-          <div className="flex flex-col divide-y divide-border">
-            {filtrados.map((cliente) => {
-              const estado = estadoCliente(cliente.status, cliente.vencimento);
+        <div className="flex flex-col gap-5 md:flex-row md:items-start">
+          <Card className="min-w-0 flex-1 p-0">
+            {/* Desktop: tabela no padrão do app original (Cliente / WhatsApp / Plano · App / Vencimento / Valor / Status / Cobrar) */}
+            <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
+              <span>Cliente</span>
+              <span>WhatsApp</span>
+              <span>Plano · App</span>
+              <span>Vencimento</span>
+              <span>Valor</span>
+              <span>Status</span>
+              <span />
+            </div>
+            <div className="flex flex-col divide-y divide-border">
+              {filtrados.map((cliente) => {
+                const estado = estadoCliente(cliente.status, cliente.vencimento);
+                const ativo = cliente.id === selecionadoId;
 
-              return (
-                <div key={cliente.id} className="md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2">
-                  {/* Desktop */}
-                  <Link href={`/clientes/${cliente.id}`} className="hidden min-w-0 items-center gap-3 md:flex">
-                    <Avatar nome={cliente.nome} size={32} />
-                    <span className="truncate text-sm font-semibold text-text">{cliente.nome}</span>
-                  </Link>
-                  <span className="hidden truncate text-xs text-text-muted md:block">{fmtTelefone(cliente.whatsapp)}</span>
-                  <span className="hidden truncate text-xs text-text-muted md:block">
-                    {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
-                  </span>
-                  <div className="hidden md:flex md:flex-col">
-                    <span className="text-sm font-semibold text-text">{dataCurta(cliente.vencimento)}</span>
-                    <span className="text-[11px] text-text-dim">{diasTexto(cliente.vencimento)}</span>
-                  </div>
-                  <span className="hidden text-sm font-semibold text-money md:block">{brl0(cliente.valorPlano)}</span>
-                  <span className="hidden md:block">
-                    <Badge tone={estado.tom}>{estado.label}</Badge>
-                  </span>
-                  <span className="hidden md:flex md:gap-1.5">
-                    {cliente.status !== "CANCELADO" ? (
-                      <>
-                        {cliente.whatsapp ? (
-                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
-                        ) : null}
-                        <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
-                      </>
-                    ) : (
-                      <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" label="Reativar" labelFeito="Reativado ✓" />
+                return (
+                  <div
+                    key={cliente.id}
+                    className={cx(
+                      "md:grid md:grid-cols-[1.9fr_1.2fr_1.3fr_1.1fr_0.8fr_1fr_220px] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2",
+                      ativo ? "md:bg-accent-soft/40" : ""
                     )}
-                  </span>
-
-                  {/* Mobile */}
-                  <div className="flex flex-col gap-2 px-4 py-3 md:hidden">
-                    <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3">
-                      <Avatar nome={cliente.nome} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
-                        <p className="truncate text-xs text-text-dim">
-                          {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-sm font-semibold text-text">{brl0(cliente.valorPlano)}</span>
-                        <Badge tone={estado.tom}>{estado.label}</Badge>
-                      </div>
+                  >
+                    {/* Desktop */}
+                    <Link href={`/clientes?aba=${aba}&id=${cliente.id}`} scroll={false} className="hidden min-w-0 items-center gap-3 md:flex">
+                      <Avatar nome={cliente.nome} size={32} />
+                      <span className="truncate text-sm font-semibold text-text">{cliente.nome}</span>
                     </Link>
-                    {cliente.status !== "CANCELADO" ? (
-                      <div className="flex gap-2 pl-12">
-                        {cliente.whatsapp ? (
-                          <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
-                        ) : null}
-                        <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 pl-12">
+                    <span className="hidden truncate text-xs text-text-muted md:block">{fmtTelefone(cliente.whatsapp)}</span>
+                    <span className="hidden truncate text-xs text-text-muted md:block">
+                      {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
+                    </span>
+                    <div className="hidden md:flex md:flex-col">
+                      <span className="text-sm font-semibold text-text">{dataCurta(cliente.vencimento)}</span>
+                      <span className="text-[11px] text-text-dim">{diasTexto(cliente.vencimento)}</span>
+                    </div>
+                    <span className="hidden text-sm font-semibold text-money md:block">{brl0(cliente.valorPlano)}</span>
+                    <span className="hidden md:block">
+                      <Badge tone={estado.tom}>{estado.label}</Badge>
+                    </span>
+                    <span className="hidden md:flex md:gap-1.5">
+                      {cliente.status !== "CANCELADO" ? (
+                        <>
+                          {cliente.whatsapp ? (
+                            <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
+                          ) : null}
+                          <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
+                        </>
+                      ) : (
                         <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" label="Reativar" labelFeito="Reativado ✓" />
-                      </div>
-                    )}
+                      )}
+                    </span>
+
+                    {/* Mobile */}
+                    <div className="flex flex-col gap-2 px-4 py-3 md:hidden">
+                      <Link href={`/clientes/${cliente.id}`} className="flex items-center gap-3">
+                        <Avatar nome={cliente.nome} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-text">{cliente.nome}</p>
+                          <p className="truncate text-xs text-text-dim">
+                            {PLANO_LABEL[cliente.plano]} · {cliente.servico?.nome ?? "—"}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="text-sm font-semibold text-text">{brl0(cliente.valorPlano)}</span>
+                          <Badge tone={estado.tom}>{estado.label}</Badge>
+                        </div>
+                      </Link>
+                      {cliente.status !== "CANCELADO" ? (
+                        <div className="flex gap-2 pl-12">
+                          {cliente.whatsapp ? (
+                            <CobrarBotao clienteId={cliente.id} cobradoEm={cobradosHoje.get(cliente.id) ?? null} className="min-w-0 flex-1" />
+                          ) : null}
+                          <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" />
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 pl-12">
+                          <RenovarBotao clienteId={cliente.id} className="min-w-0 flex-1" label="Reativar" labelFeito="Reativado ✓" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          </Card>
+          <div className="hidden md:block md:w-[360px] md:shrink-0">
+            {clienteSelecionado ? (
+              <PainelDetalhe cliente={clienteSelecionado} cobradoHoje={cobradosHoje.get(clienteSelecionado.id) ?? null} />
+            ) : (
+              <PainelVazio />
+            )}
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
