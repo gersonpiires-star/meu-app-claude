@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { Badge, Button, Card, cx, Field, Input } from "@/components/ui";
 import { salvarCredenciaisAsaas, salvarCredenciaisMP, salvarGatewayPagamento, salvarSuspensaoAutomatica } from "./actions";
 import { PerfilForm } from "./perfil-form";
+import { SenhaForm } from "./senha-form";
+import { LembretesForm } from "./lembretes-form";
 import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
 import { BackupForm } from "./backup-form";
@@ -16,6 +18,8 @@ import { funilIndicacao } from "@/lib/indicacao";
 import { UnitvForm } from "./unitv-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WhatsappForm } from "./whatsapp-form";
+import { ModeloItem } from "./modelos/modelo-item";
+import { MODELOS_COBRANCA } from "@/lib/mensagens";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -61,7 +65,7 @@ function ItemLink({ titulo, descricao, href, label = "Abrir" }: { titulo: string
   );
 }
 
-type CategoriaKey = "conta" | "pagamentos" | "atendimento" | "ferramentas" | "equipe" | "dados" | "suporte";
+type CategoriaKey = "negocio" | "cobranca" | "notificacoes" | "aparencia" | "conta" | "dados";
 
 export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const revendedor = await exigirRevendedor();
@@ -70,19 +74,20 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
   const configurado = Boolean(revendedor.mpAccessToken);
   const configuradoAsaas = Boolean(revendedor.asaasApiKey);
   const gatewayAtivo = revendedor.gatewayPagamento;
-  const [chaves, funilIndicacaoRevendedor] = await Promise.all([
+  const whatsappConectado = Boolean(revendedor.whatsappTelefoneNumeroId);
+  const [chaves, funilIndicacaoRevendedor, modeloLembrete] = await Promise.all([
     prisma.chavePix.findMany({ where: { revendedorId: revendedor.id }, orderBy: { criadoEm: "desc" } }),
     funilIndicacao(revendedor.id),
+    prisma.modeloMensagem.findUnique({ where: { revendedorId_chave: { revendedorId: revendedor.id, chave: "Lembrete" } } }),
   ]);
 
   const categorias: { key: CategoriaKey; label: string; visivel: boolean }[] = [
-    { key: "conta", label: "Conta", visivel: !ehFuncionario },
-    { key: "pagamentos", label: "Pagamentos", visivel: true },
-    { key: "atendimento", label: "Atendimento", visivel: true },
-    { key: "ferramentas", label: "Ferramentas", visivel: true },
-    { key: "equipe", label: "Equipe", visivel: !ehFuncionario },
-    { key: "dados", label: "Dados", visivel: true },
-    { key: "suporte", label: "Suporte", visivel: true },
+    { key: "negocio", label: "Negócio", visivel: !ehFuncionario },
+    { key: "cobranca", label: "Cobrança e WhatsApp", visivel: true },
+    { key: "notificacoes", label: "Notificações", visivel: true },
+    { key: "aparencia", label: "Aparência", visivel: true },
+    { key: "conta", label: "Conta e segurança", visivel: !ehFuncionario },
+    { key: "dados", label: "Backup e dados", visivel: true },
   ];
   const categoriasVisiveis = categorias.filter((c) => c.visivel);
 
@@ -128,53 +133,84 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {catAtiva === "conta" ? (
+          {catAtiva === "negocio" ? (
             <>
-              <Item titulo="Seus dados">
-                <PerfilForm nome={revendedor.nome} whatsapp={revendedor.whatsapp} />
+              <Item titulo="Dados do negócio">
+                <PerfilForm nome={revendedor.nome} whatsapp={revendedor.whatsapp} nomeNegocio={revendedor.nomeNegocio} cidade={revendedor.cidade} />
               </Item>
 
-              <Item titulo="Aparência">
+              <Item titulo="Chaves Pix">
                 <p className="mb-3 text-sm text-text-dim">
-                  O escuro é o padrão; o claro ajuda em ambientes iluminados. &quot;Automático&quot; segue o tema do
-                  seu sistema.
+                  Cadastre suas chaves pra anexar na mensagem de cobrança que vai pro cliente.
                 </p>
-                <ThemeToggle />
+                <ChavesPixForm chaves={chaves} />
               </Item>
 
-              <Item titulo="Indique o GestorPro">
-                <p className="mb-3 text-sm text-text-dim">
-                  Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago,
-                  você ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação.
-                </p>
-                <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
-                {funilIndicacaoRevendedor.cliques > 0 ? (
-                  <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
-                    <div>
-                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cliques}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Cliques no link</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cadastros}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Se cadastraram</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-accent">{funilIndicacaoRevendedor.assinantes}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Assinaram</p>
-                    </div>
-                  </div>
-                ) : null}
-              </Item>
-
-              <Item titulo="Cancelar assinatura">
-                <p className="mb-3 text-sm text-text-dim">Se decidir sair, seus dados continuam guardados.</p>
-                <CancelarAssinaturaForm />
-              </Item>
+              {ehFuncionario || !podeVerBetaUnitv ? null : (
+                <Item titulo="Integração UniTV" extra={<Badge tone="warning">Beta</Badge>}>
+                  <p className="mb-3 text-sm text-text-dim">
+                    Conecte sua conta de revenda da UniTV pra, no futuro, renovar clientes direto pelo GestorPro
+                    sem abrir o painel deles. A UniTV não tem API oficial — essa integração é experimental e pode
+                    falhar ou parar de funcionar sem aviso.
+                  </p>
+                  <UnitvForm usuarioAtual={revendedor.unitvUsuario} conectadoEm={revendedor.unitvConectadoEm} />
+                </Item>
+              )}
             </>
           ) : null}
 
-          {catAtiva === "pagamentos" ? (
+          {catAtiva === "cobranca" ? (
             <>
+              {ehFuncionario ? null : (
+                <Item
+                  titulo="Autoatendimento no WhatsApp"
+                  extra={
+                    whatsappConectado ? (
+                      <Badge tone={revendedor.whatsappBotAtivo ? "accent" : "warning"}>
+                        {revendedor.whatsappBotAtivo ? "Ativo" : "Pausado"}
+                      </Badge>
+                    ) : (
+                      <Badge tone="neutral">Não conectado</Badge>
+                    )
+                  }
+                >
+                  <p className="mb-4 text-sm text-text-dim">
+                    Conecte seu próprio número no WhatsApp Cloud API (oficial da Meta) pra seus clientes
+                    consultarem vencimento, valor, link de renovação e chave Pix automaticamente, e pra mandar
+                    sozinho os lembretes de cobrança abaixo. Crie um app em developers.facebook.com, adicione o
+                    produto &quot;WhatsApp&quot;, gere um token de acesso permanente do seu número e configure o
+                    webhook com a URL{" "}
+                    <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">{baseUrl()}/api/webhooks/whatsapp</code>.
+                  </p>
+                  <WhatsappForm
+                    telefoneNumeroId={revendedor.whatsappTelefoneNumeroId}
+                    botAtivo={revendedor.whatsappBotAtivo}
+                    conectadoEm={revendedor.whatsappConectadoEm}
+                  />
+                </Item>
+              )}
+
+              <Item titulo="Mensagem de cobrança">
+                <p className="mb-3 text-sm text-text-dim">Usada no lembrete automático e na fila de cobrança manual.</p>
+                <ModeloItem
+                  chave="Lembrete"
+                  textoAtual={modeloLembrete?.texto ?? MODELOS_COBRANCA.Lembrete}
+                  personalizado={Boolean(modeloLembrete)}
+                />
+                <Link href="/configuracoes/modelos" className="mt-1 block text-xs font-semibold text-accent hover:underline">
+                  Editar os outros modelos (vencido, renovação, comunicados) →
+                </Link>
+              </Item>
+
+              <Item titulo="Cobrança automática">
+                <LembretesForm
+                  lembreteAntesAtivo={revendedor.lembreteAntesAtivo}
+                  avisoVencimentoAtivo={revendedor.avisoVencimentoAtivo}
+                  cobrancaAposVencerAtiva={revendedor.cobrancaAposVencerAtiva}
+                  whatsappConectado={whatsappConectado}
+                />
+              </Item>
+
               {ehFuncionario ? null : (
                 <Item
                   titulo="Receber pagamentos online (Mercado Pago)"
@@ -263,15 +299,6 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
                 </Item>
               )}
 
-              {ehFuncionario ? null : (
-                <Item titulo="Chaves Pix">
-                  <p className="mb-3 text-sm text-text-dim">
-                    Cadastre suas chaves pra anexar na mensagem de cobrança que vai pro cliente.
-                  </p>
-                  <ChavesPixForm chaves={chaves} />
-                </Item>
-              )}
-
               <Item titulo="Suspensão automática">
                 <p className="mb-3 text-sm text-text-dim">
                   Cancela sozinho o cliente que ficar vencido por mais do que esse número de dias. Deixe em
@@ -295,77 +322,56 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
             </>
           ) : null}
 
-          {catAtiva === "atendimento" ? (
+          {catAtiva === "notificacoes" ? (
+            <Item titulo="Lembrete diário de vencimento">
+              <p className="mb-3 text-sm text-text-dim">
+                Receba uma notificação toda manhã no celular ou computador com quem está vencendo ou vencido —
+                sem precisar abrir o app pra conferir.
+              </p>
+              <NotificacoesPush />
+            </Item>
+          ) : null}
+
+          {catAtiva === "aparencia" ? (
+            <Item titulo="Tema">
+              <p className="mb-3 text-sm text-text-dim">
+                O escuro é o padrão; o claro ajuda em ambientes iluminados. &quot;Automático&quot; segue o tema do
+                seu sistema.
+              </p>
+              <ThemeToggle />
+            </Item>
+          ) : null}
+
+          {catAtiva === "conta" && !ehFuncionario ? (
             <>
-              {ehFuncionario ? null : (
-                <Item
-                  titulo="Autoatendimento no WhatsApp"
-                  extra={
-                    revendedor.whatsappTelefoneNumeroId ? (
-                      <Badge tone={revendedor.whatsappBotAtivo ? "accent" : "warning"}>
-                        {revendedor.whatsappBotAtivo ? "Ativo" : "Pausado"}
-                      </Badge>
-                    ) : (
-                      <Badge tone="neutral">Não conectado</Badge>
-                    )
-                  }
-                >
-                  <p className="mb-4 text-sm text-text-dim">
-                    Conecte seu próprio número no WhatsApp Cloud API (oficial da Meta) pra seus clientes
-                    consultarem vencimento, valor, link de renovação e chave Pix automaticamente, direto pelo
-                    WhatsApp, sem depender de você responder. Crie um app em developers.facebook.com, adicione o
-                    produto &quot;WhatsApp&quot;, gere um token de acesso permanente do seu número e configure o
-                    webhook com a URL{" "}
-                    <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">{baseUrl()}/api/webhooks/whatsapp</code>.
-                  </p>
-                  <WhatsappForm
-                    telefoneNumeroId={revendedor.whatsappTelefoneNumeroId}
-                    botAtivo={revendedor.whatsappBotAtivo}
-                    conectadoEm={revendedor.whatsappConectadoEm}
-                  />
-                </Item>
-              )}
-
-              <ItemLink
-                titulo="Modelos de mensagem"
-                descricao="Personalize os textos de cobrança e comunicado."
-                href="/configuracoes/modelos"
-                label="Editar"
-              />
-
-              <Item titulo="Lembrete diário de vencimento">
-                <p className="mb-3 text-sm text-text-dim">
-                  Receba uma notificação toda manhã no celular ou computador com quem está vencendo ou vencido —
-                  sem precisar abrir o app pra conferir.
-                </p>
-                <NotificacoesPush />
+              <Item titulo="Trocar senha">
+                <SenhaForm />
               </Item>
-            </>
-          ) : null}
 
-          {catAtiva === "ferramentas" ? (
-            <>
-              <ItemLink titulo="Precificação" descricao="Calculadora de preço e maquininha." href="/precificacao" />
-              <ItemLink
-                titulo="Plataformas de crédito"
-                descricao="Fornecedores, lotes de compra e saldo."
-                href="/plataformas"
-              />
-              {ehFuncionario || !podeVerBetaUnitv ? null : (
-                <Item titulo="Integração UniTV" extra={<Badge tone="warning">Beta</Badge>}>
-                  <p className="mb-3 text-sm text-text-dim">
-                    Conecte sua conta de revenda da UniTV pra, no futuro, renovar clientes direto pelo GestorPro
-                    sem abrir o painel deles. A UniTV não tem API oficial — essa integração é experimental e pode
-                    falhar ou parar de funcionar sem aviso.
-                  </p>
-                  <UnitvForm usuarioAtual={revendedor.unitvUsuario} conectadoEm={revendedor.unitvConectadoEm} />
-                </Item>
-              )}
-            </>
-          ) : null}
+              <Item titulo="Indique o GestorPro">
+                <p className="mb-3 text-sm text-text-dim">
+                  Compartilhe seu link — quando a pessoa se cadastrar por ele e assinar o primeiro plano pago,
+                  você ganha automaticamente um cupom de 15% de desconto pra usar na sua próxima renovação.
+                </p>
+                <LinkIndicacao link={`${baseUrl()}/cadastro?ref=${revendedor.id}`} />
+                {funilIndicacaoRevendedor.cliques > 0 ? (
+                  <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cliques}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Cliques no link</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-text">{funilIndicacaoRevendedor.cadastros}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Se cadastraram</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-accent">{funilIndicacaoRevendedor.assinantes}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Assinaram</p>
+                    </div>
+                  </div>
+                ) : null}
+              </Item>
 
-          {catAtiva === "equipe" && !ehFuncionario ? (
-            <>
               <ItemLink
                 titulo="Funcionários"
                 descricao="Dê acesso ao app pra quem te ajuda a atender."
@@ -378,6 +384,24 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
                 href="/configuracoes/historico"
                 label="Ver histórico"
               />
+
+              <Item titulo="Sugestões pro time do GestorPro">
+                <p className="mb-3 text-sm text-text-dim">
+                  Tem alguma dica de melhoria ou ajuste que faria diferença no seu dia a dia? Conta pra gente.
+                </p>
+                <SugestaoForm />
+              </Item>
+
+              <ItemLink
+                titulo="Central de ajuda"
+                descricao="Respostas rápidas pras dúvidas mais comuns sobre o app."
+                href="/ajuda"
+              />
+
+              <Item titulo="Cancelar assinatura">
+                <p className="mb-3 text-sm text-text-dim">Se decidir sair, seus dados continuam guardados.</p>
+                <CancelarAssinaturaForm />
+              </Item>
             </>
           ) : null}
 
@@ -395,22 +419,6 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
                   <ImportarForm podeZerar={!ehFuncionario} />
                 </Item>
               )}
-            </>
-          ) : null}
-
-          {catAtiva === "suporte" ? (
-            <>
-              <ItemLink
-                titulo="Central de ajuda"
-                descricao="Respostas rápidas pras dúvidas mais comuns sobre o app."
-                href="/ajuda"
-              />
-              <Item titulo="Sugestões pro time do GestorPro">
-                <p className="mb-3 text-sm text-text-dim">
-                  Tem alguma dica de melhoria ou ajuste que faria diferença no seu dia a dia? Conta pra gente.
-                </p>
-                <SugestaoForm />
-              </Item>
             </>
           ) : null}
         </div>

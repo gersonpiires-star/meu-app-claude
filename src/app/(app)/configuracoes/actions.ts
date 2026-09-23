@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
@@ -22,6 +23,8 @@ const schemaAsaas = z.object({
 const perfilSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome completo"),
   whatsapp: z.string().trim().min(8, "Informe um WhatsApp válido"),
+  nomeNegocio: z.string().trim().optional(),
+  cidade: z.string().trim().optional(),
 });
 
 export async function salvarPerfil(formData: FormData): Promise<{ erro: string } | undefined> {
@@ -34,13 +37,59 @@ export async function salvarPerfil(formData: FormData): Promise<{ erro: string }
 
   await prisma.revendedor.update({
     where: { id: revendedor.id },
-    data: { nome: parsed.data.nome, whatsapp },
+    data: {
+      nome: parsed.data.nome,
+      whatsapp,
+      nomeNegocio: parsed.data.nomeNegocio || null,
+      cidade: parsed.data.cidade || null,
+    },
   });
 
-  await registrarLog(revendedor.id, "config.perfil", "Atualizou nome/WhatsApp da conta");
+  await registrarLog(revendedor.id, "config.perfil", "Atualizou os dados do negócio");
 
   revalidatePath("/configuracoes");
   revalidatePath("/painel");
+}
+
+const senhaSchema = z
+  .object({
+    senhaAtual: z.string().min(1, "Informe a senha atual"),
+    novaSenha: z.string().min(6, "A nova senha precisa ter pelo menos 6 caracteres"),
+    confirmarSenha: z.string(),
+  })
+  .refine((d) => d.novaSenha === d.confirmarSenha, { message: "As senhas não coincidem", path: ["confirmarSenha"] });
+
+export async function trocarSenha(formData: FormData): Promise<{ erro: string } | { ok: true }> {
+  const revendedor = await exigirDono();
+  const parsed = senhaSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+
+  const senhaOk = await bcrypt.compare(parsed.data.senhaAtual, revendedor.senhaHash);
+  if (!senhaOk) return { erro: "Senha atual incorreta." };
+
+  const senhaHash = await bcrypt.hash(parsed.data.novaSenha, 10);
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { senhaHash } });
+
+  await registrarLog(revendedor.id, "config.senha", "Trocou a senha da conta");
+  return { ok: true };
+}
+
+const lembretesSchema = z.object({
+  lembreteAntesAtivo: z.coerce.boolean().default(false),
+  avisoVencimentoAtivo: z.coerce.boolean().default(false),
+  cobrancaAposVencerAtiva: z.coerce.boolean().default(false),
+});
+
+export async function salvarLembretesAutomaticos(formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = lembretesSchema.parse({
+    lembreteAntesAtivo: formData.get("lembreteAntesAtivo") === "true",
+    avisoVencimentoAtivo: formData.get("avisoVencimentoAtivo") === "true",
+    cobrancaAposVencerAtiva: formData.get("cobrancaAposVencerAtiva") === "true",
+  });
+
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: dados });
+  revalidatePath("/configuracoes");
 }
 
 export async function salvarCredenciaisMP(formData: FormData) {

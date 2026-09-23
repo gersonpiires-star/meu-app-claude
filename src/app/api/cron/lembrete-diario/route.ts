@@ -5,6 +5,7 @@ import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
 import { dadosMes } from "@/lib/relatorio";
 import { diaCivilBr } from "@/lib/format";
+import { enviarCobrancasAutomaticas } from "@/lib/cobranca-automatica";
 
 function diasEntreCivil(de: Date, ate: Date): number {
   const d = diaCivilBr(de);
@@ -79,11 +80,15 @@ export async function GET(req: NextRequest) {
   let notificados = 0;
   let fechados = 0;
   let nutridos = 0;
+  let cobrancasAutomaticas = 0;
 
   for (const revendedor of revendedores) {
     const clientes = await prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
+      include: { servico: { select: { nome: true } } },
     });
+
+    cobrancasAutomaticas += await enviarCobrancasAutomaticas(revendedor, clientes);
 
     if (ehUltimoDia) {
       const jaFechou = await prisma.fechamentoMes.findUnique({
@@ -235,5 +240,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, revendedores: revendedores.length, suspensos, notificados, notificadosAdmin, fechados, nutridos });
+  return NextResponse.json({
+    ok: true,
+    revendedores: revendedores.length,
+    suspensos,
+    notificados,
+    notificadosAdmin,
+    fechados,
+    nutridos,
+    cobrancasAutomaticas,
+  });
 }

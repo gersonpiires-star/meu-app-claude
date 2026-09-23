@@ -15,10 +15,12 @@ export async function salvarModeloMensagem(chave: string, formData: FormData) {
   });
 
   revalidatePath("/configuracoes/modelos");
+  revalidatePath("/configuracoes");
 }
 
 export async function restaurarModeloPadrao(chave: string) {
   const revendedor = await exigirRevendedor();
   await prisma.modeloMensagem.deleteMany({ where: { revendedorId: revendedor.id, chave } });
   revalidatePath("/configuracoes/modelos");
+  revalidatePath("/configuracoes");
 }

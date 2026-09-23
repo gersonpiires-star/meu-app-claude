@@ -119,7 +119,9 @@ export function NavShell({
           {ITENS_GESTAO.map((item) => (
             <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname.startsWith(item.href)} />
           ))}
-          {ehAdmin ? <ItemNav href="/admin" label="Administração" Icone={IconEscudo} ativo={false} destaque /> : null}
+          {ehAdmin ? (
+            <ItemNav href="/administracao" label="Administração" Icone={IconEscudo} ativo={pathname.startsWith("/administracao")} destaque />
+          ) : null}
         </GrupoNav>
 
         <div className="flex-1" />
@@ -156,7 +158,7 @@ export function NavShell({
           <div className="flex items-center gap-2">
             <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
             {ehAdmin ? (
-              <Link href="/admin" className="text-xs font-semibold text-accent">
+              <Link href="/administracao" className="text-xs font-semibold text-accent">
                 Admin
               </Link>
             ) : null}

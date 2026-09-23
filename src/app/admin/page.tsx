@@ -51,7 +51,12 @@ export default async function AdminPainelPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-lg font-bold text-text">Painel do administrador</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-lg font-bold text-text">Painel do administrador</h1>
+        <Link href="/administracao" className="text-xs font-semibold text-accent hover:underline">
+          Contas e créditos →
+        </Link>
+      </div>
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Este mês</p>

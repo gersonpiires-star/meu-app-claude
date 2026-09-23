@@ -116,6 +116,38 @@ const badgeStyles: Record<BadgeTone, string> = {
   success: "bg-success-bg text-success border-success-border",
 };
 
+// Toggle liga/desliga puro CSS (peer-checked) — funciona em Server
+// Component, sem precisar de "use client" nem onChange em JS: o valor só
+// importa no submit do form que envolve ele (ver os 3 toggles de cobrança
+// automática em Configurações).
+export function Switch({
+  name,
+  defaultChecked,
+  label,
+  sub,
+}: {
+  name: string;
+  defaultChecked?: boolean;
+  label?: string;
+  sub?: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3">
+      {label ? (
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-text">{label}</span>
+          {sub ? <span className="block text-xs text-text-dim">{sub}</span> : null}
+        </span>
+      ) : null}
+      <span className="relative inline-flex h-6 w-11 shrink-0 items-center">
+        <input type="checkbox" name={name} value="true" defaultChecked={defaultChecked} className="peer sr-only" />
+        <span className="absolute inset-0 rounded-full bg-surface-2 transition peer-checked:bg-accent" />
+        <span className="absolute left-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5" />
+      </span>
+    </label>
+  );
+}
+
 export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
     <span

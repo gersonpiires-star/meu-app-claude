@@ -101,6 +101,30 @@ model Revendedor {
   pausadoEm          DateTime?
   motivoPausa        String?
 
+  // Identidade do negócio (não a conta do revendedor) — usados como
+  // remetente nas mensagens de cobrança e, no futuro, em recibos/e-mails.
+  // Nulos pra quem cadastrou antes desses campos existirem.
+  nomeNegocio String?
+  cidade      String?
+
+  // Liga/desliga o disparo automático (via WhatsApp Cloud API, quando
+  // conectado — ver whatsappTelefoneNumeroId abaixo) da mensagem "Lembrete"
+  // de cobrança em cada etapa do vencimento do cliente. Sem o WhatsApp
+  // conectado esses três ficam sem efeito (nada pra mandar por), mas o
+  // valor salvo continua pra quando o revendedor conectar depois.
+  lembreteAntesAtivo     Boolean @default(true)
+  avisoVencimentoAtivo   Boolean @default(true)
+  cobrancaAposVencerAtiva Boolean @default(false)
+
+  // Saldo de crédito financeiro que o dono do GestorPro concede à conta do
+  // revendedor (ex: compensação, bônus de indicação fora do fluxo normal de
+  // cupom) — não confundir com os créditos de IPTV que cada revendedor
+  // compra por conta própria em Plataformas, que são de um app/fornecedor
+  // dele, não do GestorPro. Puramente informativo por enquanto: não abate
+  // sozinho da próxima cobrança da assinatura.
+  saldoCreditos Float @default(0)
+  creditosRecebidos CreditoConta[]
+
   // Credenciais próprias do Mercado Pago do revendedor, para receber
   // pagamentos de renovação de seus clientes direto na conta dele.
   mpAccessToken String?
@@ -453,6 +477,20 @@ model AvisoEnvio {
   enviadoEm DateTime @default(now())
 
   @@unique([clienteId, modelo])
+}
+
+// Histórico de cada crédito financeiro que o dono do GestorPro concedeu a
+// uma conta (ver Revendedor.saldoCreditos) — pra mostrar de onde veio cada
+// valor do saldo atual, igual o histórico de recarga em LotePlataforma.
+model CreditoConta {
+  id           String     @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  quantidade   Float
+  observacao   String?
+  criadoEm     DateTime   @default(now())
+
+  @@index([revendedorId])
 }
 
 // Registro de cada vez que uma mensagem de cobrança é enviada pro cliente
