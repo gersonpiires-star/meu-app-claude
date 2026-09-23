@@ -24,6 +24,15 @@
   --success-border: #1b5e3b;
   --whatsapp: #25d366;
   --info: #6aa9ff;
+
+  /* Paleta dedicada a gráficos (donut, barras, área) — mais escura/saturada
+     que os tons de UI acima (accent/warning/danger), que são otimizados pra
+     texto e botões. Validada com o script de acessibilidade de dataviz
+     (separação CVD, contraste e faixa de luminância) contra o fundo
+     --surface-2, então nunca trocar sem revalidar. */
+  --chart-1: #0d9488;
+  --chart-2: #d97706;
+  --chart-3: #e11d48;
 }
 
 @theme inline {
@@ -50,12 +59,22 @@
   --color-success-border: var(--success-border);
   --color-whatsapp: var(--whatsapp);
   --color-info: var(--info);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--bg);
+  /* Fundo com leve profundidade — dois glows radiais bem sutis (não chega a
+     "colorir" a tela, só tira a chapa do preto-chumbo sólido) atrás da cor
+     sólida de sempre, pra dar uma sensação mais tech sem pesar a leitura. */
+  background:
+    radial-gradient(60rem 30rem at 15% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent),
+    radial-gradient(50rem 25rem at 100% 0%, color-mix(in srgb, var(--info) 5%, transparent), transparent),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -63,4 +82,14 @@ body {
 ::selection {
   background: var(--accent);
   color: var(--bg-deep);
+}
+
+/* Card de destaque (hero de receita, gráficos) — halo sutil na cor de
+   destaque, só pra separar visualmente dos Cards comuns de lista sem virar
+   um efeito neon. Reservado pra 1-2 cards por tela, não pra uso geral. */
+.glow-card {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset,
+    0 16px 32px -20px color-mix(in srgb, var(--accent) 35%, transparent);
 }

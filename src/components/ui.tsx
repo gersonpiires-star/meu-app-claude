@@ -6,7 +6,7 @@ function cx(...classes: Array<string | false | undefined>) {
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx("rounded-2xl border border-border bg-surface p-5", className)}>
+    <div className={cx("rounded-2xl border border-border bg-surface p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]", className)}>
       {children}
     </div>
   );
@@ -134,18 +134,25 @@ export function StatTile({
   value,
   sub,
   tone = "neutral",
+  icon,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "neutral" | "accent" | "danger" | "warning";
+  icon?: ReactNode;
 }) {
   const valueTone =
     tone === "accent" ? "text-accent" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-text";
+  const iconTone =
+    tone === "accent" ? "bg-accent-soft text-accent" : tone === "danger" ? "bg-danger-bg text-danger" : tone === "warning" ? "bg-warning-bg text-warning" : "bg-surface-2 text-text-dim";
   return (
     <Card className="flex flex-col gap-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">{label}</span>
-      <span className={cx("text-2xl font-bold", valueTone)}>{value}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">{label}</span>
+        {icon ? <span className={cx("flex h-6 w-6 shrink-0 items-center justify-center rounded-lg", iconTone)}>{icon}</span> : null}
+      </div>
+      <span className={cx("text-2xl font-bold tabular-nums", valueTone)}>{value}</span>
       {sub ? <span className="text-xs text-text-dim">{sub}</span> : null}
     </Card>
   );
