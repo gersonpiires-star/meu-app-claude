@@ -30,14 +30,22 @@ function layoutEmail({ titulo, corpoHtml }: { titulo: string; corpoHtml: string 
         <td style="background-color:${COR_CARTAO}; border:1px solid ${COR_BORDA}; border-radius:16px; overflow:hidden;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="background-color:${COR_FAIXA}; padding:28px 28px 24px; text-align:center;">
-                <div style="margin:0 auto 12px;">
-                  <svg width="44" height="44" viewBox="0 0 100 100" role="img" aria-label="GestorPro">
-                    <circle cx="50" cy="50" r="32" fill="none" stroke="${COR_ACCENT}" stroke-width="13" stroke-linecap="round" stroke-dasharray="167.55 33.51" />
-                    <circle cx="82" cy="50" r="8" fill="#1d6a70" />
-                  </svg>
-                </div>
-                <span style="font-size:17px; font-weight:800; color:${COR_TEXTO};">GestorPro</span>
+              <td style="background-color:${COR_FAIXA}; padding:26px 28px 22px; text-align:center;">
+                <!--[if mso]>
+                <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr><td>
+                <![endif]-->
+                <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+                  <tr>
+                    <td style="width:8px; height:26px; background-color:${COR_ACCENT}; font-size:0; line-height:0;">&nbsp;</td>
+                    <td style="width:10px; font-size:0; line-height:0;">&nbsp;</td>
+                    <td style="font-size:22px; font-weight:800; letter-spacing:-0.01em; color:${COR_TEXTO}; white-space:nowrap;">
+                      Gestor<span style="color:${COR_ACCENT};">Pro</span>
+                    </td>
+                  </tr>
+                </table>
+                <!--[if mso]>
+                </td></tr></table>
+                <![endif]-->
               </td>
             </tr>
             <tr>
@@ -118,17 +126,19 @@ export function emailRecuperacaoSenha({
 // são do revendedor pro cliente final dele, que não tem e-mail no sistema
 // hoje, só WhatsApp.
 export function emailComunicado({
-  nome,
   titulo,
   mensagem,
   atualizacao,
 }: {
-  nome: string;
   titulo: string;
   mensagem: string;
   atualizacao: boolean;
 }): { subject: string; html: string } {
-  const primeiroNome = nome.trim().split(" ")[0] || nome;
+  // Sem saudação própria aqui: a mensagem (seja de um dos modelos prontos
+  // em publicar-aviso-form.tsx, seja digitada livre pelo admin) já abre
+  // com "Oi, Nome!" quando faz sentido — igual já é exibida no WhatsApp e
+  // no sininho do app. Adicionar outra aqui duplicava a saudação só no
+  // e-mail ("Oi, Gerson." seguido de "Oi, Gerson! Você sabia...").
   const paragrafos = escaparHtml(mensagem)
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:${COR_TEXTO_DIM};">${p.replace(/\n/g, "<br />")}</p>`)
@@ -138,7 +148,6 @@ export function emailComunicado({
       ${atualizacao ? "Atualização" : "Comunicado"}
     </span>
     <h1 style="margin:0 0 12px; font-size:19px; font-weight:800; color:${COR_TEXTO};">${escaparHtml(titulo)}</h1>
-    <p style="margin:0 0 4px; font-size:14px; color:${COR_TEXTO_DIM};">Oi, ${escaparHtml(primeiroNome)}.</p>
     ${paragrafos}
     <p style="margin:20px 0 0; font-size:12px; line-height:1.6; color:${COR_TEXTO_DIM};">
       Esse aviso também está disponível dentro do app, no sininho de notificações.

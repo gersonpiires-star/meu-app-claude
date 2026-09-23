@@ -259,19 +259,14 @@ export async function publicarAviso(formData: FormData) {
   // já que Cliente não guarda e-mail, só WhatsApp.
   const destinatarios = await prisma.revendedor.findMany({
     where: dados.destinatarioId ? { id: dados.destinatarioId } : { papel: "REVENDEDOR" },
-    select: { nome: true, email: true },
+    select: { email: true },
   });
-  await Promise.allSettled(
-    destinatarios.map((r) => {
-      const { subject, html } = emailComunicado({
-        nome: r.nome,
-        titulo: dados.titulo,
-        mensagem: dados.mensagem,
-        atualizacao: dados.tipo === "ATUALIZACAO",
-      });
-      return enviarEmail({ to: r.email, subject, html });
-    })
-  );
+  const { subject, html } = emailComunicado({
+    titulo: dados.titulo,
+    mensagem: dados.mensagem,
+    atualizacao: dados.tipo === "ATUALIZACAO",
+  });
+  await Promise.allSettled(destinatarios.map((r) => enviarEmail({ to: r.email, subject, html })));
 
   revalidatePath("/admin/comunicados");
   redirect("/admin/comunicados");
