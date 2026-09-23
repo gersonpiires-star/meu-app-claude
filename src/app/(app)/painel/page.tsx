@@ -5,11 +5,19 @@ import { dadosPainel } from "@/lib/dados";
 import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Button, Card, EmptyState } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, StatTile } from "@/components/ui";
+import { DonutChart } from "@/components/charts";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "../clientes/cobrar-botao";
 import { MetaMensalCard } from "./meta-mensal";
+
+const IconCreditos = (
+  <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
+    <path d="M10 2.5l6.5 3.5v8L10 17.5 3.5 14V6L10 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M10 6.5v7M7 8.5l3-2 3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -91,8 +99,8 @@ export default async function PainelPage() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-[1.7fr_1fr_1fr_1fr_1fr]">
-        <Card className="col-span-2 flex flex-col gap-2.5 bg-gradient-to-br from-accent-soft to-surface md:col-span-1">
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.4fr_1fr_0.7fr]">
+        <Card className="glow-card flex flex-col gap-2.5 bg-gradient-to-br from-accent-soft to-surface">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Entrou no mês</span>
             <span className="whitespace-nowrap text-[10px] font-semibold text-text-dim">
@@ -138,31 +146,32 @@ export default async function PainelPage() {
           </div>
         </Card>
 
-        <Link href="/clientes?aba=ativos" className="flex">
-          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
-            <span className="text-xl font-bold text-text">{dados.ativos}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Clientes ativos</span>
-          </Card>
-        </Link>
-        <Link href="/clientes?aba=atencao" className="flex">
-          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center border-warning-border bg-warning-bg hover:brightness-110">
-            <span className="text-xl font-bold text-warning">{dados.vencendo.length}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">Vencendo</span>
-          </Card>
-        </Link>
-        <Link href="/clientes?aba=atencao" className="flex">
-          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
-            <span className="text-xl font-bold text-text">{dados.vencidos.length}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Vencidos</span>
-          </Card>
-        </Link>
+        <Card className="glow-card flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Carteira de clientes</span>
+            <Link href="/clientes" className="text-[11px] font-semibold text-accent hover:brightness-110">
+              Ver todos
+            </Link>
+          </div>
+          <DonutChart
+            centroLabel="Total"
+            centroValor={String(dados.ativos + dados.vencendo.length + dados.vencidos.length)}
+            segmentos={[
+              { label: "Ativos", valor: dados.ativos },
+              { label: "Vencendo", valor: dados.vencendo.length },
+              { label: "Vencidos", valor: dados.vencidos.length },
+            ]}
+          />
+        </Card>
+
         <Link href="/plataformas" className="flex">
-          <Card className="flex flex-1 flex-col items-center justify-center gap-0.5 text-center hover:border-border-strong">
-            <span className={`text-xl font-bold ${dados.creditosBaixos ? "text-danger" : dados.saldoCreditos > 0 ? "text-accent" : "text-text-dim"}`}>
-              {dados.saldoCreditos}
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">Créditos</span>
-          </Card>
+          <StatTile
+            label="Créditos"
+            value={String(dados.saldoCreditos)}
+            sub={dados.creditosBaixos ? "Saldo baixo — repor" : "Saldo disponível"}
+            tone={dados.creditosBaixos ? "danger" : dados.saldoCreditos > 0 ? "accent" : "neutral"}
+            icon={IconCreditos}
+          />
         </Link>
       </div>
 

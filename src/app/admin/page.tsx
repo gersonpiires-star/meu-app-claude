@@ -14,6 +14,25 @@ const MESES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
+const IconMoeda = (
+  <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
+    <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M10 6.5v7M7.8 8.3c0-1 .9-1.8 2.2-1.8s2.2.6 2.2 1.5c0 2-4.4 1-4.4 3 0 .9 1 1.5 2.2 1.5s2.2-.7 2.2-1.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+);
+const IconEscudo = (
+  <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
+    <path d="M10 2.5l6 2.2v4.3c0 4-2.6 6.9-6 8.5-3.4-1.6-6-4.5-6-8.5V4.7l6-2.2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M7.2 10l1.9 1.9L13 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconTendencia = (
+  <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
+    <path d="M3 13.5l4.5-4.5 3 3L17 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.5 5H17v4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default async function AdminPainelPage() {
   await exigirAdmin();
   const [dados, crescimento, sugestoes, ranking] = await Promise.all([
@@ -37,21 +56,22 @@ export default async function AdminPainelPage() {
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Este mês</p>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Receita de assinaturas" value={brl0(dados.receitaMes)} tone="accent" />
+          <StatTile label="Receita de assinaturas" value={brl0(dados.receitaMes)} tone="accent" icon={IconMoeda} />
           <StatTile
             label="Retenção"
             value={`${dados.taxaRetencao.toFixed(0)}%`}
             sub={`${dados.pausadosMes} pausado${dados.pausadosMes === 1 ? "" : "s"} este mês`}
             tone={dados.taxaRetencao >= 90 ? "accent" : dados.taxaRetencao >= 75 ? "warning" : "danger"}
+            icon={IconEscudo}
           />
-          <StatTile label="MRR" value={brl0(mrr)} sub="receita recorrente mensal" tone="accent" />
-          <StatTile label="ARR" value={brl0(arr)} sub="MRR × 12" />
+          <StatTile label="MRR" value={brl0(mrr)} sub="receita recorrente mensal" tone="accent" icon={IconTendencia} />
+          <StatTile label="ARR" value={brl0(arr)} sub="MRR × 12" icon={IconTendencia} />
         </div>
       </div>
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">O que vem por aí</p>
-        <Card className="border-accent-strong bg-accent-soft/20">
+        <Card className="glow-card border-accent-strong bg-accent-soft/20">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">
             Previsto para {MESES[dados.proximoMes.getMonth()]}
           </p>
@@ -280,11 +300,16 @@ export default async function AdminPainelPage() {
             {crescimento.convertidos > 0 ? (
               <div className="mt-3 flex items-end gap-1 border-t border-border pt-3">
                 {crescimento.histogramaDias.map((h) => (
-                  <div key={h.dia} className="flex flex-1 flex-col items-center gap-1">
+                  <div
+                    key={h.dia}
+                    className="flex flex-1 flex-col items-center gap-1"
+                    title={`Dia ${h.dia === 7 ? "7+" : h.dia}: ${h.quantidade} conversão${h.quantidade === 1 ? "" : "ões"}`}
+                  >
                     <div
-                      className="w-full rounded-t bg-accent"
+                      className="w-full rounded-t-full transition-all hover:brightness-125"
                       style={{
                         height: `${Math.max(4, (h.quantidade / Math.max(...crescimento.histogramaDias.map((x) => x.quantidade), 1)) * 40)}px`,
+                        background: "var(--chart-1)",
                       }}
                     />
                     <span className="text-[9px] text-text-dim">{h.dia === 7 ? "7+" : h.dia}</span>
@@ -425,12 +450,21 @@ export default async function AdminPainelPage() {
               </div>
               <div className="mt-3 flex flex-col divide-y divide-border">
                 {crescimento.coorte.map((c) => (
-                  <div key={`${c.ano}-${c.mes}`} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
-                    <span className="text-text-muted">
-                      {MESES[c.mes]}/{c.ano}
+                  <div key={`${c.ano}-${c.mes}`} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                    <span className="w-20 shrink-0 text-text-muted">
+                      {MESES[c.mes].slice(0, 3)}/{c.ano}
                     </span>
-                    <span className="text-xs text-text-dim">
-                      {c.aindaAtivos} de {c.total}
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.max(2, c.retencaoPct)}%`,
+                          background: c.retencaoPct >= 75 ? "var(--chart-1)" : c.retencaoPct >= 50 ? "var(--chart-2)" : "var(--chart-3)",
+                        }}
+                      />
+                    </div>
+                    <span className="w-16 shrink-0 text-right text-xs text-text-dim">
+                      {c.aindaAtivos}/{c.total}
                     </span>
                     <Badge tone={c.retencaoPct >= 75 ? "accent" : c.retencaoPct >= 50 ? "warning" : "danger"}>
                       {c.retencaoPct.toFixed(0)}%
