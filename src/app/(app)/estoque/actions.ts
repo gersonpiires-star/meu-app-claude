@@ -42,6 +42,7 @@ export async function criarProduto(formData: FormData) {
 const reporSchema = z.object({
   quantidade: z.coerce.number().int().min(1, "Informe a quantidade"),
   custoUnitario: z.coerce.number().min(0),
+  fornecedor: z.string().trim().optional(),
 });
 
 export async function reporEstoque(produtoId: string, formData: FormData) {
@@ -58,6 +59,36 @@ export async function reporEstoque(produtoId: string, formData: FormData) {
       tipo: "ENTRADA",
       quantidade: dados.quantidade,
       custoUnitario: dados.custoUnitario,
+      fornecedor: dados.fornecedor || null,
+    },
+  });
+
+  revalidatePath("/estoque");
+  revalidatePath("/painel");
+}
+
+const registrarEntradaSchema = reporSchema.extend({
+  produtoId: z.string().min(1, "Selecione um produto"),
+});
+
+// Mesma coisa que reporEstoque, só que pro card "Registrar entrada" do
+// Estoque — onde o produto é escolhido num <select> dentro do próprio
+// formulário, em vez de já vir preso a um botão por produto.
+export async function registrarEntrada(formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = registrarEntradaSchema.parse(Object.fromEntries(formData));
+
+  const produto = await prisma.produto.findUniqueOrThrow({
+    where: { id: dados.produtoId, revendedorId: revendedor.id },
+  });
+
+  await prisma.movimentoEstoque.create({
+    data: {
+      produtoId: produto.id,
+      tipo: "ENTRADA",
+      quantidade: dados.quantidade,
+      custoUnitario: dados.custoUnitario,
+      fornecedor: dados.fornecedor || null,
     },
   });
 

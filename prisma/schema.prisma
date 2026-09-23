@@ -347,6 +347,7 @@ model Plataforma {
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   nome         String
+  url          String?
   minimo       Int    @default(0)
   criadoEm     DateTime @default(now())
 
@@ -507,6 +508,7 @@ model MovimentoEstoque {
   tipo          TipoMovimentoEstoque
   quantidade    Int
   custoUnitario Float
+  fornecedor    String?
   data          DateTime @default(now())
 
   @@index([produtoId])

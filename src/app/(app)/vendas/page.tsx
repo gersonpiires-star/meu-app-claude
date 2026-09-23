@@ -7,6 +7,7 @@ import { linkWhatsApp } from "@/lib/mensagens";
 import { Button, Card, EmptyState, StatTile } from "@/components/ui";
 import { CompartilharRecibo } from "@/components/compartilhar-recibo";
 import { BaixarRecibo, BaixarReciboLink } from "@/components/baixar-recibo";
+import { IconSacola, IconCaixa } from "@/components/nav-icons";
 import { vincularClienteVenda } from "./actions";
 import { VincularCliente } from "./vincular-cliente";
 
@@ -98,8 +99,19 @@ export default async function VendasPage({
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <StatTile label="Total vendido" value={brl(totalVendidoMes)} tone="accent" sub="neste mês" />
-        <StatTile label="Produtos vendidos" value={String(vendasNesteMes.reduce((a, v) => a + v.quantidade, 0))} sub="neste mês" />
+        <StatTile
+          label="Total vendido"
+          value={brl(totalVendidoMes)}
+          tone="money"
+          sub="neste mês"
+          icon={<IconSacola className="h-3.5 w-3.5" />}
+        />
+        <StatTile
+          label="Produtos vendidos"
+          value={String(vendasNesteMes.reduce((a, v) => a + v.quantidade, 0))}
+          sub="neste mês"
+          icon={<IconCaixa className="h-3.5 w-3.5" />}
+        />
       </div>
 
       {vendas.length === 0 ? (

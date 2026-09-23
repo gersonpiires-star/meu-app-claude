@@ -26,6 +26,9 @@ export function NovaPlataformaForm() {
       <Field label="Nome do fornecedor">
         <Input name="nome" placeholder="Ex: Fornecedor A" required autoFocus />
       </Field>
+      <Field label="Link do painel (opcional)">
+        <Input name="url" type="url" placeholder="https://painel.exemplo.com" />
+      </Field>
       <Field label="Avisar abaixo de">
         <Input type="number" name="minimo" min={0} defaultValue={5} />
       </Field>

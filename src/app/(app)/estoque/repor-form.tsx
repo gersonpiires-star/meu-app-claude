@@ -17,7 +17,7 @@ export function ReporForm({ acao }: { acao: (formData: FormData) => Promise<void
 
   return (
     <form
-      className="flex items-center gap-2"
+      className="flex flex-wrap items-center gap-2"
       action={(formData) =>
         iniciarTransicao(async () => {
           await acao(formData);
@@ -35,6 +35,7 @@ export function ReporForm({ acao }: { acao: (formData: FormData) => Promise<void
         required
         className="w-28"
       />
+      <Input name="fornecedor" placeholder="Fornecedor (opcional)" className="w-40" />
       <Button type="submit" disabled={pendente} className="whitespace-nowrap">
         {pendente ? "…" : "Adicionar"}
       </Button>

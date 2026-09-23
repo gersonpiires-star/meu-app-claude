@@ -1,16 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, type ButtonVariant } from "@/components/ui";
 
-export function LoteForm({ acao }: { acao: (formData: FormData) => Promise<void> }) {
+export function LoteForm({
+  acao,
+  label = "+ Lote",
+  variant = "ghost",
+  className,
+}: {
+  acao: (formData: FormData) => Promise<void>;
+  label?: string;
+  variant?: ButtonVariant;
+  className?: string;
+}) {
   const [aberto, setAberto] = useState(false);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
     return (
-      <Button variant="ghost" onClick={() => setAberto(true)}>
-        + Lote
+      <Button variant={variant} className={className} onClick={() => setAberto(true)}>
+        {label}
       </Button>
     );
   }

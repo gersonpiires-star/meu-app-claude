@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
-import { PLANO_MESES } from "@/lib/planos";
+import { PLANO_MESES, PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   const agora = new Date();
@@ -123,4 +123,102 @@ export async function proximoMes(revendedorId: string) {
     quantidade: vencendo.length,
     previsto,
   };
+}
+
+// Visão geral por período (30 dias/6 meses/12 meses) — resumo de negócio pra
+// comparar o momento atual com o passado, sem precisar navegar mês a mês.
+// "30 dias" aqui é aproximado pelo último 1 mês corrido (mesma granularidade
+// mensal de ultimosMeses), não uma janela rolante dia a dia.
+export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
+  const agora = new Date();
+  const { ano, mes } = diaCivilBr(agora);
+  const inicioPeriodo = brMidnightUTC(ano, mes - (meses - 1), 1);
+  const fimPeriodo = brMidnightUTC(ano, mes + 1, 1);
+
+  const [porMes, clientesNovos, naoRenovaram, clientesAtivos] = await Promise.all([
+    ultimosMeses(revendedorId, meses),
+    prisma.cliente.count({ where: { revendedorId, criadoEm: { gte: inicioPeriodo, lt: fimPeriodo } } }),
+    prisma.cliente.count({
+      where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicioPeriodo, lt: fimPeriodo } },
+    }),
+    prisma.cliente.findMany({
+      where: { revendedorId, status: { not: "CANCELADO" } },
+      select: { vencimento: true },
+    }),
+  ]);
+
+  const receita = porMes.reduce((a, m) => a + m.receita, 0);
+  const custo = porMes.reduce((a, m) => a + m.custo, 0);
+  const lucro = receita - custo;
+  const margem = receita > 0 ? (lucro / receita) * 100 : 0;
+  const primeiraMetade = porMes.slice(0, Math.max(1, Math.floor(porMes.length / 2))).reduce((a, m) => a + m.receita, 0);
+  const segundaMetade = porMes.slice(Math.floor(porMes.length / 2)).reduce((a, m) => a + m.receita, 0);
+  const variacaoPct = primeiraMetade > 0 ? ((segundaMetade - primeiraMetade) / primeiraMetade) * 100 : 0;
+
+  let vencidos = 0;
+  let vencendo = 0;
+  for (const c of clientesAtivos) {
+    const faixa = faixaVencimento(c.vencimento);
+    if (faixa === "VENCIDO") vencidos += 1;
+    else if (faixa === "ATE_5_DIAS") vencendo += 1;
+  }
+  const ativos = clientesAtivos.length;
+  const emDia = Math.max(0, ativos - vencidos - vencendo);
+  const totalCarteira = ativos + naoRenovaram;
+  // Retenção aqui é "da carteira atual, quantos estão em dia" (emDia/ativos)
+  // — não envolve quem já cancelou, esse é o papel de taxaPerdaPct abaixo.
+  const retencaoPct = ativos > 0 ? (emDia / ativos) * 100 : 0;
+
+  return {
+    porMes,
+    receita,
+    lucro,
+    margem,
+    variacaoPct,
+    clientesNovos,
+    naoRenovaram,
+    taxaPerdaPct: totalCarteira > 0 ? (naoRenovaram / totalCarteira) * 100 : 0,
+    ativos,
+    emDia,
+    vencendo,
+    vencidos,
+    retencaoPct,
+  };
+}
+
+// Agrupa renovações (por plano) e vendas (por produto) do período — pra
+// tabela "O que mais vende", ranqueada por receita.
+export async function oQueMaisVendeNoPeriodo(revendedorId: string, meses: number) {
+  const agora = new Date();
+  const { ano, mes } = diaCivilBr(agora);
+  const inicio = brMidnightUTC(ano, mes - (meses - 1), 1);
+  const fim = brMidnightUTC(ano, mes + 1, 1);
+
+  const [renovacoes, vendas] = await Promise.all([
+    prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+    prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } }, include: { produto: true } }),
+  ]);
+
+  const grupos = new Map<string, { nome: string; vendas: number; receita: number; lucro: number }>();
+  for (const r of renovacoes) {
+    const chave = `plano-${r.plano}`;
+    const nome = `Renovação ${PLANO_LABEL[r.plano]}`;
+    const atual = grupos.get(chave) ?? { nome, vendas: 0, receita: 0, lucro: 0 };
+    atual.vendas += 1;
+    atual.receita += r.valor;
+    atual.lucro += r.valor - r.custo;
+    grupos.set(chave, atual);
+  }
+  for (const v of vendas) {
+    const chave = `produto-${v.produtoId}`;
+    const bruto = v.quantidade * v.valorUnitario;
+    const taxa = bruto * (v.taxaPercentual / 100);
+    const atual = grupos.get(chave) ?? { nome: v.produto.modelo, vendas: 0, receita: 0, lucro: 0 };
+    atual.vendas += v.quantidade;
+    atual.receita += bruto;
+    atual.lucro += bruto - taxa - v.quantidade * v.custoUnitario;
+    grupos.set(chave, atual);
+  }
+
+  return [...grupos.values()].sort((a, b) => b.receita - a.receita);
 }

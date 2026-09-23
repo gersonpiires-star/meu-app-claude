@@ -60,7 +60,7 @@ export function Field({
 }
 
 const inputStyles =
-  "w-full rounded-xl border border-border-strong bg-bg-deep px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim outline-none transition focus:border-accent focus:ring-1 focus:ring-accent";
+  "w-full rounded-xl border border-border-strong bg-field px-3.5 py-2.5 text-sm text-text placeholder:text-text-dim outline-none transition focus:border-accent focus:ring-1 focus:ring-accent";
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   const { className, ...rest } = props;
@@ -139,13 +139,13 @@ export function StatTile({
   label: string;
   value: string;
   sub?: string;
-  tone?: "neutral" | "accent" | "danger" | "warning";
+  tone?: "neutral" | "accent" | "danger" | "warning" | "money";
   icon?: ReactNode;
 }) {
   const valueTone =
-    tone === "accent" ? "text-accent" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-text";
+    tone === "accent" ? "text-accent" : tone === "money" ? "text-money" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-text";
   const iconTone =
-    tone === "accent" ? "bg-accent-soft text-accent" : tone === "danger" ? "bg-danger-bg text-danger" : tone === "warning" ? "bg-warning-bg text-warning" : "bg-surface-2 text-text-dim";
+    tone === "accent" ? "bg-accent-soft text-accent" : tone === "money" ? "bg-money-bg text-money" : tone === "danger" ? "bg-danger-bg text-danger" : tone === "warning" ? "bg-warning-bg text-warning" : "bg-surface-2 text-text-dim";
   return (
     <Card className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">

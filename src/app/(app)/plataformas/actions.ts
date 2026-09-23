@@ -10,6 +10,7 @@ import { dataCurta } from "@/lib/format";
 const plataformaSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome do fornecedor"),
   minimo: z.coerce.number().int().min(0).default(0),
+  url: z.string().trim().optional(),
 });
 
 export async function criarPlataforma(formData: FormData) {
@@ -17,7 +18,19 @@ export async function criarPlataforma(formData: FormData) {
   const dados = plataformaSchema.parse(Object.fromEntries(formData));
 
   await prisma.plataforma.create({
-    data: { revendedorId: revendedor.id, nome: dados.nome, minimo: dados.minimo },
+    data: { revendedorId: revendedor.id, nome: dados.nome, minimo: dados.minimo, url: dados.url || null },
+  });
+
+  revalidatePath("/plataformas");
+}
+
+export async function editarPlataforma(id: string, formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  const dados = plataformaSchema.parse(Object.fromEntries(formData));
+
+  await prisma.plataforma.update({
+    where: { id, revendedorId: revendedor.id },
+    data: { nome: dados.nome, minimo: dados.minimo, url: dados.url || null },
   });
 
   revalidatePath("/plataformas");
