@@ -6,136 +6,124 @@ import { usePathname } from "next/navigation";
 import { SairButton } from "@/components/sair-button";
 import { LogoMark } from "@/components/logo-mark";
 import { cx } from "@/components/ui";
-import { IconPainel, IconPessoas, IconTag, IconPessoaMais, IconPontos } from "@/components/nav-icons";
+import {
+  IconPainel,
+  IconPessoas,
+  IconTag,
+  IconPessoaMais,
+  IconMegafone,
+  IconLampada,
+  IconPontos,
+} from "@/components/nav-icons";
+import { iniciais } from "@/lib/format";
 
 const ITENS = [
   { href: "/admin", label: "Painel", icone: IconPainel },
-  {
-    href: "/admin/assinantes",
-    label: "Assinantes",
-    icone: IconPessoas,
-    sub: [
-      { aba: "assinantes", label: "Ativos" },
-      { aba: "trial", label: "Em trial" },
-      { aba: "pausados", label: "Pausados" },
-      { aba: "cancelados", label: "Cancelados" },
-      { aba: "todos", label: "Todos" },
-    ],
-  },
+  { href: "/admin/assinantes", label: "Assinantes", icone: IconPessoas },
   { href: "/admin/cupons", label: "Cupons", icone: IconTag },
   { href: "/admin/interessados", label: "Interessados", icone: IconPessoaMais },
-  { href: "/admin/comunicados", label: "Comunicados" },
-  { href: "/admin/sugestoes", label: "Sugestões" },
 ];
 
-// Na barra inferior do celular só cabem uns 4 ícones direitinho — o resto
-// (Comunicados, Sugestões) fica atrás do botão "Mais".
-const ITENS_BARRA = ITENS.slice(0, 4);
-const ITENS_MAIS = ITENS.slice(4);
+const ITENS_GESTAO = [
+  { href: "/admin/comunicados", label: "Comunicados", icone: IconMegafone },
+  { href: "/admin/sugestoes", label: "Sugestões", icone: IconLampada },
+];
 
-function ChevronIcon({ aberto }: { aberto: boolean }) {
+// Na barra inferior do celular só cabem os 4 itens principais — o resto
+// (Comunicados, Sugestões) fica atrás do "Mais".
+const MOBILE_MAIS_ITENS = ITENS_GESTAO;
+
+function GrupoNav({ titulo, children }: { titulo?: string; children: React.ReactNode }) {
   return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      className={cx("h-3.5 w-3.5 shrink-0 transition-transform", aberto ? "rotate-180" : "")}
+    <div className="flex flex-col gap-1">
+      {titulo ? (
+        <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-dim">{titulo}</span>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+function ItemNav({
+  href,
+  label,
+  Icone,
+  ativo,
+  pequeno = false,
+}: {
+  href: string;
+  label: string;
+  Icone: (props: React.SVGProps<SVGSVGElement>) => React.ReactNode;
+  ativo: boolean;
+  pequeno?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={ativo ? "page" : undefined}
+      className={cx(
+        "flex items-center gap-3 rounded-lg px-3 font-medium transition",
+        pequeno ? "py-2 text-sm" : "py-2.5 text-[15px]",
+        ativo
+          ? "bg-accent-soft font-semibold text-text"
+          : pequeno
+            ? "text-text-dim hover:bg-surface-2 hover:text-text"
+            : "text-text-muted hover:bg-surface-2 hover:text-text"
+      )}
     >
-      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+      <Icone className={cx(pequeno ? "h-[18px] w-[18px]" : "h-5 w-5", ativo && "text-accent")} />
+      {label}
+    </Link>
   );
 }
 
 export function NavShellAdmin({ nome, children }: { nome: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const [expandido, setExpandido] = useState<string | null>(
-    ITENS.find((item) => item.sub && pathname === item.href)?.href ?? null
-  );
   const [maisAberto, setMaisAberto] = useState(false);
-  const estaEmItemDoMais = ITENS_MAIS.some((item) => pathname === item.href);
+  const estaEmItemDoMais = MOBILE_MAIS_ITENS.some((item) => pathname === item.href);
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface p-4 md:flex">
-        <div className="mb-6 flex items-center gap-2 px-1">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:flex">
+        <div className="flex items-center gap-2.5 px-1">
           <LogoMark className="h-8 w-8" />
           <div>
-            <span className="block text-sm font-bold">GestorPro</span>
+            <span className="block text-base font-bold tracking-tight">GestorPro</span>
             <span className="block text-[10px] uppercase tracking-wider text-text-dim">Administrador</span>
           </div>
         </div>
-        <nav className="flex flex-1 flex-col gap-1">
-          {ITENS.map((item) => {
-            const ativo = pathname === item.href;
-            const estaAberto = item.sub ? expandido === item.href || ativo : false;
 
-            if (!item.sub) {
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cx(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition",
-                    ativo ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            }
+        <GrupoNav titulo="Gestão">
+          {ITENS.map((item) => (
+            <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname === item.href} />
+          ))}
+          {ITENS_GESTAO.map((item) => (
+            <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname === item.href} />
+          ))}
+        </GrupoNav>
 
-            return (
-              <div key={item.href}>
-                <div
-                  className={cx(
-                    "flex items-center gap-1 rounded-lg pr-2 text-sm font-medium transition",
-                    ativo ? "bg-accent-soft text-accent" : "text-text-muted hover:bg-surface-2 hover:text-text"
-                  )}
-                >
-                  <Link href={item.href} className="flex-1 px-3 py-2">
-                    {item.label}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setExpandido(estaAberto ? null : item.href)}
-                    aria-label={estaAberto ? `Recolher ${item.label}` : `Expandir ${item.label}`}
-                    className="p-1"
-                  >
-                    <ChevronIcon aberto={estaAberto} />
-                  </button>
-                </div>
-                {estaAberto ? (
-                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
-                    {item.sub.map((s) => (
-                      <Link
-                        key={s.aba}
-                        href={`${item.href}?aba=${s.aba}`}
-                        className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-dim transition hover:text-text"
-                      >
-                        {s.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </nav>
-        <Link
-          href="/painel"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-surface-2"
-        >
-          Minha operação (revenda)
-        </Link>
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-          <span className="truncate text-xs text-text-dim">{nome}</span>
+        <div className="flex-1" />
+
+        <GrupoNav>
+          <ItemNav href="/painel" label="Minha operação (revenda)" Icone={IconPainel} ativo={false} pequeno />
+        </GrupoNav>
+
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+            {iniciais(nome)}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text">{nome}</span>
           <SairButton />
         </div>
       </aside>
 
       <div className="flex flex-1 flex-col md:pb-0">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:hidden">
-          <span className="text-sm font-bold">GestorPro · Admin</span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <LogoMark className="h-7 w-7" />
+            <span className="text-sm font-bold">GestorPro · Admin</span>
+          </div>
+          <div className="flex items-center gap-2">
             <Link href="/painel" className="text-xs font-semibold text-accent">
               Minha revenda
             </Link>
@@ -143,64 +131,34 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
+        {/* pb-24 no mobile — sem isso, o conteúdo rolava até embaixo da barra
+        inferior sticky e os últimos itens de listas ficavam parcialmente
+        cobertos pelos botões da barra. */}
+        <main className="flex-1 px-4 pb-24 pt-5 md:p-8">{children}</main>
 
         <nav className="sticky inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
-          {/* Backdrop invisível pra fechar o "Mais" ao tocar fora — precisa
-          que os ícones/botão da barra sejam `relative` (não só `z-20`
-          isolado), senão um irmão sem position fica sempre atrás de
-          qualquer elemento posicionado, mesmo com z-index maior, e o
-          próprio toque na barra fecharia o menu em vez de navegar. */}
-          {maisAberto ? (
-            <button
-              type="button"
-              aria-label="Fechar menu"
-              onClick={() => setMaisAberto(false)}
-              className="fixed inset-0 z-10"
-            />
-          ) : null}
-
-          {maisAberto ? (
-            <div className="absolute inset-x-3 bottom-full z-20 mb-2 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg">
-              {ITENS_MAIS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMaisAberto(false)}
-                  className={cx(
-                    "border-b border-border px-4 py-3 text-sm font-medium last:border-b-0",
-                    pathname === item.href ? "text-accent" : "text-text-muted"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          ) : null}
-
-          {ITENS_BARRA.map((item) => {
-            const Icone = item.icone!;
+          {ITENS.map((item) => {
             const ativo = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  "relative z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
                   ativo ? "text-accent" : "text-text-dim"
                 )}
               >
-                <Icone className="h-5 w-5" />
+                <item.icone className="h-5 w-5" />
                 {item.label}
               </Link>
             );
           })}
           <button
             type="button"
-            onClick={() => setMaisAberto((v) => !v)}
-            aria-expanded={maisAberto}
+            onClick={() => setMaisAberto(true)}
+            aria-label="Mais opções"
             className={cx(
-              "relative z-20 flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
               maisAberto || estaEmItemDoMais ? "text-accent" : "text-text-dim"
             )}
           >
@@ -208,6 +166,50 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
             Mais
           </button>
         </nav>
+
+        {maisAberto ? (
+          <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={() => setMaisAberto(false)}>
+            <div
+              className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border-strong bg-surface p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-strong" />
+              <div className="grid grid-cols-4 gap-y-4">
+                {MOBILE_MAIS_ITENS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMaisAberto(false)}
+                    className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-text-muted"
+                  >
+                    <span
+                      className={cx(
+                        "flex h-11 w-11 items-center justify-center rounded-xl",
+                        pathname === item.href ? "bg-accent-soft text-accent" : "bg-surface-2 text-text-dim"
+                      )}
+                    >
+                      <item.icone className="h-5 w-5" />
+                    </span>
+                    {item.label}
+                  </Link>
+                ))}
+                <Link
+                  href="/painel"
+                  onClick={() => setMaisAberto(false)}
+                  className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-accent"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2">
+                    <IconPainel className="h-5 w-5" />
+                  </span>
+                  Minha revenda
+                </Link>
+              </div>
+              <div className="mt-5 flex justify-center border-t border-border pt-4">
+                <SairButton className="text-sm font-semibold text-danger" />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

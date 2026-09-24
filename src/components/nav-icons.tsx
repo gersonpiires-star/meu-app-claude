@@ -149,3 +149,21 @@ export function IconEscudo(props: SVGProps<SVGSVGElement>) {
     </Base>
   );
 }
+
+export function IconMegafone(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M3 10v4a1.5 1.5 0 0 0 1.5 1.5H6l3.5 4.5v-15L6 8.5H4.5A1.5 1.5 0 0 0 3 10Z" />
+      <path d="M13 8.5c3-1 6-1 8-.5M13 15.5c3 1 6 1 8 .5" />
+    </Base>
+  );
+}
+
+export function IconLampada(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Base {...props}>
+      <path d="M9 18h6M10 21h4" />
+      <path d="M12 3a6.5 6.5 0 0 0-3.5 12c.6.4 1 1 1 1.8V17h5v-.2c0-.8.4-1.4 1-1.8A6.5 6.5 0 0 0 12 3Z" />
+    </Base>
+  );
+}
