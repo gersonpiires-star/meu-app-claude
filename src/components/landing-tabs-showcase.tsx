@@ -4,14 +4,14 @@ import { useState } from "react";
 import { cx } from "@/components/ui";
 
 const TABS = [
-  { id: "clientes", label: "Clientes", img: "/landing-shot-clientes.png", alt: "Lista de clientes do GestorPro, com vencimento e status de cada um" },
-  { id: "relatorio", label: "Relatório", img: "/landing-shot-relatorio.png", alt: "Relatório financeiro do mês no GestorPro, com entradas, custos e lucro" },
-  { id: "vendas", label: "Vendas", img: "/landing-shot-vendas.png", alt: "Tela de vendas de aparelhos do GestorPro" },
   { id: "painel", label: "Painel", img: "/landing-shot-painel.png", alt: "Painel com as métricas do mês no GestorPro" },
+  { id: "clientes", label: "Clientes", img: "/landing-shot-clientes.png", alt: "Lista de clientes do GestorPro, com vencimento e status de cada um" },
+  { id: "vendas", label: "Vendas", img: "/landing-shot-vendas.png", alt: "Tela de vendas de aparelhos do GestorPro" },
+  { id: "relatorio", label: "Relatório", img: "/landing-shot-relatorio.png", alt: "Relatório financeiro do mês no GestorPro, com entradas, custos e lucro" },
 ] as const;
 
 export function LandingTabsShowcase() {
-  const [ativo, setAtivo] = useState<(typeof TABS)[number]["id"]>("clientes");
+  const [ativo, setAtivo] = useState<(typeof TABS)[number]["id"]>("painel");
   const tab = TABS.find((t) => t.id === ativo)!;
 
   return (
