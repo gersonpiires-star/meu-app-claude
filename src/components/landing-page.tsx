@@ -66,9 +66,9 @@ const PLANO_CHECKLIST = [
 ];
 
 const FILA_PREVIEW = [
-  { iniciais: "EV", nome: "Evandro Xuxu", dias: "21 dias vencido" },
-  { iniciais: "FT", nome: "Fê Tlug", dias: "21 dias vencido" },
-  { iniciais: "GN", nome: "Gilson Nevez", dias: "19 dias vencido" },
+  { iniciais: "LA", nome: "Lucas Andrade", dias: "22 dias vencido" },
+  { iniciais: "CD", nome: "Camila Duarte", dias: "22 dias vencido" },
+  { iniciais: "RT", nome: "Rafael Teixeira", dias: "19 dias vencido" },
 ];
 
 const FAQ = [
@@ -154,7 +154,7 @@ export function LandingPage() {
           />
 
           <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-14 md:pb-24 md:pt-20">
-            <div className="grid items-center gap-12 md:grid-cols-2">
+            <div className="grid items-center gap-12 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
               <div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-accent-strong bg-accent-soft px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-accent">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -198,7 +198,7 @@ export function LandingPage() {
               </div>
 
               <div className="relative flex justify-center pb-8 pr-4 sm:pb-10 sm:pr-8">
-                <div className="absolute h-72 w-72 rounded-full bg-accent/20 blur-3xl" aria-hidden="true" />
+                <div className="absolute h-80 w-80 rounded-full bg-accent/20 blur-3xl sm:h-96 sm:w-96" aria-hidden="true" />
 
                 {/* Cartão flutuante estilo notificação — sugere uma cobrança
                     resolvida sozinha, reforça a mensagem do produto sem
@@ -210,12 +210,12 @@ export function LandingPage() {
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-bg-deep">
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="text-xs font-semibold text-text">Ana renovou · R$ 28</span>
+                  <span className="text-xs font-semibold text-text">Beatriz renovou · R$ 28</span>
                 </div>
 
                 {/* Notebook: tela com moldura grossa sobre uma base (deck do teclado)
                     nitidamente mais larga e clara que a tela, como um notebook aberto. */}
-                <div className="relative w-full max-w-[440px] pb-3">
+                <div className="relative w-full max-w-[560px] pb-3">
                   <div className="relative rounded-t-xl border-[10px] border-b-0 border-surface-2 bg-bg-deep shadow-2xl">
                     <span className="absolute left-1/2 top-[-5px] h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-bg" aria-hidden="true" />
                     <div className="overflow-hidden">
@@ -232,7 +232,7 @@ export function LandingPage() {
                 </div>
 
                 {/* Celular sobreposto no canto, sugerindo o mesmo painel também no bolso */}
-                <div className="absolute -bottom-6 -right-1 w-[92px] overflow-hidden rounded-[18px] border-[4px] border-surface-2 bg-bg-deep shadow-2xl sm:-right-3 sm:w-[112px]">
+                <div className="absolute -bottom-8 -right-2 w-[112px] overflow-hidden rounded-[20px] border-[4px] border-surface-2 bg-bg-deep shadow-2xl sm:-right-4 sm:w-[138px]">
                   <div className="absolute left-1/2 top-0 z-10 h-2.5 w-11 -translate-x-1/2 rounded-b-md bg-surface-2" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/landing-preview.png" alt="Painel do GestorPro no celular" className="block w-full" />
@@ -315,11 +315,11 @@ export function LandingPage() {
                 </p>
                 <div className="mt-4 rounded-xl border border-border-strong bg-bg-deep p-3">
                   <div className="rounded-lg bg-accent-soft px-3 py-2 text-xs leading-relaxed text-text">
-                    Oi Evandro! Seu plano Mensal vence em 02/09. Pra renovar, é só fazer o Pix de R$ 60,00 e me
+                    Oi Lucas! Seu plano Mensal vence em 02/09. Pra renovar, é só fazer o Pix de R$ 60,00 e me
                     mandar o comprovante. Obrigado!
                   </div>
                   <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-[11px] font-semibold text-accent">
-                    <CheckIcon className="h-3 w-3" /> Cobrança enviada para Evandro
+                    <CheckIcon className="h-3 w-3" /> Cobrança enviada para Lucas
                   </div>
                 </div>
               </div>
