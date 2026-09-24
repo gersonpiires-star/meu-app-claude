@@ -111,10 +111,8 @@ export default async function AdminPainelPage() {
             <span className="text-text-dim">
               Taxa MP <strong className="text-danger">− {brl0(dados.taxaMpMes)}</strong>
             </span>
-            <span className="text-text-dim">
-              Líquido <strong className="text-money">{brl0(dados.receitaMes)}</strong>
-            </span>
           </div>
+          <p className="text-xs text-text-dim">Valor acima já é líquido (descontada a taxa do Mercado Pago).</p>
         </div>
         <div className="flex items-center border-t border-border bg-surface-2 p-5 xl:border-l xl:border-t-0">
           <MetaPlataformaCard meta={admin.metaReceitaPlataforma} receitaAtual={dados.receitaMes} diasRestantes={serie.diasRestantes} />
