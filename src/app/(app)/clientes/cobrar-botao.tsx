@@ -17,7 +17,7 @@ export function CobrarBotao({
 }) {
   if (cobradoEm) {
     return (
-      <Button variant="outline" disabled className={cx("w-full whitespace-nowrap", className)}>
+      <Button variant="outline" disabled className={cx("whitespace-nowrap", className)}>
         ✓ {horaCurta(cobradoEm)}
       </Button>
     );

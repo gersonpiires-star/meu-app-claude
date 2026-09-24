@@ -23,7 +23,7 @@ export function RenovarBotao({
 
   if (feito) {
     return (
-      <Button variant="ghost" className={cx("w-full whitespace-nowrap", className)} disabled>
+      <Button variant="ghost" className={cx("whitespace-nowrap", className)} disabled>
         {labelFeito}
       </Button>
     );
