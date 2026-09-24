@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dadosAdmin, dadosCrescimento, receitaMensalAdmin } from "@/lib/dados-admin";
+import { dadosAdmin, dadosCrescimento, receitaMensalAdmin, serieReceitaMesAdmin } from "@/lib/dados-admin";
 import { rankingIndicacao } from "@/lib/indicacao";
 import { limitesDoMes } from "@/lib/dados";
-import { brl0, dataCurta } from "@/lib/format";
+import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Button, Card, StatTile } from "@/components/ui";
+import { Badge, Button, Card, Sparkline, StatTile, TrendChip } from "@/components/ui";
 import { ReceitaPorMes } from "@/app/(app)/relatorio/receita-por-mes";
 import { MarcarSugestaoLidaBotao } from "./marcar-sugestao-lida-botao";
 import { EnviarCreditosForm } from "./enviar-creditos-form";
 import { PublicarAvisoRapidoForm } from "./publicar-aviso-rapido-form";
+import { MetaPlataformaCard } from "./meta-plataforma";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 
@@ -50,9 +51,11 @@ const IconTendencia = (
 );
 
 export default async function AdminPainelPage() {
-  await exigirAdmin();
+  const admin = await exigirAdmin();
   const { inicio, fim } = limitesDoMes();
-  const [dados, crescimento, sugestoes, ranking, contas, creditosMes, receitaPorMes] = await Promise.all([
+  const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
+  const [dados, crescimento, sugestoes, ranking, contas, creditosMes, receitaPorMes, serie] = await Promise.all([
     dadosAdmin(),
     dadosCrescimento(),
     prisma.sugestao.findMany({
@@ -72,6 +75,7 @@ export default async function AdminPainelPage() {
       _sum: { quantidade: true },
     }),
     receitaMensalAdmin(6),
+    serieReceitaMesAdmin(agora),
   ]);
   const mrr = dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
   const arr = mrr * 12;
@@ -80,10 +84,46 @@ export default async function AdminPainelPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold text-text">Painel do administrador</h1>
 
+      <section aria-label="Resultado do mês" className="glow-card grid overflow-hidden rounded-2xl border bg-surface xl:grid-cols-[1fr_360px]">
+        <div className="flex min-w-0 flex-col gap-3 p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-text-muted">Entrou em {MESES[agoraCivil.mes]}</span>
+            {serie.variacaoPct != null ? <TrendChip pct={serie.variacaoPct} sufixo={`vs ${MESES[serie.mesAnteriorIdx]}`} /> : null}
+          </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-6">
+            <p className="whitespace-nowrap text-4xl font-bold tracking-tight text-text md:text-5xl">
+              <span className="text-lg font-semibold text-text-dim md:text-xl">R$ </span>
+              {dados.receitaMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            {serie.acumulado.length >= 2 && dados.receitaMes > 0 ? (
+              <div className="min-w-0 flex-1 pb-1">
+                <Sparkline valores={serie.acumulado} width={460} height={60} className="h-[60px] w-full" />
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span className="text-text-dim">
+              Pagamentos <strong className="text-text">{dados.pagamentosMes}</strong>
+            </span>
+            <span className="text-text-dim">
+              Receita bruta <strong className="text-money">{brl0(dados.receitaBrutaMes)}</strong>
+            </span>
+            <span className="text-text-dim">
+              Taxa MP <strong className="text-danger">− {brl0(dados.taxaMpMes)}</strong>
+            </span>
+            <span className="text-text-dim">
+              Líquido <strong className="text-money">{brl0(dados.receitaMes)}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center border-t border-border bg-surface-2 p-5 xl:border-l xl:border-t-0">
+          <MetaPlataformaCard meta={admin.metaReceitaPlataforma} receitaAtual={dados.receitaMes} diasRestantes={serie.diasRestantes} />
+        </div>
+      </section>
+
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Este mês</p>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Receita de assinaturas" value={brl0(dados.receitaMes)} tone="accent" icon={IconMoeda} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <StatTile
             label="Retenção"
             value={`${dados.taxaRetencao.toFixed(0)}%`}

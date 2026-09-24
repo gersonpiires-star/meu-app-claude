@@ -278,6 +278,13 @@ export async function excluirAviso(id: string) {
   revalidatePath("/admin/comunicados");
 }
 
+export async function definirMetaPlataforma(valor: number) {
+  const admin = await exigirAdmin();
+  const valorSeguro = Number.isFinite(valor) && valor > 0 ? valor : null;
+  await prisma.revendedor.update({ where: { id: admin.id }, data: { metaReceitaPlataforma: valorSeguro } });
+  revalidatePath("/admin");
+}
+
 export async function marcarSugestaoLida(id: string) {
   await exigirAdmin();
   await prisma.sugestao.update({ where: { id }, data: { lida: true } });

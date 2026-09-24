@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
-import { diaCivilBr } from "@/lib/format";
+import { diaCivilBr, brMidnightUTC } from "@/lib/format";
 
 export async function dadosAdmin() {
   const agora = new Date();
@@ -33,7 +33,8 @@ export async function dadosAdmin() {
     prisma.interessado.count({ where: { convertido: false } }),
     prisma.pagamento.aggregate({
       where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
-      _sum: { valorLiquido: true },
+      _sum: { valorLiquido: true, valor: true },
+      _count: true,
     }),
     prisma.revendedor.count({
       where: { papel: "REVENDEDOR", statusAssinatura: "PAUSADO", pausadoEm: { gte: inicio, lt: fim } },
@@ -106,6 +107,9 @@ export async function dadosAdmin() {
   const pagamentosRecusados = [...pagamentosRecusadosPorRevendedor.values()];
 
   const receitaMes = receitaAgg._sum.valorLiquido ?? 0;
+  const receitaBrutaMes = receitaAgg._sum.valor ?? 0;
+  const taxaMpMes = receitaBrutaMes - receitaMes;
+  const pagamentosMes = receitaAgg._count;
   const baseRetencao = ativos + pausadosMes;
   const taxaRetencao = baseRetencao > 0 ? (ativos / baseRetencao) * 100 : 100;
 
@@ -151,6 +155,9 @@ export async function dadosAdmin() {
     pausados,
     interessadosAbertos,
     receitaMes,
+    receitaBrutaMes,
+    taxaMpMes,
+    pagamentosMes,
     pausadosMes,
     ativosUltimos7Dias,
     ativosUltimos30Dias,
@@ -193,6 +200,45 @@ export async function receitaMensalAdmin(quantidade = 6) {
   }
 
   return meses;
+}
+
+// Receita de assinaturas acumulada dia a dia no mês atual (até hoje) e no
+// mês anterior — mesmo padrão de serieReceitaMes() em lib/dados.ts, só que
+// somando Pagamento (a plataforma cobrando os revendedores) em vez de
+// Renovacao/Venda. Alimenta o minigráfico "Entrou em {mês}" do Painel do
+// administrador.
+export async function serieReceitaMesAdmin(agora: Date = new Date()) {
+  const { ano, mes, dia } = diaCivilBr(agora);
+  const inicioAnterior = brMidnightUTC(ano, mes - 1, 1);
+  const { fim } = limitesDoMes(agora);
+
+  const pagamentos = await prisma.pagamento.findMany({
+    where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicioAnterior, lt: fim } },
+    select: { valorLiquido: true, valor: true, atualizadoEm: true },
+  });
+
+  const diasMesAnterior = diaCivilBr(new Date(brMidnightUTC(ano, mes, 1).getTime() - 1)).dia;
+  const atual = new Array<number>(dia).fill(0);
+  const anterior = new Array<number>(diasMesAnterior).fill(0);
+  for (const p of pagamentos) {
+    const valor = p.valorLiquido ?? p.valor;
+    const d = diaCivilBr(p.atualizadoEm);
+    if (d.ano === ano && d.mes === mes && d.dia <= dia) atual[d.dia - 1] += valor;
+    else if (d.dia <= diasMesAnterior && brMidnightUTC(d.ano, d.mes, 1).getTime() === inicioAnterior.getTime()) anterior[d.dia - 1] += valor;
+  }
+
+  const acumular = (xs: number[]) => {
+    let s = 0;
+    return xs.map((x) => (s += x));
+  };
+  const acumAtual = acumular(atual);
+  const acumAnterior = acumular(anterior);
+  const anteriorAteHoje = acumAnterior[Math.min(dia, diasMesAnterior) - 1] ?? 0;
+  const totalAtual = acumAtual[acumAtual.length - 1] ?? 0;
+  const variacaoPct = anteriorAteHoje > 0 ? ((totalAtual - anteriorAteHoje) / anteriorAteHoje) * 100 : null;
+
+  const diasNoMes = diaCivilBr(new Date(fim.getTime() - 1)).dia;
+  return { acumulado: acumAtual, variacaoPct, diasRestantes: diasNoMes - dia, mesAnteriorIdx: (mes + 11) % 12 };
 }
 
 // Funil de vendas do próprio GestorPro (leads → trial → pago), quem são os

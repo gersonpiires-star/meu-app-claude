@@ -154,6 +154,12 @@ model Revendedor {
   // não definiu nenhuma; vale pra todo mês até ele mudar.
   metaReceitaMensal Float?
 
+  // Mesma ideia, só que pro admin acompanhar a receita da própria
+  // plataforma (assinaturas dos revendedores) no Painel do administrador —
+  // campo separado porque é uma meta de negócio diferente da de cima
+  // (que é sobre a operação de revenda pessoal do admin, se ele tiver uma).
+  metaReceitaPlataforma Float?
+
   // Integração BETA com o painel da UniTV (resell.media) — login da conta
   // de revenda do usuário lá, pra permitir renovar clientes direto pelo
   // GestorPro sem abrir o painel deles. A UniTV não tem API pública
