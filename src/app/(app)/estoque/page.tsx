@@ -143,11 +143,11 @@ export default async function EstoquePage() {
         </Card>
       ) : null}
 
-      <div className="flex flex-col gap-5 md:flex-row md:items-start">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
         <Card className="min-w-0 flex-1">
           <ProdutosTabela produtos={linhas} />
         </Card>
-        <div className="w-full md:w-[320px] md:shrink-0">
+        <div className="w-full xl:w-[320px] xl:shrink-0">
           <RegistrarEntradaForm produtos={produtos.map((p) => ({ id: p.id, modelo: p.modelo }))} acao={registrarEntrada} />
         </div>
       </div>

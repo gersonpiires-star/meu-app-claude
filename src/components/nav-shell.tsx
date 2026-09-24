@@ -195,7 +195,10 @@ export function NavShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-5 md:px-8 md:py-8">{children}</main>
+        {/* pb-24 no mobile — sem isso, o conteúdo rolava até embaixo da barra
+        inferior sticky e os últimos itens de listas (ex: fila de Clientes)
+        ficavam parcialmente cobertos pelos botões da barra. */}
+        <main className="flex-1 px-4 pb-24 pt-5 md:p-8">{children}</main>
 
         {/* sticky, não fixed — "fixed" no mobile se ancora no viewport "de
         layout" (o maior, contando a área da barra de endereço do

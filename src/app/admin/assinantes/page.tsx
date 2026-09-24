@@ -132,13 +132,13 @@ export default async function AssinantesPage({
         </EmptyState>
       ) : (
         <Card className="p-0">
-          <div className="hidden md:grid md:grid-cols-[1.9fr_1.2fr_0.9fr_1.1fr_0.9fr_1fr] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
-            <span>Cliente</span>
-            <span>WhatsApp</span>
-            <span>Plano</span>
-            <span>Vencimento</span>
-            <span>Valor</span>
-            <span>Status</span>
+          <div className="hidden md:grid md:grid-cols-[minmax(0,1.9fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)] md:gap-3 md:border-b md:border-border md:px-4 md:py-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
+            <span className="truncate">Cliente</span>
+            <span className="truncate">WhatsApp</span>
+            <span className="truncate">Plano</span>
+            <span className="truncate">Vence</span>
+            <span className="truncate">Valor</span>
+            <span className="truncate">Status</span>
           </div>
           <div className="flex flex-col divide-y divide-border">
             {filtrados.map((a) => {
@@ -162,7 +162,7 @@ export default async function AssinantesPage({
               return (
                 <div
                   key={a.id}
-                  className="md:grid md:grid-cols-[1.9fr_1.2fr_0.9fr_1.1fr_0.9fr_1fr] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2"
+                  className="md:grid md:grid-cols-[minmax(0,1.9fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)] md:items-center md:gap-3 md:px-4 md:py-3 md:hover:bg-surface-2"
                 >
                   {/* Desktop */}
                   <Link href={`/admin/assinantes/${a.id}`} className="hidden min-w-0 items-center gap-3 md:flex">

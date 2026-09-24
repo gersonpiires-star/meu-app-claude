@@ -33,19 +33,22 @@ export function ProdutosTabela({ produtos }: { produtos: LinhaProduto[] }) {
         />
       </div>
 
-      <div className="hidden md:grid md:grid-cols-[2fr_0.8fr_0.8fr_0.9fr_0.9fr_0.9fr_140px] md:gap-3 md:border-b md:border-border md:pb-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
-        <span>Produto</span>
-        <span>Estoque</span>
-        <span>Mínimo</span>
-        <span>Custo un.</span>
-        <span>Preço venda</span>
-        <span>Status</span>
+      <div className="hidden md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_140px] md:gap-3 md:border-b md:border-border md:pb-2 md:text-[11px] md:font-semibold md:uppercase md:tracking-wider md:text-text-dim">
+        <span className="truncate">Produto</span>
+        <span className="truncate">Estoque</span>
+        <span className="truncate">Mínimo</span>
+        <span className="truncate">Custo un.</span>
+        <span className="truncate">Preço venda</span>
+        <span className="truncate">Status</span>
         <span />
       </div>
 
       <div className="flex flex-col divide-y divide-border">
         {filtrados.map((p) => (
-          <div key={p.id} className="grid grid-cols-2 gap-3 py-3 md:grid-cols-[2fr_0.8fr_0.8fr_0.9fr_0.9fr_0.9fr_140px] md:items-center">
+          <div
+            key={p.id}
+            className="grid grid-cols-2 gap-3 py-3 md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_140px] md:items-center"
+          >
             <div className="col-span-2 flex items-center gap-3 md:col-span-1">
               <span
                 className={cx(

@@ -244,7 +244,7 @@ export default async function PainelPage() {
                   ? "Vence hoje"
                   : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`;
               return (
-                <div key={cliente.id} className="flex flex-wrap items-center gap-3 px-5 py-3 sm:flex-nowrap">
+                <div key={cliente.id} className="flex flex-wrap items-center gap-3 px-5 py-3 xl:flex-nowrap">
                   <Avatar nome={cliente.nome} />
                   <div className="min-w-0 flex-1">
                     <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
@@ -255,17 +255,17 @@ export default async function PainelPage() {
                     </p>
                   </div>
                   <Badge tone={vencido ? "danger" : "warning"}>{rotulo}</Badge>
-                  <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                  <div className="flex w-full shrink-0 gap-2 xl:w-auto">
                     {cliente.whatsapp ? (
                       <CobrarBotao
                         clienteId={cliente.id}
                         cobradoEm={cobradosHoje.get(cliente.id) ?? null}
                         label={vencido ? "Cobrar" : "Lembrar"}
                         variant="whatsapp"
-                        className="flex-1 whitespace-nowrap sm:flex-none"
+                        className="flex-1 whitespace-nowrap xl:flex-none"
                       />
                     ) : null}
-                    <RenovarBotao clienteId={cliente.id} className="flex-1 whitespace-nowrap sm:flex-none" />
+                    <RenovarBotao clienteId={cliente.id} className="flex-1 whitespace-nowrap xl:flex-none" />
                   </div>
                 </div>
               );
