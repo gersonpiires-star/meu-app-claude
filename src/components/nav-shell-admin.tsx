@@ -63,7 +63,7 @@ function ItemNav({
       aria-current={ativo ? "page" : undefined}
       className={cx(
         "flex items-center gap-3 rounded-lg px-3 font-medium transition",
-        pequeno ? "py-2 text-sm" : "py-2.5 text-[15px]",
+        pequeno ? "py-1.5 text-sm" : "py-2 text-[15px]",
         ativo
           ? "bg-accent-soft font-semibold text-text"
           : pequeno
@@ -84,7 +84,7 @@ export function NavShellAdmin({ nome, children }: { nome: string; children: Reac
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:flex-row">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-3 border-r border-border bg-surface p-4 md:flex">
         <div className="flex items-center gap-2.5 px-1">
           <LogoMark className="h-8 w-8" />
           <div>
