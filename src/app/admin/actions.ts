@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirAdmin } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
-import { dataCurta } from "@/lib/format";
+import { brl, dataCurta } from "@/lib/format";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { enviarEmail } from "@/lib/email";
 import { emailComunicado } from "@/lib/email-templates";
@@ -290,4 +290,38 @@ export async function alternarDestaqueSugestao(id: string, destaque: boolean) {
   await prisma.sugestao.update({ where: { id }, data: { destaque } });
   revalidatePath("/admin");
   revalidatePath("/admin/sugestoes");
+}
+
+const creditoSchema = z.object({
+  revendedorId: z.string().min(1, "Selecione uma conta"),
+  quantidade: z.coerce.number(),
+  observacao: z.string().trim().optional(),
+});
+
+export async function enviarCreditos(formData: FormData): Promise<{ erro: string } | undefined> {
+  await exigirAdmin();
+  const dados = creditoSchema.parse(Object.fromEntries(formData));
+  if (dados.quantidade === 0) return { erro: "Informe uma quantidade diferente de zero." };
+
+  const conta = await prisma.revendedor.findUnique({ where: { id: dados.revendedorId } });
+  if (!conta) return { erro: "Conta não encontrada." };
+
+  await prisma.$transaction([
+    prisma.revendedor.update({
+      where: { id: dados.revendedorId },
+      data: { saldoCreditos: { increment: dados.quantidade } },
+    }),
+    prisma.creditoConta.create({
+      data: { revendedorId: dados.revendedorId, quantidade: dados.quantidade, observacao: dados.observacao || null },
+    }),
+  ]);
+
+  await registrarLog(
+    dados.revendedorId,
+    "admin.creditos",
+    `Recebeu ${brl(dados.quantidade)} de crédito da administração${dados.observacao ? ` — ${dados.observacao}` : ""}`,
+    "ADMIN"
+  );
+
+  revalidatePath("/admin");
 }

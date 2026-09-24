@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Textarea } from "@/components/ui";
-import { publicarAviso } from "../../admin/actions";
+import { publicarAviso } from "./actions";
 
 export function PublicarAvisoRapidoForm() {
   return (

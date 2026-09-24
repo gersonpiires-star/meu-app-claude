@@ -138,7 +138,7 @@ export function NavShell({
             <ItemNav key={item.href} href={item.href} label={item.label} Icone={item.icone} ativo={pathname.startsWith(item.href)} />
           ))}
           {ehAdmin ? (
-            <ItemNav href="/administracao" label="Administração" Icone={IconEscudo} ativo={pathname.startsWith("/administracao")} destaque />
+            <ItemNav href="/admin" label="Administração" Icone={IconEscudo} ativo={pathname.startsWith("/admin")} destaque />
           ) : null}
         </GrupoNav>
 
@@ -176,7 +176,7 @@ export function NavShell({
           <div className="flex items-center gap-2">
             <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
             {ehAdmin ? (
-              <Link href="/administracao" className="text-xs font-semibold text-accent">
+              <Link href="/admin" className="text-xs font-semibold text-accent">
                 Admin
               </Link>
             ) : null}
@@ -229,7 +229,7 @@ export function NavShell({
             aria-label="Mais opções"
             className={cx(
               "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
-              maisAberto || MOBILE_MAIS_ITENS.some((i) => pathname.startsWith(i.href)) || (ehAdmin && pathname.startsWith("/administracao"))
+              maisAberto || MOBILE_MAIS_ITENS.some((i) => pathname.startsWith(i.href)) || (ehAdmin && pathname.startsWith("/admin"))
                 ? "text-accent"
                 : "text-text-dim"
             )}
@@ -294,14 +294,14 @@ export function NavShell({
                 ))}
                 {ehAdmin ? (
                   <Link
-                    href="/administracao"
+                    href="/admin"
                     onClick={() => setMaisAberto(false)}
                     className="flex flex-col items-center gap-1.5 text-center text-[11px] font-semibold text-accent"
                   >
                     <span
                       className={cx(
                         "flex h-11 w-11 items-center justify-center rounded-xl",
-                        pathname.startsWith("/administracao") ? "bg-accent-soft" : "bg-surface-2"
+                        pathname.startsWith("/admin") ? "bg-accent-soft" : "bg-surface-2"
                       )}
                     >
                       <IconEscudo className="h-5 w-5" />

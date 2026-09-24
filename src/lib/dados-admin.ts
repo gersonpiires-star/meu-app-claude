@@ -168,6 +168,33 @@ export async function dadosAdmin() {
   };
 }
 
+// Receita de assinaturas mês a mês (últimos `quantidade` meses) — mesmo
+// padrão de ultimosMeses() em lib/relatorio.ts, só que somando Pagamento
+// (a plataforma cobrando os revendedores) em vez de Renovacao/Venda (o
+// revendedor cobrando os clientes dele). Alimenta o gráfico "Receita por
+// mês" no Painel do administrador.
+export async function receitaMensalAdmin(quantidade = 6) {
+  const agora = new Date();
+  const agoraCivil = diaCivilBr(agora);
+  const meses: { ano: number; mes: number; receita: number }[] = [];
+
+  for (let i = quantidade - 1; i >= 0; i--) {
+    const referencia = new Date(agoraCivil.ano, agoraCivil.mes - i, 1);
+    const ano = referencia.getFullYear();
+    const mes = referencia.getMonth();
+    const { inicio, fim } = limitesDoMes(referencia);
+
+    const agg = await prisma.pagamento.aggregate({
+      where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
+      _sum: { valorLiquido: true },
+    });
+
+    meses.push({ ano, mes, receita: agg._sum.valorLiquido ?? 0 });
+  }
+
+  return meses;
+}
+
 // Funil de vendas do próprio GestorPro (leads → trial → pago), quem são os
 // trials mais engajados (uso real, não só tempo restante), e a coorte de
 // retenção de quem virou pagante — tudo pra ajudar a vender/reter melhor,
