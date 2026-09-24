@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { dadosAdmin, dadosCrescimento, receitaMensalAdmin, serieReceitaMesAdmin } from "@/lib/dados-admin";
 import { rankingIndicacao } from "@/lib/indicacao";
 import { limitesDoMes } from "@/lib/dados";
-import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
+import { brl, brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, Sparkline, StatTile, TrendChip } from "@/components/ui";
@@ -106,10 +106,10 @@ export default async function AdminPainelPage() {
               Pagamentos <strong className="text-text">{dados.pagamentosMes}</strong>
             </span>
             <span className="text-text-dim">
-              Receita bruta <strong className="text-money">{brl0(dados.receitaBrutaMes)}</strong>
+              Receita bruta <strong className="text-money">{brl(dados.receitaBrutaMes)}</strong>
             </span>
             <span className="text-text-dim">
-              Taxa MP <strong className="text-danger">− {brl0(dados.taxaMpMes)}</strong>
+              Taxa MP <strong className="text-danger">− {brl(dados.taxaMpMes)}</strong>
             </span>
           </div>
           <p className="text-xs text-text-dim">Valor acima já é líquido (descontada a taxa do Mercado Pago).</p>
