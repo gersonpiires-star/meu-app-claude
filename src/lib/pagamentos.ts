@@ -8,6 +8,8 @@ import { calcularVencimento } from "@/lib/planos";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
+import { registrarLog } from "@/lib/log";
+import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -220,6 +222,130 @@ export async function aprovarRenovacaoPaga(
               url: `/clientes/${pagamento.cliente.id}`,
             }
       );
+      if (!manter) {
+        await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+      }
+    }
+  }
+
+  return { jaProcessado: resultado.jaProcessado };
+}
+
+// Efeito de aprovar um pagamento de ASSINATURA (mensalidade do GestorPro) —
+// compartilhado entre o webhook do Mercado Pago (pagamento real) e o
+// checkout quando o saldoCreditos do revendedor cobre o valor inteiro, sem
+// gateway nenhum envolvido (ver iniciarPagamentoAssinatura). Cada chamador
+// já garantiu que esse pagamento deve ser considerado pago; aqui só se
+// confia no pagamentoId. gatewayPaymentId precisa ser único por chamada —
+// pro caminho 100% crédito, o chamador passa algo como `CREDITO-${id}`,
+// já que mpPaymentId tem constraint @unique.
+export async function aprovarAssinaturaPaga(
+  pagamentoId: string,
+  gatewayPaymentId: string,
+  valorLiquido: number
+): Promise<{ jaProcessado: boolean }> {
+  const pagamento = await prisma.pagamento.findUnique({
+    where: { id: pagamentoId },
+    include: { revendedor: true },
+  });
+  if (!pagamento || pagamento.tipo !== "ASSINATURA") {
+    return { jaProcessado: true };
+  }
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const trocou = await tx.pagamento.updateMany({
+      where: { id: pagamento.id, status: { not: "APROVADO" } },
+      data: { status: "APROVADO", mpPaymentId: gatewayPaymentId, valorLiquido },
+    });
+    if (trocou.count === 0) {
+      return { jaProcessado: true, recompensaIndicacao: null as { indicadorId: string; codigo: string } | null };
+    }
+
+    // Trava a linha do revendedor antes de ler o status — sem isso, duas
+    // aprovações concorrentes da primeira assinatura da mesma conta (ex:
+    // dois pagamentos pendentes, dois webhooks quase simultâneos) podiam
+    // ambas ler statusAssinatura ainda como TRIAL (uma SELECT simples não
+    // espera o UPDATE da outra comitar) e conceder 2 cupons de indicação
+    // pra 1 conversão só. Com o FOR UPDATE, a segunda só lê depois que a
+    // primeira já comitou o ATIVO.
+    await tx.$queryRaw`SELECT 1 FROM "Revendedor" WHERE id = ${pagamento.revendedorId} FOR UPDATE`;
+    const revendedorAtual = await tx.revendedor.findUniqueOrThrow({ where: { id: pagamento.revendedorId } });
+    // TRIAL aqui significa que essa pessoa nunca tinha pago o GestorPro
+    // antes — é a conversão de verdade que a recompensa de indicação
+    // recompensa. Reativação de PAUSADO/CANCELADO não conta de novo.
+    const primeiraAssinaturaPaga = revendedorAtual.statusAssinatura === "TRIAL";
+    const meses = pagamento.meses ?? 1;
+    const base =
+      revendedorAtual.assinaturaVence && revendedorAtual.assinaturaVence > new Date()
+        ? revendedorAtual.assinaturaVence
+        : new Date();
+    const vence = adicionarMeses(base, meses);
+
+    await tx.revendedor.update({
+      where: { id: pagamento.revendedorId },
+      data: {
+        statusAssinatura: "ATIVO",
+        assinaturaVence: vence,
+        planoAssinatura: planoDosMeses(meses),
+        // Mesmo reset que liberarAcesso já faz — sem isso, uma conta que já
+        // tinha sido pausada antes continua aparecendo como "Bloqueada" no
+        // admin mesmo já reativada.
+        pausadoEm: null,
+        motivoPausa: null,
+      },
+    });
+
+    // Recompensa de indicação: quem indicou essa conta ganha um cupom de
+    // 15% pra usar na própria próxima renovação — só dispara na primeira
+    // assinatura paga de quem foi indicado, nunca em renovações seguintes.
+    let recompensaIndicacao: { indicadorId: string; codigo: string } | null = null;
+    if (primeiraAssinaturaPaga && revendedorAtual.indicadoPorId) {
+      const codigo = `INDIC${pagamento.id.slice(-8).toUpperCase()}`;
+      const validoAte = new Date();
+      validoAte.setDate(validoAte.getDate() + 180);
+
+      await tx.cupom.create({
+        data: {
+          codigo,
+          tipo: "PERCENTUAL",
+          valor: 15,
+          revendedorId: revendedorAtual.indicadoPorId,
+          usoMaximo: 1,
+          validoAte,
+        },
+      });
+      await tx.aviso.create({
+        data: {
+          destino: "UM_REVENDEDOR",
+          revendedorId: revendedorAtual.indicadoPorId,
+          tipo: "GERAL",
+          titulo: "Você ganhou 15% de desconto por indicar o GestorPro!",
+          mensagem: `${revendedorAtual.nome} assinou o GestorPro usando o seu link de indicação. Como agradecimento, você ganhou o cupom ${codigo} — 15% de desconto na sua próxima renovação. É só usar o código na hora de renovar, em Assinatura.`,
+        },
+      });
+      recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
+    }
+    return { jaProcessado: false, recompensaIndicacao };
+  });
+
+  if (!resultado.jaProcessado && resultado.recompensaIndicacao) {
+    const { indicadorId, codigo } = resultado.recompensaIndicacao;
+    await registrarLog(
+      indicadorId,
+      "indicacao.recompensa",
+      `Ganhou o cupom ${codigo} (15% de desconto) por indicar ${pagamento.revendedor.nome}, que assinou o GestorPro`
+    );
+
+    const indicador = await prisma.revendedor.findUnique({
+      where: { id: indicadorId },
+      include: { pushSubscriptions: true },
+    });
+    for (const inscricao of indicador?.pushSubscriptions ?? []) {
+      const manter = await enviarPush(inscricao, {
+        titulo: "Você ganhou 15% de desconto!",
+        corpo: `${pagamento.revendedor.nome} assinou usando seu link de indicação. Use o cupom ${codigo} na próxima renovação.`,
+        url: "/assinatura",
+      });
       if (!manter) {
         await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
       }

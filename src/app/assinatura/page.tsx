@@ -56,6 +56,12 @@ export default async function AssinaturaPage({
           </ul>
         </Card>
 
+        {revendedor.saldoCreditos > 0 && !ehFuncionario ? (
+          <p className="mb-4 rounded-xl border border-accent-strong bg-accent-soft px-3 py-2 text-center text-sm text-accent">
+            Você tem {brl(revendedor.saldoCreditos)} em créditos — será abatido automaticamente do valor abaixo.
+          </p>
+        ) : null}
+
         {erroCupom ? (
           <p className="mb-4 rounded-xl border border-danger-border bg-danger-bg/40 px-3 py-2 text-center text-sm text-danger">
             {erroCupom}

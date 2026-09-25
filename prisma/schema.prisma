@@ -749,6 +749,13 @@ model Pagamento {
   cupomId String?
   cupom   Cupom?  @relation(fields: [cupomId], references: [id], onDelete: SetNull)
 
+  // Quanto do saldoCreditos do revendedor (ver Revendedor.saldoCreditos) foi
+  // abatido nessa cobrança de ASSINATURA — reservado atomicamente no
+  // checkout (mesmo padrão do cupom) e devolvido se o pagamento for
+  // recusado/cancelado. "valor" já sai com esse desconto aplicado; este
+  // campo é só o registro de quanto veio do crédito, pra recibo/histórico.
+  creditoAplicado Float @default(0)
+
   criadoEm    DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
