@@ -178,6 +178,12 @@ export async function POST(request: Request) {
         statusAssinatura: "ATIVO",
         assinaturaVence: vence,
         planoAssinatura: planoDosMeses(meses),
+        // Sem isso, uma conta que já tinha sido pausada antes (pausadoEm
+        // preenchido) reativa aqui com o pagamento mas continua aparecendo
+        // como "Bloqueada" no admin — statusConta() olha pausadoEm antes de
+        // statusAssinatura. Mesmo reset que liberarAcesso já faz.
+        pausadoEm: null,
+        motivoPausa: null,
       },
     });
 
