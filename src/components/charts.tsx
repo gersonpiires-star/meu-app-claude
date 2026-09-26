@@ -42,26 +42,34 @@ export function DonutChart({
         <svg viewBox="0 0 100 100" className="-rotate-90" width={108} height={108}>
           <circle cx="50" cy="50" r={raio} fill="none" stroke="var(--surface-2)" strokeWidth="10" />
           {total > 0
-            ? arcos.map((a, i) => (
-                <circle
-                  key={i}
-                  cx="50"
-                  cy="50"
-                  r={raio}
-                  fill="none"
-                  stroke={a.cor}
-                  strokeWidth={ativo === null || ativo === i ? 10 : 7}
-                  strokeLinecap="round"
-                  strokeDasharray={`${(a.comprimento / 100) * circ} ${circ}`}
-                  strokeDashoffset={a.offset}
-                  className="cursor-pointer transition-all"
-                  opacity={ativo === null || ativo === i ? 1 : 0.35}
-                  onMouseEnter={() => setAtivo(i)}
-                  onMouseLeave={() => setAtivo(null)}
-                >
-                  <title>{`${a.label}: ${a.valor}`}</title>
-                </circle>
-              ))
+            ? arcos.map((a, i) =>
+                // Segmento zerado (ex: "Vencidos" quando não há nenhum) teria
+                // strokeDasharray "0 circ" — com strokeLinecap="round" isso
+                // não desenha "nada", desenha um PONTINHO visível na posição
+                // do offset (o cap arredondado tem raio próprio mesmo com
+                // comprimento 0). Pular o render inteiro pra esse arco é a
+                // única forma de garantir zero traço.
+                a.comprimento <= 0 ? null : (
+                  <circle
+                    key={i}
+                    cx="50"
+                    cy="50"
+                    r={raio}
+                    fill="none"
+                    stroke={a.cor}
+                    strokeWidth={ativo === null || ativo === i ? 10 : 7}
+                    strokeLinecap="round"
+                    strokeDasharray={`${(a.comprimento / 100) * circ} ${circ}`}
+                    strokeDashoffset={a.offset}
+                    className="cursor-pointer transition-all"
+                    opacity={ativo === null || ativo === i ? 1 : 0.35}
+                    onMouseEnter={() => setAtivo(i)}
+                    onMouseLeave={() => setAtivo(null)}
+                  >
+                    <title>{`${a.label}: ${a.valor}`}</title>
+                  </circle>
+                )
+              )
             : null}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">

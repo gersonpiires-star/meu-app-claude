@@ -204,38 +204,79 @@ export default async function VendasPage({
             </div>
           ) : (
             <>
-              <div className="flex min-w-[560px] items-center gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
-                <span className="w-12 shrink-0">Data</span>
-                <span className="min-w-0 flex-1">Cliente</span>
-                <span className="w-[130px] shrink-0">Pagamento</span>
-                <span className="w-[84px] shrink-0 text-right">Valor</span>
-                <span className="w-[84px] shrink-0 text-right">Custo</span>
-                <span className="w-[84px] shrink-0 text-right">Lucro</span>
-              </div>
-              <div className="flex flex-col divide-y divide-border">
+              {/* Telas estreitas (até lg, inclui celular): card empilhado. A
+              linha em flex de largura fixa abaixo (min-w-[560px]) reserva só
+              ~70px pra coluna do cliente nessas larguras — o Badge (que não
+              encolhe) transbordava esse espaço e pintava por cima da coluna
+              de Pagamento vizinha, já que overflow sem clip não empurra os
+              irmãos do flex. */}
+              <div className="flex flex-col divide-y divide-border lg:hidden">
                 {linhasFiltradas.map((linha) => (
-                  <div key={`${linha.tipo}-${linha.id}`} className="flex min-w-[560px] items-center gap-3 px-4 py-3 text-sm">
-                    <span className="w-12 shrink-0 text-text-dim">{dataCurta(linha.data)}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="truncate font-semibold text-text">{linha.clienteNome}</p>
-                        <Badge tone={linha.combo ? "accent" : linha.tipo === "RENOVACAO" ? "neutral" : "warning"}>
-                          {linha.combo ? "Combo" : linha.tipo === "RENOVACAO" ? "Renovação" : "Aparelho"}
-                        </Badge>
-                      </div>
-                      <p className="truncate text-xs text-text-dim">{linha.detalhe}</p>
-                      {linha.tipo === "APARELHO" && !linha.combo && !linha.clienteId ? (
-                        <div className="mt-1">
-                          <VincularCliente vendaId={linha.id} clientes={clientesParaVincular} acao={vincularClienteVenda} />
+                  <div key={`${linha.tipo}-${linha.id}`} className="flex flex-col gap-1.5 px-4 py-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate font-semibold text-text">{linha.clienteNome}</p>
+                          <Badge tone={linha.combo ? "accent" : linha.tipo === "RENOVACAO" ? "neutral" : "warning"}>
+                            {linha.combo ? "Combo" : linha.tipo === "RENOVACAO" ? "Renovação" : "Aparelho"}
+                          </Badge>
                         </div>
-                      ) : null}
+                        <p className="truncate text-xs text-text-dim">{linha.detalhe}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-semibold text-money">{brl(linha.valor)}</p>
+                        <p className="text-[11px] text-text-dim">{dataCurta(linha.data)}</p>
+                      </div>
                     </div>
-                    <span className="w-[130px] shrink-0 truncate text-text-muted">{linha.pagamento}</span>
-                    <span className="w-[84px] shrink-0 text-right font-semibold text-money">{brl(linha.valor)}</span>
-                    <span className="w-[84px] shrink-0 text-right text-danger">− {brl(linha.custo)}</span>
-                    <span className="w-[84px] shrink-0 text-right font-semibold text-accent">{brl(linha.lucro)}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-text-dim">
+                      <span className="truncate">{linha.pagamento}</span>
+                      <span className="whitespace-nowrap">
+                        Custo <span className="text-danger">− {brl(linha.custo)}</span> · Lucro{" "}
+                        <span className="font-semibold text-accent">{brl(linha.lucro)}</span>
+                      </span>
+                    </div>
+                    {linha.tipo === "APARELHO" && !linha.combo && !linha.clienteId ? (
+                      <VincularCliente vendaId={linha.id} clientes={clientesParaVincular} acao={vincularClienteVenda} />
+                    ) : null}
                   </div>
                 ))}
+              </div>
+
+              {/* lg+ (desktop): tabela original */}
+              <div className="hidden lg:block">
+                <div className="flex min-w-[560px] items-center gap-3 border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+                  <span className="w-12 shrink-0">Data</span>
+                  <span className="min-w-0 flex-1">Cliente</span>
+                  <span className="w-[130px] shrink-0">Pagamento</span>
+                  <span className="w-[84px] shrink-0 text-right">Valor</span>
+                  <span className="w-[84px] shrink-0 text-right">Custo</span>
+                  <span className="w-[84px] shrink-0 text-right">Lucro</span>
+                </div>
+                <div className="flex flex-col divide-y divide-border">
+                  {linhasFiltradas.map((linha) => (
+                    <div key={`${linha.tipo}-${linha.id}`} className="flex min-w-[560px] items-center gap-3 px-4 py-3 text-sm">
+                      <span className="w-12 shrink-0 text-text-dim">{dataCurta(linha.data)}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate font-semibold text-text">{linha.clienteNome}</p>
+                          <Badge tone={linha.combo ? "accent" : linha.tipo === "RENOVACAO" ? "neutral" : "warning"}>
+                            {linha.combo ? "Combo" : linha.tipo === "RENOVACAO" ? "Renovação" : "Aparelho"}
+                          </Badge>
+                        </div>
+                        <p className="truncate text-xs text-text-dim">{linha.detalhe}</p>
+                        {linha.tipo === "APARELHO" && !linha.combo && !linha.clienteId ? (
+                          <div className="mt-1">
+                            <VincularCliente vendaId={linha.id} clientes={clientesParaVincular} acao={vincularClienteVenda} />
+                          </div>
+                        ) : null}
+                      </div>
+                      <span className="w-[130px] shrink-0 truncate text-text-muted">{linha.pagamento}</span>
+                      <span className="w-[84px] shrink-0 text-right font-semibold text-money">{brl(linha.valor)}</span>
+                      <span className="w-[84px] shrink-0 text-right text-danger">− {brl(linha.custo)}</span>
+                      <span className="w-[84px] shrink-0 text-right font-semibold text-accent">{brl(linha.lucro)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           )}
