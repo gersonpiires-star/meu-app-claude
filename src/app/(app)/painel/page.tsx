@@ -5,7 +5,7 @@ import { dadosPainel, serieReceitaMes } from "@/lib/dados";
 import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Avatar, Badge, Button, Card, EmptyState, Sparkline, StatTile, TrendChip, buttonClassName } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Sparkline, StatTile, TrendChip, buttonClassName, cx } from "@/components/ui";
 import { DonutChart } from "@/components/charts";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
@@ -39,6 +39,52 @@ export default async function PainelPage() {
   const receitaMes = dados.receitaRecorrente + dados.receitaApar;
   const fila = [...dados.vencidos, ...dados.vencendo];
   const vencidosSemCobranca = dados.vencidos.filter((c) => !cobradosHoje.has(c.id)).length;
+  // Separa quem ainda não recebeu contato hoje de quem já foi cobrado —
+  // sem isso a fila inteira ficava numa lista só e o revendedor tinha que
+  // reler nome por nome (ou olhar o botão "✓ HH:MM" de cada um) pra lembrar
+  // quem ainda falta agir. Pendentes primeiro, já cobrados depois e mais
+  // esmaecidos, pra o olho ir direto em quem precisa de ação agora.
+  const filaPendente = fila.filter((c) => !cobradosHoje.has(c.id));
+  const filaJaCobrada = fila.filter((c) => cobradosHoje.has(c.id));
+
+  function linhaFila(cliente: (typeof fila)[number], jaCobrado: boolean) {
+    const dias = diasParaVencer(cliente.vencimento);
+    const vencido = dias < 0;
+    const rotulo = vencido
+      ? `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"} vencido`
+      : dias === 0
+        ? "Vence hoje"
+        : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`;
+    return (
+      <div
+        key={cliente.id}
+        className={cx("flex flex-wrap items-center gap-3 px-5 py-3 xl:flex-nowrap", jaCobrado ? "opacity-60" : "")}
+      >
+        <Avatar nome={cliente.nome} />
+        <div className="min-w-0 flex-1">
+          <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
+            {cliente.nome}
+          </Link>
+          <p className="text-xs text-text-dim">
+            {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
+          </p>
+        </div>
+        <Badge tone={vencido ? "danger" : "warning"}>{rotulo}</Badge>
+        <div className="flex w-full shrink-0 gap-2 xl:w-auto">
+          {cliente.whatsapp ? (
+            <CobrarBotao
+              clienteId={cliente.id}
+              cobradoEm={cobradosHoje.get(cliente.id) ?? null}
+              label={vencido ? "Cobrar" : "Lembrar"}
+              variant="whatsapp"
+              className="flex-1 whitespace-nowrap xl:flex-none"
+            />
+          ) : null}
+          <RenovarBotao clienteId={cliente.id} className="flex-1 whitespace-nowrap xl:flex-none" />
+        </div>
+      </div>
+    );
+  }
 
   // Só consulta os contadores de onboarding durante o trial — depois que
   // assina, esse checklist não faz mais sentido e não vale gastar a
@@ -235,41 +281,15 @@ export default async function PainelPage() {
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-border">
-            {fila.map((cliente) => {
-              const dias = diasParaVencer(cliente.vencimento);
-              const vencido = dias < 0;
-              const rotulo = vencido
-                ? `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? "" : "s"} vencido`
-                : dias === 0
-                  ? "Vence hoje"
-                  : `Vence em ${dias} dia${dias === 1 ? "" : "s"}`;
-              return (
-                <div key={cliente.id} className="flex flex-wrap items-center gap-3 px-5 py-3 xl:flex-nowrap">
-                  <Avatar nome={cliente.nome} />
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/clientes/${cliente.id}`} className="block truncate text-sm font-semibold text-text hover:text-accent">
-                      {cliente.nome}
-                    </Link>
-                    <p className="text-xs text-text-dim">
-                      {PLANO_LABEL[cliente.plano]} · vence {dataCurta(cliente.vencimento)}
-                    </p>
-                  </div>
-                  <Badge tone={vencido ? "danger" : "warning"}>{rotulo}</Badge>
-                  <div className="flex w-full shrink-0 gap-2 xl:w-auto">
-                    {cliente.whatsapp ? (
-                      <CobrarBotao
-                        clienteId={cliente.id}
-                        cobradoEm={cobradosHoje.get(cliente.id) ?? null}
-                        label={vencido ? "Cobrar" : "Lembrar"}
-                        variant="whatsapp"
-                        className="flex-1 whitespace-nowrap xl:flex-none"
-                      />
-                    ) : null}
-                    <RenovarBotao clienteId={cliente.id} className="flex-1 whitespace-nowrap xl:flex-none" />
-                  </div>
+            {filaPendente.map((cliente) => linhaFila(cliente, false))}
+            {filaJaCobrada.length > 0 ? (
+              <>
+                <div className="bg-surface-2 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-dim">
+                  Já cobrados hoje
                 </div>
-              );
-            })}
+                {filaJaCobrada.map((cliente) => linhaFila(cliente, true))}
+              </>
+            ) : null}
           </div>
         )}
       </Card>
