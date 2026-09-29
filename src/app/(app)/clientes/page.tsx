@@ -120,7 +120,12 @@ export default async function ClientesPage({
       ) : filtrados.length === 0 ? (
         <EmptyState>Nenhum cliente nesta lista ainda.</EmptyState>
       ) : (
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+        <div className={cx("flex flex-col gap-5", selecionadoId ? "xl:flex-row xl:items-start" : "")}>
+          {/* O painel lateral (360px) só entra no layout quando um cliente está selecionado
+              (?id= na URL). Reservar esse espaço o tempo todo — mesmo mostrando só o
+              placeholder "clique em alguém" — era o que sobrava pouca largura pra tabela
+              em notebooks de ~1440px e truncava nome/WhatsApp/plano bem pesado. Sem
+              seleção, a tabela usa a largura cheia do cartão. */}
           <Card className="min-w-0 flex-1 p-0">
             {/* Desktop largo: tabela no padrão do app original (Cliente / WhatsApp / Plano · App / Vencimento / Valor / Status / Cobrar).
                 Só a partir de xl (1280px) — em telas menores o painel lateral fixo (360px) não sobra espaço
@@ -210,13 +215,15 @@ export default async function ClientesPage({
               })}
             </div>
           </Card>
-          <div className="hidden xl:block xl:w-[360px] xl:shrink-0">
-            {clienteSelecionado ? (
-              <PainelDetalhe cliente={clienteSelecionado} cobradoHoje={cobradosHoje.get(clienteSelecionado.id) ?? null} />
-            ) : (
-              <PainelVazio />
-            )}
-          </div>
+          {selecionadoId ? (
+            <div className="hidden xl:block xl:w-[360px] xl:shrink-0">
+              {clienteSelecionado ? (
+                <PainelDetalhe cliente={clienteSelecionado} cobradoHoje={cobradosHoje.get(clienteSelecionado.id) ?? null} />
+              ) : (
+                <PainelVazio />
+              )}
+            </div>
+          ) : null}
         </div>
       )}
     </div>
