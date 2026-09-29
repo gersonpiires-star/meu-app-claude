@@ -20,7 +20,11 @@
   --border-strong: #1d4959;
   --text: #e9f4f8;
   --text-muted: #9dbcc7;
-  --text-dim: #688e9b;
+  /* #688e9b original dava 4.49:1 sobre --bg e 4.13:1 sobre --surface-2 —
+     os dois abaixo do mínimo AA de 4.5:1 pra texto normal (usado em toda
+     legenda/label pequena do app). Levemente mais claro corrige os dois
+     (5.22:1 / 4.80:1) sem mudar o tom perceptivelmente. */
+  --text-dim: #729aa7;
   --accent: #2ee6c5;
   --accent-strong: #1d6a70;
   --accent-soft: #0d3844;
@@ -65,7 +69,7 @@
   --border-strong: #1d4959;
   --text: #e9f4f8;
   --text-muted: #9dbcc7;
-  --text-dim: #688e9b;
+  --text-dim: #729aa7;
   --accent: #2ee6c5;
   --accent-strong: #1d6a70;
   --accent-soft: #0d3844;
@@ -99,7 +103,9 @@
   --border-strong: #cdd8da;
   --text: #0e2a31;
   --text-muted: #4b6870;
-  --text-dim: #7d99a1;
+  /* #7d99a1 original dava só 2.78:1 / 2.70:1 — bem abaixo do mínimo AA de
+     4.5:1. Mais escuro corrige pra 4.89:1 / 4.75:1. */
+  --text-dim: #527078;
   --accent: #0f766e;
   --accent-strong: #0b5c53;
   --accent-soft: #d9f2ee;
