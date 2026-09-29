@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { WhatsappForm } from "./whatsapp-form";
 import { ModeloItem } from "./modelos/modelo-item";
 import { MODELOS_COBRANCA } from "@/lib/mensagens";
+import { AbasRolaveis } from "./abas-rolaveis";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -101,7 +102,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
       {/* Mobile: abas horizontais roláveis. Desktop: sub-menu vertical fixo
           ao lado do conteúdo (mesmo padrão de Stripe/Linear/GitHub — uma
           categoria por vez, sem empilhar tudo numa rolagem só). */}
-      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:hidden">
+      <AbasRolaveis>
         {categoriasVisiveis.map((c) => (
           <Link
             key={c.key}
@@ -114,7 +115,7 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
             {c.label}
           </Link>
         ))}
-      </nav>
+      </AbasRolaveis>
 
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:gap-8">
         <nav className="hidden w-44 shrink-0 flex-col gap-1 md:flex">
