@@ -53,6 +53,17 @@ Para credenciais de teste (sandbox) ou produção, veja
 cadastrar a `notification_url` manualmente no painel do Mercado Pago — ela é enviada em cada preferência
 criada, apontando para `APP_URL` + `/api/webhooks/mercadopago`.
 
+## Gerador de currículo (`/curriculo`)
+
+Módulo público e independente do GestorPro: qualquer pessoa monta o currículo sem conta, vê a prévia ao
+vivo e paga **por download** (Mercado Pago, `CURRICULO_PRECO`, padrão R$ 9,90) para liberar o PDF.
+
+- `src/app/curriculo/` — editor com prévia, ação de pagamento e página do pedido (`/curriculo/pedido/[token]`)
+- `src/lib/curriculo/` — validação (zod), geração do PDF (pdf-lib) e criação/confirmação do pedido
+- `src/app/api/webhooks/mercadopago-curriculo` — confirma o pagamento consultando a API do MP (nunca confia no corpo)
+- `src/app/api/curriculo/[token]/pdf` — só entrega o PDF se o pedido estiver `APROVADO`
+- Tabela `PedidoCurriculo` (migração `20260929120000_add_pedido_curriculo`)
+
 ## Deploy (Supabase + Vercel)
 
 1. **Banco de dados**: crie um projeto em [supabase.com](https://supabase.com) (gratuito para começar).

@@ -790,3 +790,24 @@ model Cupom {
 
   @@index([revendedorId])
 }
+
+// Gerador de currículo (módulo público em /curriculo, independente do
+// GestorPro): quem monta o currículo não tem conta — o "token" é o segredo
+// que dá acesso à página do pedido e ao download do PDF depois de pago.
+// Reaproveita StatusPagamento; não se relaciona com Revendedor/Pagamento.
+model PedidoCurriculo {
+  id     String @id @default(cuid())
+  token  String @unique
+  dados  Json
+  valor  Float
+  status StatusPagamento @default(PENDENTE)
+
+  mpPreferenceId String? @unique
+  mpPaymentId    String? @unique
+
+  pagoEm       DateTime?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([status, criadoEm])
+}

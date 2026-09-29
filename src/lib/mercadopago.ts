@@ -17,6 +17,7 @@ export async function criarPreferencia({
   valor,
   emailPagador,
   urlRetorno,
+  caminhoWebhook = "/api/webhooks/mercadopago",
 }: {
   accessToken: string;
   pagamentoId: string;
@@ -24,6 +25,7 @@ export async function criarPreferencia({
   valor: number;
   emailPagador?: string;
   urlRetorno: string;
+  caminhoWebhook?: string;
 }) {
   const client = new MercadoPagoConfig({ accessToken });
   const preference = new Preference(client);
@@ -43,7 +45,7 @@ export async function criarPreferencia({
       external_reference: pagamentoId,
       // O pagamentoId vai na própria URL do webhook (não no payload do MP,
       // que não é confiável) para sabermos qual token consultar na resposta.
-      notification_url: `${baseUrl()}/api/webhooks/mercadopago?pagamentoId=${pagamentoId}`,
+      notification_url: `${baseUrl()}${caminhoWebhook}?pagamentoId=${pagamentoId}`,
       back_urls: {
         success: urlRetorno,
         pending: urlRetorno,
