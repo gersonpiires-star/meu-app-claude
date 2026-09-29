@@ -45,29 +45,65 @@ export function ProdutosTabela({ produtos }: { produtos: LinhaProduto[] }) {
 
       <div className="flex flex-col divide-y divide-border">
         {filtrados.map((p) => (
-          <div
-            key={p.id}
-            className="grid grid-cols-2 gap-3 py-3 md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_140px] md:items-center"
-          >
-            <div className="col-span-2 flex items-center gap-3 md:col-span-1">
-              <span
-                className={cx(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                  p.baixo ? "bg-danger-bg text-danger" : "bg-accent-soft text-accent"
-                )}
-              >
-                <IconCaixa className="h-4 w-4" />
-              </span>
-              <span className="truncate text-sm font-semibold text-text">{p.modelo}</span>
-            </div>
-            <span className="text-sm font-semibold text-text">{p.atual}</span>
-            <span className="text-sm text-text-muted">{p.estoqueMinimo}</span>
-            <span className="text-sm text-text-muted">{brl(p.custoMedio)}</span>
-            <span className="text-sm font-semibold text-money">{brl(p.precoSugerido)}</span>
-            <span>{p.baixo ? <Badge tone="danger">Repor</Badge> : <Badge tone="success">OK</Badge>}</span>
-            <span className="col-span-2 md:col-span-1">
+          <div key={p.id} className="py-3">
+            {/* Desktop (md+): mesma grade de colunas do cabeçalho acima. */}
+            <div className="hidden md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_140px] md:items-center md:gap-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cx(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    p.baixo ? "bg-danger-bg text-danger" : "bg-accent-soft text-accent"
+                  )}
+                >
+                  <IconCaixa className="h-4 w-4" />
+                </span>
+                <span className="truncate text-sm font-semibold text-text">{p.modelo}</span>
+              </div>
+              <span className="text-sm font-semibold text-text">{p.atual}</span>
+              <span className="text-sm text-text-muted">{p.estoqueMinimo}</span>
+              <span className="text-sm text-text-muted">{brl(p.custoMedio)}</span>
+              <span className="text-sm font-semibold text-money">{brl(p.precoSugerido)}</span>
+              <span>{p.baixo ? <Badge tone="danger">Repor</Badge> : <Badge tone="success">OK</Badge>}</span>
               <ReporForm acao={reporEstoque.bind(null, p.id)} />
-            </span>
+            </div>
+
+            {/* Celular: o cabeçalho de colunas some (não cabe), então sem
+                rótulo em cada campo os números ficavam soltos — "2" ao lado
+                de "3" sem indicar qual é estoque e qual é mínimo. Aqui cada
+                valor leva sua etiqueta. */}
+            <div className="flex flex-col gap-3 md:hidden">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cx(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    p.baixo ? "bg-danger-bg text-danger" : "bg-accent-soft text-accent"
+                  )}
+                >
+                  <IconCaixa className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text">{p.modelo}</span>
+                {p.baixo ? <Badge tone="danger">Repor</Badge> : <Badge tone="success">OK</Badge>}
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl bg-surface-2 p-3 text-sm">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Estoque</p>
+                  <p className="font-semibold text-text">{p.atual}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Mínimo</p>
+                  <p className="text-text-muted">{p.estoqueMinimo}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Custo un.</p>
+                  <p className="text-text-muted">{brl(p.custoMedio)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Preço venda</p>
+                  <p className="font-semibold text-money">{brl(p.precoSugerido)}</p>
+                </div>
+              </div>
+              <ReporForm acao={reporEstoque.bind(null, p.id)} />
+            </div>
           </div>
         ))}
         {filtrados.length === 0 ? <p className="py-4 text-sm text-text-dim">Nenhum produto encontrado.</p> : null}
