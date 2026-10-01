@@ -206,6 +206,57 @@ export async function atualizarConfigServico(
   return { ok: true };
 }
 
+const ajusteSchema = z.object({
+  novoSaldo: z.coerce.number().int().min(0, "O saldo não pode ser negativo"),
+});
+
+// Corrige o saldo de créditos direto pro valor que o revendedor sabe que é
+// o certo (ex: plataforma deu bônus fora do registro aqui, ou o controle
+// saiu de sincronia por algum uso fora do app) — sem precisar simular uma
+// "recarga" com valor pago fictício nem caçar qual lote específico editar.
+// Reaproveita o mesmo registro de LotePlataforma que "Recarregar" usa (saldo
+// é sempre comprados − usados, nunca um campo guardado à parte), só que aqui
+// a quantidade é a diferença entre o saldo atual e o novo, podendo vir
+// negativa — valorPago fixo em 0 marca a linha como ajuste (não compra) pro
+// histórico e pra lote-item.tsx saberem diferenciar na hora de mostrar.
+export async function ajustarSaldoPlataforma(
+  plataformaId: string,
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const revendedor = await exigirRevendedor();
+  const dados = ajusteSchema.safeParse(Object.fromEntries(formData));
+  if (!dados.success) return { ok: false, erro: dados.error.issues[0]?.message ?? "Dados inválidos." };
+
+  const plataforma = await prisma.plataforma.findFirst({
+    where: { id: plataformaId, revendedorId: revendedor.id },
+    include: { lotes: true, servicos: { select: { id: true } } },
+  });
+  if (!plataforma) return { ok: false, erro: "Plataforma não encontrada." };
+
+  const comprados = plataforma.lotes.reduce((a, l) => a + l.quantidade, 0);
+  const servicoIds = plataforma.servicos.map((s) => s.id);
+  const usados = servicoIds.length ? await prisma.renovacao.count({ where: { servicoId: { in: servicoIds } } }) : 0;
+  const saldoAtual = comprados - usados;
+  const delta = dados.data.novoSaldo - saldoAtual;
+
+  if (delta === 0) {
+    return { ok: false, erro: `O saldo já está em ${saldoAtual}.` };
+  }
+
+  await prisma.lotePlataforma.create({
+    data: { plataformaId: plataforma.id, quantidade: delta, valorPago: 0 },
+  });
+
+  await registrarLog(
+    revendedor.id,
+    "plataforma.ajustar_saldo",
+    `Ajustou o saldo de ${plataforma.nome}: ${saldoAtual} → ${dados.data.novoSaldo} (${delta > 0 ? "+" : ""}${delta})`
+  );
+
+  revalidatePath("/plataformas");
+  return { ok: true };
+}
+
 const loteSchema = z.object({
   quantidade: z.coerce.number().int().min(1, "Informe a quantidade"),
   valorPago: z.coerce.number().min(0),

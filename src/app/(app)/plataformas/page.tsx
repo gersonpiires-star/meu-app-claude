@@ -10,10 +10,11 @@ import { NovaPlataformaForm } from "./nova-plataforma-form";
 import { NovoAppForm } from "./novo-app-form";
 import { LoteForm } from "./lote-form";
 import { LoteItem } from "./lote-item";
+import { AjustarSaldoForm } from "./ajustar-saldo-form";
 import { ServicoItem } from "./servico-item";
 import { ExcluirPlataformaBotao } from "./excluir-plataforma-botao";
 import { EditarPlataformaForm } from "./editar-plataforma-form";
-import { adicionarLote, editarLote, criarAppNaPlataforma, editarPlataforma } from "./actions";
+import { adicionarLote, editarLote, criarAppNaPlataforma, editarPlataforma, ajustarSaldoPlataforma } from "./actions";
 
 const IconGasto = (
   <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
@@ -85,11 +86,15 @@ export default async function PlataformasPage() {
       p.lotes.map((l) => ({
         id: `l-${l.id}`,
         data: l.data,
-        label: "Recarga de créditos",
+        // valorPago=0 é a marca de um ajuste de saldo (ajustar-saldo-form.tsx),
+        // não uma recarga comprada — e esses podem vir com quantidade
+        // negativa, então "positivo" precisa olhar o sinal real em vez de
+        // sempre assumir que todo lote é uma entrada de crédito.
+        label: l.valorPago === 0 ? "Ajuste de saldo" : "Recarga de créditos",
         plataforma: p.nome,
         qtd: l.quantidade,
-        valor: brl(l.valorPago),
-        positivo: true,
+        valor: l.valorPago === 0 ? "—" : brl(l.valorPago),
+        positivo: l.quantidade >= 0,
       }))
     ),
     ...renovacoesRecentes.map((r) => ({
@@ -124,7 +129,13 @@ export default async function PlataformasPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {plataformas.map((p) => {
           const baixo = p.saldo <= p.minimo;
-          const ultimaRecarga = [...p.lotes].sort((a, b) => b.data.getTime() - a.data.getTime())[0];
+          // Ignora lotes de ajuste (valorPago=0, ver ajustar-saldo-form.tsx)
+          // aqui — "Última recarga" é sobre compra de verdade; um ajuste de
+          // saldo feito hoje não devia fazer esse campo mentir que a última
+          // vez que o revendedor comprou crédito foi hoje.
+          const ultimaRecarga = [...p.lotes]
+            .filter((l) => l.valorPago > 0)
+            .sort((a, b) => b.data.getTime() - a.data.getTime())[0];
           return (
             <Card key={p.id} className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
@@ -181,7 +192,10 @@ export default async function PlataformasPage() {
                     </a>
                   ) : null}
                 </div>
-                <EditarPlataformaForm plataforma={{ nome: p.nome, url: p.url, minimo: p.minimo }} acao={editarPlataforma.bind(null, p.id)} />
+                <div className="flex items-center gap-3">
+                  <AjustarSaldoForm saldoAtual={p.saldo} acao={ajustarSaldoPlataforma.bind(null, p.id)} />
+                  <EditarPlataformaForm plataforma={{ nome: p.nome, url: p.url, minimo: p.minimo }} acao={editarPlataforma.bind(null, p.id)} />
+                </div>
               </div>
             </Card>
           );

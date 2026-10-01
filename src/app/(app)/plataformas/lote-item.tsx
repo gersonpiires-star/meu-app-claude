@@ -12,6 +12,13 @@ export function LoteItem({ lote, acao, podeEditar }: { lote: LoteDetalhe; acao?:
   const [editando, setEditando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
+  // Linha de "Ajustar saldo" (ajustar-saldo-form.tsx) grava aqui com
+  // valorPago=0 pra marcar que não é uma compra — diferente de uma recarga
+  // de R$ 0,00 real (rara, mas possível), não tem como saber com certeza só
+  // pelo valor, mas corrigir pelo mesmo "Ajustar saldo" de novo (em vez de
+  // editar esse registro direto) é sempre a forma certa de consertar um
+  // ajuste, então a edição nem é oferecida pra esse tipo de linha.
+  const ehAjuste = lote.valorPago === 0;
 
   if (editando && acao) {
     return (
@@ -54,11 +61,13 @@ export function LoteItem({ lote, acao, podeEditar }: { lote: LoteDetalhe; acao?:
     <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm">
       <div className="min-w-0">
         <p className="text-text">
-          {lote.quantidade} crédito{lote.quantidade === 1 ? "" : "s"} · {brl(lote.valorPago)}
+          {ehAjuste
+            ? `${lote.quantidade > 0 ? "+" : ""}${lote.quantidade} crédito${Math.abs(lote.quantidade) === 1 ? "" : "s"} · ajuste de saldo`
+            : `${lote.quantidade} crédito${lote.quantidade === 1 ? "" : "s"} · ${brl(lote.valorPago)}`}
         </p>
         <p className="text-[11px] text-text-dim">{dataCurta(lote.data)}</p>
       </div>
-      {podeEditar && acao ? (
+      {podeEditar && acao && !ehAjuste ? (
         <button
           type="button"
           onClick={() => setEditando(true)}
