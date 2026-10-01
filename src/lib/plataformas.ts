@@ -78,6 +78,18 @@ export async function dadosPlataformas(revendedorId: string) {
   for (const p of plataformas) {
     const comprados = p.lotes.reduce((a, l) => a + l.quantidade, 0);
     const valorInvestido = p.lotes.reduce((a, l) => a + l.valorPago, 0);
+    // Ajuste de saldo (actions.ts, ajustarSaldoPlataforma) grava um lote com
+    // valorPago=0 só pra corrigir a contagem de créditos — não é uma compra.
+    // Misturar ele no cálculo de "custo por crédito" diluía/inflava o preço
+    // real pago sempre que o saldo fosse corrigido pra cima ou pra baixo,
+    // mesmo sem nenhum real a mais ou a menos ter sido gasto. "Custo por
+    // crédito" deve refletir só o preço de compra de verdade, fixo até a
+    // próxima recarga de verdade — por isso esse cálculo usa só os lotes
+    // com valorPago > 0, separado do comprados/saldo acima (que precisa
+    // mesmo contar o ajuste, é o ponto da funcionalidade).
+    const lotesComprados = p.lotes.filter((l) => l.valorPago > 0);
+    const compradosReais = lotesComprados.reduce((a, l) => a + l.quantidade, 0);
+    const valorInvestidoReal = lotesComprados.reduce((a, l) => a + l.valorPago, 0);
     const servicoIds = p.servicos.map((s) => s.id);
     const usados = servicoIds.length ? await prisma.renovacao.count({ where: { servicoId: { in: servicoIds } } }) : 0;
     resultado.push({
@@ -86,7 +98,7 @@ export async function dadosPlataformas(revendedorId: string) {
       valorInvestido,
       usados,
       saldo: comprados - usados,
-      custoMedio: comprados > 0 ? valorInvestido / comprados : 0,
+      custoMedio: compradosReais > 0 ? valorInvestidoReal / compradosReais : 0,
     });
   }
   return resultado;
