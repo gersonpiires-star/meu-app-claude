@@ -194,7 +194,10 @@ export default async function PlataformasPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <AjustarSaldoForm saldoAtual={p.saldo} acao={ajustarSaldoPlataforma.bind(null, p.id)} />
-                  <EditarPlataformaForm plataforma={{ nome: p.nome, url: p.url, minimo: p.minimo }} acao={editarPlataforma.bind(null, p.id)} />
+                  <EditarPlataformaForm
+                    plataforma={{ nome: p.nome, url: p.url, minimo: p.minimo, custoCreditoManual: p.custoCreditoManual }}
+                    acao={editarPlataforma.bind(null, p.id)}
+                  />
                 </div>
               </div>
             </Card>

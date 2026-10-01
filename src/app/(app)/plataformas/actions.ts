@@ -28,9 +28,16 @@ export async function editarPlataforma(id: string, formData: FormData) {
   const revendedor = await exigirRevendedor();
   const dados = plataformaSchema.parse(Object.fromEntries(formData));
 
+  // Campo à parte do plataformaSchema (em vez de z.coerce.number().optional())
+  // porque "" precisa virar null (sem override, volta a calcular pelo
+  // histórico) — com z.coerce.number() o Number("") vira 0, que sobrescreveria
+  // o custo calculado com zero em vez de limpar o override.
+  const custoCreditoManualRaw = String(formData.get("custoCreditoManual") ?? "").trim();
+  const custoCreditoManual = custoCreditoManualRaw ? Number(custoCreditoManualRaw) : null;
+
   await prisma.plataforma.update({
     where: { id, revendedorId: revendedor.id },
-    data: { nome: dados.nome, minimo: dados.minimo, url: dados.url || null },
+    data: { nome: dados.nome, minimo: dados.minimo, url: dados.url || null, custoCreditoManual },
   });
 
   revalidatePath("/plataformas");

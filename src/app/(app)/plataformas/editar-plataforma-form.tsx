@@ -7,7 +7,7 @@ export function EditarPlataformaForm({
   plataforma,
   acao,
 }: {
-  plataforma: { nome: string; url: string | null; minimo: number };
+  plataforma: { nome: string; url: string | null; minimo: number; custoCreditoManual: number | null };
   acao: (formData: FormData) => Promise<void>;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -43,6 +43,16 @@ export function EditarPlataformaForm({
       </Field>
       <Field label="Avisar abaixo de">
         <Input type="number" name="minimo" min={0} defaultValue={plataforma.minimo} />
+      </Field>
+      <Field label="Custo por crédito (R$) — deixe em branco pra calcular pelo histórico de compras">
+        <Input
+          type="number"
+          name="custoCreditoManual"
+          min={0}
+          step="0.01"
+          defaultValue={plataforma.custoCreditoManual ?? ""}
+          placeholder="Automático"
+        />
       </Field>
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>

@@ -393,6 +393,13 @@ model Plataforma {
   minimo       Int    @default(0)
   criadoEm     DateTime @default(now())
 
+  // Quando preenchido, sobrescreve o "custo por crédito" calculado a partir
+  // do histórico de lotes comprados (ver custoMedio em lib/plataformas.ts) —
+  // pra quando o revendedor sabe o preço real e quer fixar ele direto, sem
+  // depender do histórico de compra estar completo/correto. Nulo = continua
+  // calculando pela média de compras, como sempre foi.
+  custoCreditoManual Float?
+
   lotes    LotePlataforma[]
   servicos Servico[]
 

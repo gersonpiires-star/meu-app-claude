@@ -98,7 +98,10 @@ export async function dadosPlataformas(revendedorId: string) {
       valorInvestido,
       usados,
       saldo: comprados - usados,
-      custoMedio: compradosReais > 0 ? valorInvestidoReal / compradosReais : 0,
+      // custoCreditoManual (editarPlataformaForm) sobrescreve o cálculo pelo
+      // histórico quando o revendedor sabe o preço real e quer fixar ele
+      // direto — ver comentário no schema (model Plataforma).
+      custoMedio: p.custoCreditoManual ?? (compradosReais > 0 ? valorInvestidoReal / compradosReais : 0),
     });
   }
   return resultado;
