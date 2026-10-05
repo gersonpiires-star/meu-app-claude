@@ -242,7 +242,10 @@ export async function ajustarSaldoPlataforma(
 
   const comprados = plataforma.lotes.reduce((a, l) => a + l.quantidade, 0);
   const servicoIds = plataforma.servicos.map((s) => s.id);
-  const usados = servicoIds.length ? await prisma.renovacao.count({ where: { servicoId: { in: servicoIds } } }) : 0;
+  const usados = servicoIds.length
+    ? (await prisma.renovacao.aggregate({ where: { servicoId: { in: servicoIds } }, _sum: { creditos: true } }))._sum
+        .creditos ?? 0
+    : 0;
   const saldoAtual = comprados - usados;
   const delta = dados.data.novoSaldo - saldoAtual;
 

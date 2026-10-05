@@ -205,7 +205,7 @@ export function NovaVendaWizard({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {(
               [
-                { valor: "RENOVACAO" as const, titulo: "Renovação", desc: "Cliente atual renovando o plano. Usa 1 crédito." },
+                { valor: "RENOVACAO" as const, titulo: "Renovação", desc: "Cliente atual renovando o plano. Consome créditos da plataforma." },
                 { valor: "COMBO" as const, titulo: "Aparelho + assinatura", desc: "Combo de aparelho com plano. Baixa do estoque." },
                 { valor: "SO_APARELHO" as const, titulo: "Só aparelho", desc: "Venda avulsa do aparelho, sem plano." },
               ]

@@ -35,7 +35,7 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
           include: { servico: true },
         });
 
-        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES[cliente.plano]);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
         const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
@@ -49,6 +49,7 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
             plano: cliente.plano,
             valor: cliente.valorPlano,
             custo,
+            creditos: PLANO_MESES[cliente.plano],
             snapshotAnterior: snapshotDoCliente(cliente),
           },
         });

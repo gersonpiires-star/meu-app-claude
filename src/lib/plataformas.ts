@@ -10,7 +10,12 @@ import type { Prisma } from "@/generated/prisma/client";
 // só existe quando o app está mesmo ligado a uma.
 export async function erroCreditoIndisponivel(
   db: Prisma.TransactionClient | typeof prisma,
-  servicoId: string | null
+  servicoId: string | null,
+  // Quantos créditos essa renovação vai consumir (ver Renovacao.creditos no
+  // schema) — proporcional aos meses do plano, não sempre 1. Precisa vir de
+  // quem chama (PLANO_MESES[plano]) porque é só na hora da renovação que se
+  // sabe qual plano está sendo lançado.
+  creditosNecessarios: number
 ): Promise<string | null> {
   if (!servicoId) return null;
 
@@ -25,11 +30,12 @@ export async function erroCreditoIndisponivel(
 
   const comprados = plataforma.lotes.reduce((a, l) => a + l.quantidade, 0);
   const servicoIds = plataforma.servicos.map((s) => s.id);
-  const usados = await db.renovacao.count({ where: { servicoId: { in: servicoIds } } });
+  const { _sum } = await db.renovacao.aggregate({ where: { servicoId: { in: servicoIds } }, _sum: { creditos: true } });
+  const usados = _sum.creditos ?? 0;
   const saldo = comprados - usados;
 
-  if (saldo <= 0) {
-    return `Sem créditos disponíveis em ${plataforma.nome}. Compre mais créditos em Plataformas antes de continuar.`;
+  if (saldo < creditosNecessarios) {
+    return `Sem créditos suficientes em ${plataforma.nome} (saldo: ${saldo}, essa renovação precisa de ${creditosNecessarios}). Compre mais créditos em Plataformas antes de continuar.`;
   }
   return null;
 }
@@ -47,12 +53,12 @@ export async function saldoTotalCreditos(revendedorId: string): Promise<{ saldo:
   const renovacoes = servicoIds.length
     ? await prisma.renovacao.findMany({
         where: { servicoId: { in: servicoIds } },
-        select: { servicoId: true },
+        select: { servicoId: true, creditos: true },
       })
     : [];
   const usadosPorServico = new Map<string, number>();
   for (const r of renovacoes) {
-    if (r.servicoId) usadosPorServico.set(r.servicoId, (usadosPorServico.get(r.servicoId) ?? 0) + 1);
+    if (r.servicoId) usadosPorServico.set(r.servicoId, (usadosPorServico.get(r.servicoId) ?? 0) + r.creditos);
   }
 
   let saldo = 0;
@@ -91,7 +97,10 @@ export async function dadosPlataformas(revendedorId: string) {
     const compradosReais = lotesComprados.reduce((a, l) => a + l.quantidade, 0);
     const valorInvestidoReal = lotesComprados.reduce((a, l) => a + l.valorPago, 0);
     const servicoIds = p.servicos.map((s) => s.id);
-    const usados = servicoIds.length ? await prisma.renovacao.count({ where: { servicoId: { in: servicoIds } } }) : 0;
+    const usados = servicoIds.length
+      ? (await prisma.renovacao.aggregate({ where: { servicoId: { in: servicoIds } }, _sum: { creditos: true } }))._sum
+          .creditos ?? 0
+      : 0;
     resultado.push({
       ...p,
       comprados,

@@ -84,7 +84,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
         // renovação (mesma trava de crédito, pra não vender mais do que tem
         // disponível na plataforma).
         if (!dados.testeGratis) {
-          const erroCredito = await erroCreditoIndisponivel(tx, servicoId);
+          const erroCredito = await erroCreditoIndisponivel(tx, servicoId, PLANO_MESES[dados.plano as PlanoCliente]);
           if (erroCredito) throw new SemCreditoError(erroCredito);
         }
 
@@ -109,7 +109,14 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
 
         if (!dados.testeGratis) {
           await tx.renovacao.create({
-            data: { clienteId: cliente.id, servicoId, plano: dados.plano as PlanoCliente, valor: dados.valorPlano, custo },
+            data: {
+              clienteId: cliente.id,
+              servicoId,
+              plano: dados.plano as PlanoCliente,
+              valor: dados.valorPlano,
+              custo,
+              creditos: PLANO_MESES[dados.plano as PlanoCliente],
+            },
           });
         }
 
@@ -242,7 +249,7 @@ export async function renovarCliente(
         });
         clienteNome = cliente.nome;
 
-        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES[plano]);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
         const base = apartirDoVencimento || cliente.vencimento > new Date() ? cliente.vencimento : new Date();
@@ -255,6 +262,7 @@ export async function renovarCliente(
             plano,
             valor,
             custo,
+            creditos: PLANO_MESES[plano],
             formaPagamento,
             snapshotAnterior: snapshotDoCliente(cliente),
             ...(dataLancamento && !isNaN(dataLancamento.getTime()) ? { data: dataLancamento } : {}),
@@ -389,7 +397,7 @@ export async function converterTeste(id: string): Promise<{ ok: true } | { ok: f
         // senão dava pra converter teste grátis em pagante sem crédito
         // disponível na plataforma, e essa primeira mensalidade nunca
         // aparecia no relatório por não virar um registro de Renovacao.
-        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES.MENSAL);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
         const servico = cliente.servicoId
@@ -409,7 +417,14 @@ export async function converterTeste(id: string): Promise<{ ok: true } | { ok: f
           },
         });
         await tx.renovacao.create({
-          data: { clienteId: id, servicoId: cliente.servicoId, plano: "MENSAL", valor: PLANO_VALOR_SUGERIDO.MENSAL, custo },
+          data: {
+            clienteId: id,
+            servicoId: cliente.servicoId,
+            plano: "MENSAL",
+            valor: PLANO_VALOR_SUGERIDO.MENSAL,
+            custo,
+            creditos: PLANO_MESES.MENSAL,
+          },
         });
 
         clienteConvertido = cliente.nome;

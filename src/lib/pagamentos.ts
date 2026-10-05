@@ -161,7 +161,7 @@ export async function aprovarRenovacaoPaga(
       // mas sinaliza pro revendedor resolver o crédito, pra não ficar um
       // saldo negativo silencioso na plataforma como as renovações manuais
       // já evitam.
-      const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+      const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES[pagamento.plano!]);
 
       const base = cliente.vencimento > new Date() ? cliente.vencimento : new Date();
       const novoVencimento = calcularVencimento(pagamento.plano!, base);
@@ -173,6 +173,7 @@ export async function aprovarRenovacaoPaga(
           plano: pagamento.plano!,
           valor: pagamento.valor,
           custo: pagamento.custo,
+          creditos: PLANO_MESES[pagamento.plano!],
           snapshotAnterior: snapshotDoCliente(cliente),
         },
       });

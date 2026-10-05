@@ -8,6 +8,7 @@ import { exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataHora } from "@/lib/format";
 import { consumirFifo, type Lote } from "@/lib/dados";
+import { PLANO_MESES } from "@/lib/planos";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
 function serialParaData(serial: number): Date {
@@ -406,12 +407,14 @@ async function importar({
       );
       const renovacoesData = recebimentosValidos.map((r) => {
         const clienteId = clienteIdAntigoParaNovo.get(r.clienteId!)!;
+        const plano = mapearPlano(r.tipo);
         return {
           clienteId,
           servicoId: servicoIdPorClienteNovo.get(clienteId) ?? null,
-          plano: mapearPlano(r.tipo),
+          plano,
           valor: r.valor,
           custo: r.custo,
+          creditos: PLANO_MESES[plano],
           data: parseData(r.data),
         };
       });

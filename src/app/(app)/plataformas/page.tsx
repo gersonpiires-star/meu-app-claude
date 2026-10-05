@@ -102,7 +102,7 @@ export default async function PlataformasPage() {
       data: r.data,
       label: `Renovação · ${r.cliente.nome}`,
       plataforma: r.servico?.plataforma?.nome ?? "—",
-      qtd: -1,
+      qtd: -r.creditos,
       valor: "—",
       positivo: false,
     })),

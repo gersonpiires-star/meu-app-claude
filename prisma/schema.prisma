@@ -528,6 +528,16 @@ model Renovacao {
   custo     Float    @default(0)
   data      DateTime @default(now())
 
+  // Quantos créditos da plataforma essa renovação consumiu — proporcional
+  // aos meses do plano (ver PLANO_MESES em lib/planos.ts), não sempre 1,
+  // senão uma renovação trimestral/semestral só descontava o mesmo que uma
+  // mensal. Default 1 só pra registros antigos (lançados antes desse campo
+  // existir, quando toda renovação contava como 1 crédito no cálculo de
+  // saldo) — mudar esse default retroativamente inflaria "usados" de todo
+  // o histórico e desencontraria do saldo real que o revendedor já ajustou
+  // manualmente em Plataformas (ajustarSaldoPlataforma).
+  creditos Int @default(1)
+
   // Como o pagamento chegou — nulo pros registros antigos (lançados antes
   // desse campo existir) e pras renovações automáticas via gateway, que já
   // guardam isso em Pagamento; aqui é só pra tela de Vendas mostrar a forma

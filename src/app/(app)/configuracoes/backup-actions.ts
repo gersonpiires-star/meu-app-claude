@@ -158,6 +158,10 @@ export async function restaurarBackup(
               plano: r.plano as "MENSAL" | "DOIS_MESES" | "TRIMESTRAL" | "SEMESTRAL",
               valor: r.valor as number,
               custo: (r.custo as number) ?? 0,
+              // Backups exportados antes desse campo existir não têm
+              // r.creditos — cai pra 1, igual todo registro antigo já conta
+              // no cálculo de saldo (ver Renovacao.creditos no schema).
+              creditos: (r.creditos as number) ?? 1,
               data: r.data ? new Date(r.data as string) : new Date(),
               // Sem isso, restaurar um backup desativava silenciosamente o
               // "desfazer renovação" (excluirRenovacao em clientes/actions.ts

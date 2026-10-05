@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
 import { estoqueAtualProduto, custoConsumoFifo } from "@/lib/dados";
-import { calcularVencimentoComDiaFixo } from "@/lib/planos";
+import { calcularVencimentoComDiaFixo, PLANO_MESES } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { registrarLog } from "@/lib/log";
@@ -74,7 +74,7 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
           );
         }
 
-        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId);
+        const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES[dados.plano]);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
         const { custoUnitario } = await custoConsumoFifo(dados.produtoId, dados.quantidade, tx);
@@ -89,6 +89,7 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
             plano: dados.plano,
             valor: dados.valorPlano,
             custo: dados.custoPlano,
+            creditos: PLANO_MESES[dados.plano],
             formaPagamento: dados.formaPagamento,
             snapshotAnterior: snapshotDoCliente(cliente),
             ...(dados.data ? { data: dados.data } : {}),
