@@ -37,6 +37,7 @@ function statusConta(r: {
   statusAssinatura: string;
   pausadoEm: Date | null;
   trialFim: Date;
+  assinaturaVence: Date | null;
 }): { label: string; tone: "success" | "warning" | "danger" | "neutral" } {
   if (r.pausadoEm || r.statusAssinatura === "PAUSADO")
     return { label: "Bloqueada", tone: "danger" };
@@ -49,6 +50,13 @@ function statusConta(r: {
     );
     return { label: `Teste · ${dias}d`, tone: "warning" };
   }
+  // ATIVO no banco não significa em dia — mesma checagem de assinaturaVence
+  // já feita em admin/assinantes (statusInfo), que faltava aqui: sem ela,
+  // uma conta com pagamento recusado/atrasado (statusAssinatura ainda
+  // "ATIVO" até o próximo evento do gateway mudar isso) aparecia como
+  // "Ativa" nessa tabela mesmo com o plano vencido.
+  if (r.assinaturaVence && r.assinaturaVence <= new Date())
+    return { label: "Vencida", tone: "danger" };
   return { label: "Ativa", tone: "success" };
 }
 
