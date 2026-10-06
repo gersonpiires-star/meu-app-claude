@@ -48,6 +48,17 @@ export default async function CadastroPage({
           </div>
 
           <SignupForm indicadoPorId={ref} />
+          <p className="mt-3 text-center text-[11px] leading-relaxed text-text-dim">
+            Ao criar conta, você concorda com os{" "}
+            <Link href="/termos" className="font-semibold text-accent hover:underline">
+              Termos de Uso
+            </Link>{" "}
+            e a{" "}
+            <Link href="/privacidade" className="font-semibold text-accent hover:underline">
+              Política de Privacidade
+            </Link>
+            .
+          </p>
         </Card>
       </div>
     </main>

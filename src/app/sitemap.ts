@@ -12,5 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/entrar`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${baseUrl}/cadastro`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${baseUrl}/recuperar-senha`, changeFrequency: "yearly", priority: 0.1 },
+    { url: `${baseUrl}/termos`, changeFrequency: "yearly", priority: 0.1 },
+    { url: `${baseUrl}/privacidade`, changeFrequency: "yearly", priority: 0.1 },
   ];
 }

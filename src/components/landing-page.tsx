@@ -627,6 +627,12 @@ export function LandingPage() {
             <span className="hidden sm:inline">— Gestão de clientes, vendas e estoque para revenda de streaming.</span>
           </div>
           <div className="flex items-center gap-4 font-semibold">
+            <Link href="/termos" className="hover:text-text">
+              Termos
+            </Link>
+            <Link href="/privacidade" className="hover:text-text">
+              Privacidade
+            </Link>
             <Link href="/entrar" className="hover:text-text">
               Entrar
             </Link>
