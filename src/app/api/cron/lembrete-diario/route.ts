@@ -6,6 +6,14 @@ import { enviarPush } from "@/lib/push";
 import { dadosMes } from "@/lib/relatorio";
 import { diaCivilBr } from "@/lib/format";
 import { enviarCobrancasAutomaticas } from "@/lib/cobranca-automatica";
+import { ehAniversarioDeCasa } from "@/lib/aniversario";
+
+// "A, B e C" em vez de "A e B e C" — só usado pra montar o corpo do push
+// diário, que pode juntar até 3 fatos (vencidos/vencendo/aniversariantes).
+function juntarComE(partes: string[]): string {
+  if (partes.length <= 1) return partes.join("");
+  return `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
+}
 
 function diasEntreCivil(de: Date, ate: Date): number {
   const d = diaCivilBr(de);
@@ -172,9 +180,14 @@ export async function GET(req: NextRequest) {
 
     const vencidosCount = emRisco.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO").length;
     const vencendoCount = emRisco.length - vencidosCount;
+    const aniversariantesCount = clientes.filter((c) => ehAniversarioDeCasa(c.criadoEm, agora).ehAniversario).length;
     const partes: string[] = [];
     if (vencidosCount > 0) partes.push(`${vencidosCount} vencido${vencidosCount === 1 ? "" : "s"}`);
     if (vencendoCount > 0) partes.push(`${vencendoCount} vencendo`);
+    // Só entra no mesmo push de cobrança (não dispara um push à parte) —
+    // o painel já mostra a lista de aniversariantes pra quem entra sem
+    // ter ninguém pra cobrar hoje.
+    if (aniversariantesCount > 0) partes.push(`${aniversariantesCount} fazendo aniversário de casa`);
 
     for (const inscricao of revendedor.pushSubscriptions) {
       // Manda direto pra fila de cobrança já pronta pra disparar (mensagem
@@ -182,7 +195,7 @@ export async function GET(req: NextRequest) {
       // que só mostra o resumo e exige mais um passo pra achar a fila.
       const manter = await enviarPush(inscricao, {
         titulo: "Clientes pra cobrar hoje",
-        corpo: `Você tem ${partes.join(" e ")}. Toque para cobrar agora.`,
+        corpo: `Você tem ${juntarComE(partes)}. Toque para cobrar agora.`,
         url: "/clientes/cobrar-em-lote",
       });
       if (!manter) {
