@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { exigirRevendedor, permissoesFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dadosMes, proximoMes, ultimosMeses, visaoGeralPeriodo, oQueMaisVendeNoPeriodo } from "@/lib/relatorio";
+import { dadosMes, proximoMes, visaoGeralPeriodo, oQueMaisVendeNoPeriodo } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
 import { gradeDoMes } from "@/lib/calendario";
 import { brl, brl0, dataCurta, dataPorExtenso, diaCivilBr } from "@/lib/format";
@@ -80,8 +80,7 @@ export default async function RelatorioPage({
   const periodo = PERIODOS.find((p) => p.chave === periodoParam) ?? PERIODOS[1];
 
   const { inicio: inicioMesAtual, fim: fimMesAtual } = limitesDoMes(agora);
-  const [meses, dados, futuro, fechamentos, clientesDoMesAtual, visaoGeral, maisVendidos] = await Promise.all([
-    ultimosMeses(revendedor.id),
+  const [dados, futuro, fechamentos, clientesDoMesAtual, visaoGeral, maisVendidos] = await Promise.all([
     dadosMes(revendedor.id, ano, mes),
     proximoMes(revendedor.id),
     prisma.fechamentoMes.findMany({
@@ -293,7 +292,7 @@ export default async function RelatorioPage({
       </div>
 
       <Card>
-        <GraficoMeses meses={meses} selecionado={{ ano, mes }} />
+        <GraficoMeses meses={visaoGeral.porMesGrafico} selecionado={{ ano, mes }} />
       </Card>
 
       <div className="grid grid-cols-3 gap-3">

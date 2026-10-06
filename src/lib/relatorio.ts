@@ -4,29 +4,30 @@ import { faixasDosUltimosMeses } from "@/lib/meses";
 import { PLANO_MESES, PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
-  const meses: { ano: number; mes: number; receita: number; custo: number; lucro: number }[] = [];
+  // Um mês não depende do resultado de outro — roda todos em paralelo em vez
+  // de um for..await sequencial (que pra período de 12 meses virava até 24
+  // round-trips um atrás do outro).
+  return Promise.all(
+    faixasDosUltimosMeses(quantidade).map(async ({ ano, mes, inicio, fim }) => {
+      const [renovacoes, vendas] = await Promise.all([
+        prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+        prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
+      ]);
 
-  for (const { ano, mes, inicio, fim } of faixasDosUltimosMeses(quantidade)) {
-    const [renovacoes, vendas] = await Promise.all([
-      prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
-      prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
-    ]);
+      const receitaRenov = renovacoes.reduce((a, r) => a + r.valor, 0);
+      const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
+      const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
+      const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
+      // Taxa da maquininha (cartão) também sai do bolso — ver comentário em
+      // dadosMes, abaixo, sobre esse mesmo desconto.
+      const taxaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
 
-    const receitaRenov = renovacoes.reduce((a, r) => a + r.valor, 0);
-    const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
-    const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
-    const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
-    // Taxa da maquininha (cartão) também sai do bolso — ver comentário em
-    // dadosMes, abaixo, sobre esse mesmo desconto.
-    const taxaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
+      const receita = receitaRenov + receitaVendas;
+      const custo = custoRenov + custoVendas + taxaVendas;
 
-    const receita = receitaRenov + receitaVendas;
-    const custo = custoRenov + custoVendas + taxaVendas;
-
-    meses.push({ ano, mes, receita, custo, lucro: receita - custo });
-  }
-
-  return meses;
+      return { ano, mes, receita, custo, lucro: receita - custo };
+    })
+  );
 }
 
 export async function dadosMes(revendedorId: string, ano: number, mes: number) {
@@ -124,8 +125,14 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
   const inicioPeriodo = brMidnightUTC(ano, mes - (meses - 1), 1);
   const fimPeriodo = brMidnightUTC(ano, mes + 1, 1);
 
-  const [porMes, clientesNovos, naoRenovaram, clientesAtivos] = await Promise.all([
-    ultimosMeses(revendedorId, meses),
+  // Busca sempre pelo menos 6 meses de uma vez só (nunca menos do que o
+  // gráfico "últimos 6 meses" da página de relatório precisa) — assim quem
+  // chama essa função com o período de 6 meses (o padrão da tela) reaproveita
+  // a mesma busca pros dois lugares, em vez de rodar ultimosMeses() duas
+  // vezes com o mesmo resultado.
+  const quantidadeBuscada = Math.max(6, meses);
+  const [porMesBuscado, clientesNovos, naoRenovaram, clientesAtivos] = await Promise.all([
+    ultimosMeses(revendedorId, quantidadeBuscada),
     prisma.cliente.count({ where: { revendedorId, criadoEm: { gte: inicioPeriodo, lt: fimPeriodo } } }),
     prisma.cliente.count({
       where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicioPeriodo, lt: fimPeriodo } },
@@ -135,6 +142,9 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
       select: { vencimento: true, valorPlano: true },
     }),
   ]);
+
+  const porMes = porMesBuscado.slice(-meses);
+  const porMesGrafico = porMesBuscado.slice(-6);
 
   const receita = porMes.reduce((a, m) => a + m.receita, 0);
   const custo = porMes.reduce((a, m) => a + m.custo, 0);
@@ -167,6 +177,7 @@ export async function visaoGeralPeriodo(revendedorId: string, meses: number) {
 
   return {
     porMes,
+    porMesGrafico,
     receita,
     lucro,
     margem,

@@ -182,18 +182,18 @@ export async function dadosAdmin() {
 // revendedor cobrando os clientes dele). Alimenta o gráfico "Receita por
 // mês" no Painel do administrador.
 export async function receitaMensalAdmin(quantidade = 6) {
-  const meses: { ano: number; mes: number; receita: number }[] = [];
-
-  for (const { ano, mes, inicio, fim } of faixasDosUltimosMeses(quantidade)) {
-    const agg = await prisma.pagamento.aggregate({
-      where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
-      _sum: { valorLiquido: true },
-    });
-
-    meses.push({ ano, mes, receita: agg._sum.valorLiquido ?? 0 });
-  }
-
-  return meses;
+  // Um mês não depende do resultado de outro — roda todos em paralelo em vez
+  // de um for..await sequencial (mesmo ajuste feito em ultimosMeses(), que
+  // tinha o mesmo padrão pro lado do revendedor).
+  return Promise.all(
+    faixasDosUltimosMeses(quantidade).map(async ({ ano, mes, inicio, fim }) => {
+      const agg = await prisma.pagamento.aggregate({
+        where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
+        _sum: { valorLiquido: true },
+      });
+      return { ano, mes, receita: agg._sum.valorLiquido ?? 0 };
+    })
+  );
 }
 
 // Receita de assinaturas acumulada dia a dia no mês atual (até hoje) e no

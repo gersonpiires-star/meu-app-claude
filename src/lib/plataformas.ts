@@ -80,6 +80,21 @@ export async function dadosPlataformas(revendedorId: string) {
     orderBy: { nome: "asc" },
   });
 
+  // Mesmo padrão de saldoTotalCreditos, acima: uma busca só com todos os
+  // servicoIds de uma vez (agrupados em JS por servicoId), em vez de 1
+  // aggregate por plataforma dentro do loop.
+  const todosServicoIds = plataformas.flatMap((p) => p.servicos.map((s) => s.id));
+  const renovacoes = todosServicoIds.length
+    ? await prisma.renovacao.findMany({
+        where: { servicoId: { in: todosServicoIds } },
+        select: { servicoId: true, creditos: true },
+      })
+    : [];
+  const usadosPorServico = new Map<string, number>();
+  for (const r of renovacoes) {
+    if (r.servicoId) usadosPorServico.set(r.servicoId, (usadosPorServico.get(r.servicoId) ?? 0) + r.creditos);
+  }
+
   const resultado = [];
   for (const p of plataformas) {
     const comprados = p.lotes.reduce((a, l) => a + l.quantidade, 0);
@@ -96,11 +111,7 @@ export async function dadosPlataformas(revendedorId: string) {
     const lotesComprados = p.lotes.filter((l) => l.valorPago > 0);
     const compradosReais = lotesComprados.reduce((a, l) => a + l.quantidade, 0);
     const valorInvestidoReal = lotesComprados.reduce((a, l) => a + l.valorPago, 0);
-    const servicoIds = p.servicos.map((s) => s.id);
-    const usados = servicoIds.length
-      ? (await prisma.renovacao.aggregate({ where: { servicoId: { in: servicoIds } }, _sum: { creditos: true } }))._sum
-          .creditos ?? 0
-      : 0;
+    const usados = p.servicos.reduce((a, s) => a + (usadosPorServico.get(s.id) ?? 0), 0);
     resultado.push({
       ...p,
       comprados,
