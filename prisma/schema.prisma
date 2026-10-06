@@ -422,7 +422,10 @@ model Cliente {
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   servicoId    String?
-  servico      Servico?   @relation(fields: [servicoId], references: [id])
+  // SetNull: apagar o Servico (app da plataforma) não pode levar o Cliente
+  // junto — ele só perde o vínculo e continua existindo, com a renovação e
+  // o histórico dele intactos.
+  servico      Servico?   @relation(fields: [servicoId], references: [id], onDelete: SetNull)
 
   nome     String
   cpf      String?
@@ -472,6 +475,11 @@ model NotificacaoPagamento {
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   clienteId    String?
   cliente      Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  // Gravado na criação (cliente.nome) pra notificação continuar legível
+  // mesmo se o Cliente for excluído depois (clienteId vira null, SetNull
+  // acima) — mesmo motivo de Renovacao.custo e Venda.custoUnitario: texto
+  // de notificação já mostrada não pode virar "—" ou sumir por causa de uma
+  // mudança posterior na fonte.
   clienteNome  String
   valor        Float
   criadoEm     DateTime   @default(now())
@@ -605,7 +613,13 @@ model Venda {
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   produtoId    String
-  produto      Produto    @relation(fields: [produtoId], references: [id])
+  // Restrict (não Cascade nem SetNull): a venda precisa do produtoId pra
+  // custoUnitario/relatório de meses passados continuarem corretos — apagar
+  // um Produto com venda registrada tem que falhar, não arrastar a venda
+  // junto nem deixar ela com produto nulo. Os fluxos que zeram a conta
+  // (importar-actions.ts, backup-actions.ts) já apagam Venda antes de
+  // Produto na mesma transação, então nunca batem nessa restrição.
+  produto      Produto    @relation(fields: [produtoId], references: [id], onDelete: Restrict)
   clienteId    String?
   cliente      Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
@@ -657,7 +671,9 @@ model Aviso {
   revendedorId String?
   revendedor   Revendedor? @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   servicoId    String?
-  servico      Servico?    @relation(fields: [servicoId], references: [id])
+  // SetNull, mesmo motivo de Cliente.servico: o Aviso já publicado não
+  // precisa desaparecer nem travar a exclusão do Servico, só perde o filtro.
+  servico      Servico?    @relation(fields: [servicoId], references: [id], onDelete: SetNull)
 
   destino  DestinoAviso
   tipo     TipoAviso    @default(GERAL)
