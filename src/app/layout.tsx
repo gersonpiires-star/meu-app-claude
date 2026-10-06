@@ -13,7 +13,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Sem isso, a tag og:image (gerada por opengraph-image.tsx) saía com uma
+// URL relativa — e o crawler do WhatsApp/Facebook/Telegram não resolve URL
+// relativa, por isso o preview ao compartilhar o link não mostrava nenhuma
+// imagem (ou caía num ícone genérico do próprio app de mensagens).
+const baseUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "GestorPro",
   description: "Gestão de clientes, vendas e estoque para revenda de streaming",
   manifest: "/manifest.webmanifest",
@@ -25,6 +32,19 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg",
+  },
+  openGraph: {
+    title: "GestorPro",
+    description: "Gestão de clientes, vendas e estoque para revenda de streaming",
+    url: baseUrl,
+    siteName: "GestorPro",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GestorPro",
+    description: "Gestão de clientes, vendas e estoque para revenda de streaming",
   },
 };
 
