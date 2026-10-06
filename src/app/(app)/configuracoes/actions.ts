@@ -99,7 +99,7 @@ export async function salvarCredenciaisMP(formData: FormData) {
   await prisma.revendedor.update({
     where: { id: revendedor.id },
     data: {
-      mpAccessToken: dados.mpAccessToken || null,
+      mpAccessToken: dados.mpAccessToken ? criptografar(dados.mpAccessToken) : null,
       mpPublicKey: dados.mpPublicKey || null,
     },
   });
@@ -125,7 +125,7 @@ export async function salvarCredenciaisAsaas(formData: FormData) {
 
   await prisma.revendedor.update({
     where: { id: revendedor.id },
-    data: { asaasApiKey: dados.asaasApiKey || null },
+    data: { asaasApiKey: dados.asaasApiKey ? criptografar(dados.asaasApiKey) : null },
   });
 
   await registrarLog(revendedor.id, "config.credenciais_asaas", "Atualizou a credencial do Asaas");

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoAsaas } from "@/lib/asaas";
 import { aprovarRenovacaoPaga } from "@/lib/pagamentos";
+import { descriptografarOuTextoPuro } from "@/lib/crypto";
 
 // Asaas não deixa configurar uma URL de webhook por cobrança como o
 // Mercado Pago (notification_url na preferência) — o webhook é configurado
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   // é a resposta da própria API do Asaas, buscada com o token do revendedor.
   let pagamentoAsaas;
   try {
-    pagamentoAsaas = await buscarPagamentoAsaas(revendedor.asaasApiKey, asaasPaymentId);
+    pagamentoAsaas = await buscarPagamentoAsaas(descriptografarOuTextoPuro(revendedor.asaasApiKey), asaasPaymentId);
   } catch (erro) {
     console.error("Webhook Asaas: falha ao consultar pagamento na API", erro);
     return NextResponse.json({ ok: false }, { status: 500 });

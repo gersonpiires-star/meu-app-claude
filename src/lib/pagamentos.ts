@@ -10,6 +10,7 @@ import { enviarPush } from "@/lib/push";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
+import { descriptografarOuTextoPuro } from "@/lib/crypto";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -65,7 +66,7 @@ export async function criarPagamentoRenovacao(clienteId: string): Promise<{ url:
 
     try {
       const { url, asaasPaymentId } = await criarCobrancaAsaas({
-        apiKey: cliente.revendedor.asaasApiKey,
+        apiKey: descriptografarOuTextoPuro(cliente.revendedor.asaasApiKey),
         pagamentoId: pagamento.id,
         clienteNome: cliente.nome,
         cpfCnpj: cliente.cpf,
@@ -96,7 +97,7 @@ export async function criarPagamentoRenovacao(clienteId: string): Promise<{ url:
 
   try {
     const preferencia = await criarPreferencia({
-      accessToken: cliente.revendedor.mpAccessToken,
+      accessToken: descriptografarOuTextoPuro(cliente.revendedor.mpAccessToken),
       pagamentoId: pagamento.id,
       titulo: `Renovação ${cliente.servico?.nome ?? "plano"} — ${cliente.nome}`,
       valor: cliente.valorPlano,

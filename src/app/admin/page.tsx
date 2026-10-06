@@ -25,6 +25,7 @@ import { ReceitaPorMes } from "@/app/(app)/relatorio/receita-por-mes";
 import { MarcarSugestaoLidaBotao } from "./marcar-sugestao-lida-botao";
 import { EnviarCreditosForm } from "./enviar-creditos-form";
 import { PublicarAvisoRapidoForm } from "./publicar-aviso-rapido-form";
+import { MigrarCredenciaisButton } from "./migrar-credenciais-button";
 import { MetaPlataformaCard } from "./meta-plataforma";
 import { AdminTabs } from "./admin-tabs";
 
@@ -475,6 +476,16 @@ export default async function AdminPainelPage() {
                         >
                           Ver todos os comunicados →
                         </Link>
+                      </Card>
+
+                      <Card>
+                        <h2 className="mb-1 text-sm font-bold text-text">
+                          Manutenção
+                        </h2>
+                        <p className="mb-3 text-xs text-text-dim">
+                          Ação única — segura rodar mais de uma vez.
+                        </p>
+                        <MigrarCredenciaisButton />
                       </Card>
                     </div>
                   </div>

@@ -33,3 +33,18 @@ export function descriptografar(valor: string): string {
   const dados = Buffer.concat([decipher.update(Buffer.from(dadosB64, "base64")), decipher.final()]);
   return dados.toString("utf8");
 }
+
+// Pra campos que migraram de texto puro pra criptografado (ex:
+// Revendedor.mpAccessToken/asaasApiKey) sem uma migração de dados síncrona
+// com o deploy do código: linha antiga ainda em texto puro não pode virar
+// erro 500 na hora de cobrar um cliente. Tenta descriptografar; se o valor
+// não tiver o formato "iv.tag.dados" (ou a tag não bater), assume que ainda
+// não foi migrado e devolve como veio. migrarCredenciaisPagamento() (em
+// admin/actions.ts) é quem converte o que ainda estiver em texto puro.
+export function descriptografarOuTextoPuro(valor: string): string {
+  try {
+    return descriptografar(valor);
+  } catch {
+    return valor;
+  }
+}

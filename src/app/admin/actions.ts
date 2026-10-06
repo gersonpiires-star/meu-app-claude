@@ -11,6 +11,7 @@ import { brl, dataCurta } from "@/lib/format";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { enviarEmail } from "@/lib/email";
 import { emailComunicado } from "@/lib/email-templates";
+import { criptografar, descriptografar } from "@/lib/crypto";
 
 // `valor`, quando informado, é um pagamento recebido fora do Mercado Pago
 // (ex: Pix direto no WhatsApp) que o admin está registrando manualmente —
@@ -331,4 +332,51 @@ export async function enviarCreditos(formData: FormData): Promise<{ erro: string
   );
 
   revalidatePath("/admin");
+}
+
+// Migração idempotente: Revendedor.mpAccessToken/asaasApiKey viviam em
+// texto puro até esta versão — toda escrita nova (configuracoes/actions.ts)
+// já criptografa, mas o que já estava salvo continua em texto puro até
+// rodar isso. Precisa rodar dentro do processo da própria aplicação (é o
+// único lugar com acesso à CREDENTIALS_ENCRYPTION_KEY de produção) — nunca
+// loga nem devolve o valor de nenhum token, só a contagem de contas
+// convertidas. Seguro rodar de novo: só mexe no valor que ainda falha ao
+// descriptografar (ou seja, que ainda não foi migrado); uma conta já
+// migrada, ou que nunca configurou nenhum dos dois, não sofre nenhuma ação.
+export async function migrarCredenciaisPagamento(): Promise<{ convertidos: number; total: number }> {
+  await exigirAdmin();
+
+  const revendedores = await prisma.revendedor.findMany({
+    where: { OR: [{ mpAccessToken: { not: null } }, { asaasApiKey: { not: null } }] },
+    select: { id: true, mpAccessToken: true, asaasApiKey: true },
+  });
+
+  let convertidos = 0;
+  for (const r of revendedores) {
+    const data: { mpAccessToken?: string; asaasApiKey?: string } = {};
+
+    if (r.mpAccessToken) {
+      try {
+        descriptografar(r.mpAccessToken);
+      } catch {
+        data.mpAccessToken = criptografar(r.mpAccessToken);
+      }
+    }
+    if (r.asaasApiKey) {
+      try {
+        descriptografar(r.asaasApiKey);
+      } catch {
+        data.asaasApiKey = criptografar(r.asaasApiKey);
+      }
+    }
+
+    if (Object.keys(data).length > 0) {
+      await prisma.revendedor.update({ where: { id: r.id }, data });
+      await registrarLog(r.id, "admin.migrar_credenciais_pagamento", "Credenciais de pagamento convertidas pra formato criptografado", "ADMIN");
+      convertidos++;
+    }
+  }
+
+  revalidatePath("/admin");
+  return { convertidos, total: revendedores.length };
 }

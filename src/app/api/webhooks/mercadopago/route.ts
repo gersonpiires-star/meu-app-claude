@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { aprovarRenovacaoPaga, aprovarAssinaturaPaga } from "@/lib/pagamentos";
 import { enviarPush } from "@/lib/push";
+import { descriptografarOuTextoPuro } from "@/lib/crypto";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
   const porQuery = url.searchParams.get("data.id") ?? url.searchParams.get("id");
@@ -54,7 +55,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignorado: "pagamento não encontrado" });
   }
 
-  const accessToken = pagamento.tipo === "ASSINATURA" ? tokenPlataforma() : pagamento.revendedor.mpAccessToken;
+  const accessToken =
+    pagamento.tipo === "ASSINATURA"
+      ? tokenPlataforma()
+      : pagamento.revendedor.mpAccessToken && descriptografarOuTextoPuro(pagamento.revendedor.mpAccessToken);
   if (!accessToken) {
     console.error(`Webhook MP: revendedor ${pagamento.revendedorId} sem token para pagamento ${pagamento.id}`);
     // Responder 2xx aqui diria ao Mercado Pago "processado com sucesso" e ele
