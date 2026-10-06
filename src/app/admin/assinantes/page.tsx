@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, diaCivilBr, fmtTelefone, iniciais } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Button, Card, EmptyState, Input, cx } from "@/components/ui";
-import { planoDosMeses } from "@/lib/planos-assinatura";
+import { planoDosMeses, assinaturaVencida } from "@/lib/planos-assinatura";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 
@@ -32,7 +32,7 @@ function statusInfo(revendedor: { statusAssinatura: string; trialFim: Date; assi
 } {
   const agora = new Date();
   if (revendedor.statusAssinatura === "ATIVO") {
-    const venceu = revendedor.assinaturaVence && revendedor.assinaturaVence <= agora;
+    const venceu = assinaturaVencida(revendedor.statusAssinatura, revendedor.assinaturaVence, agora);
     return venceu ? { tom: "danger", label: "Plano vencido" } : { tom: "success", label: "Ativo" };
   }
   if (revendedor.statusAssinatura === "CANCELADO") return { tom: "neutral", label: "Cancelado" };

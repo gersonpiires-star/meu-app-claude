@@ -6,7 +6,7 @@ import { dataPorExtenso, dataCurta, brl0, fmtTelefone } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
 import { Badge, Card, cx } from "@/components/ui";
 import { AcoesAcesso } from "../acoes-acesso";
-import { planoDosMeses } from "@/lib/planos-assinatura";
+import { planoDosMeses, assinaturaVencida } from "@/lib/planos-assinatura";
 import type { StatusAssinatura } from "@/generated/prisma/enums";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
@@ -27,7 +27,7 @@ const STATUS_ASSINATURA_LABEL: Record<string, string> = {
 
 function statusInfo(statusAssinatura: StatusAssinatura, assinaturaVence: Date | null): { tom: "success" | "danger" | "warning" | "neutral"; label: string } {
   if (statusAssinatura === "ATIVO") {
-    const venceu = assinaturaVence && assinaturaVence <= new Date();
+    const venceu = assinaturaVencida(statusAssinatura, assinaturaVence);
     return venceu ? { tom: "danger", label: "Plano vencido" } : { tom: "success", label: "Ativo" };
   }
   if (statusAssinatura === "CANCELADO") return { tom: "neutral", label: "Cancelado" };

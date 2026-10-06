@@ -32,6 +32,16 @@ export function planoDosMeses(meses: number): PlanoAssinaturaChave {
   return "MENSAL";
 }
 
+// "ATIVO" no banco não significa em dia — um pagamento recusado/atrasado
+// deixa a conta em ATIVO até o próximo evento do gateway mudar isso, então
+// toda tela que mostra o status da assinatura precisa checar essa data
+// também, não só statusAssinatura. Centralizado aqui depois de já ter
+// ficado de fora de uma dessas telas (admin/page.tsx, aba Contas) e feito
+// uma conta vencida aparecer como "Ativa".
+export function assinaturaVencida(statusAssinatura: string, assinaturaVence: Date | null, agora: Date = new Date()): boolean {
+  return statusAssinatura === "ATIVO" && assinaturaVence != null && assinaturaVence <= agora;
+}
+
 // Soma meses a uma data sem o bug clássico do Date.setMonth: pular pro dia
 // 1 antes de avançar o mês evita o "transbordo" quando o mês de destino tem
 // menos dias (ex: 31/jan + 1 mês viraria 03/mar em vez de 28/fev). Usado
