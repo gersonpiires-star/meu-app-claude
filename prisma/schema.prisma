@@ -94,12 +94,12 @@ model Revendedor {
   papel     Papel    @default(REVENDEDOR)
   criadoEm  DateTime @default(now())
 
-  statusAssinatura   StatusAssinatura @default(TRIAL)
-  planoAssinatura    PlanoAssinatura?
-  trialFim           DateTime
-  assinaturaVence    DateTime?
-  pausadoEm          DateTime?
-  motivoPausa        String?
+  statusAssinatura StatusAssinatura @default(TRIAL)
+  planoAssinatura  PlanoAssinatura?
+  trialFim         DateTime
+  assinaturaVence  DateTime?
+  pausadoEm        DateTime?
+  motivoPausa      String?
 
   // Identidade do negócio (não a conta do revendedor) — usados como
   // remetente nas mensagens de cobrança e, no futuro, em recibos/e-mails.
@@ -112,8 +112,8 @@ model Revendedor {
   // de cobrança em cada etapa do vencimento do cliente. Sem o WhatsApp
   // conectado esses três ficam sem efeito (nada pra mandar por), mas o
   // valor salvo continua pra quando o revendedor conectar depois.
-  lembreteAntesAtivo     Boolean @default(true)
-  avisoVencimentoAtivo   Boolean @default(true)
+  lembreteAntesAtivo      Boolean @default(true)
+  avisoVencimentoAtivo    Boolean @default(true)
   cobrancaAposVencerAtiva Boolean @default(false)
 
   // Saldo de crédito financeiro que o dono do GestorPro concede à conta do
@@ -122,7 +122,7 @@ model Revendedor {
   // compra por conta própria em Plataformas, que são de um app/fornecedor
   // dele, não do GestorPro. Puramente informativo por enquanto: não abate
   // sozinho da próxima cobrança da assinatura.
-  saldoCreditos Float @default(0)
+  saldoCreditos     Float          @default(0)
   creditosRecebidos CreditoConta[]
 
   // Credenciais próprias do Mercado Pago do revendedor, para receber
@@ -219,24 +219,24 @@ model Revendedor {
   // nunca quantas pessoas sequer abriram o link e desistiram no meio.
   cliquesIndicacao CliqueIndicacao[]
 
-  servicos   Servico[]
-  clientes   Cliente[]
-  produtos   Produto[]
-  vendas     Venda[]
-  avisos     Aviso[]
-  interessados   InteressadoCliente[]
-  fechamentosMes FechamentoMes[]
-  pagamentos     Pagamento[]
-  plataformas    Plataforma[]
-  chavesPix      ChavePix[]
-  modelosMensagem ModeloMensagem[]
-  funcionarios    Funcionario[]
-  pushSubscriptions PushSubscription[]
-  logsAtividade   LogAtividade[]
+  servicos              Servico[]
+  clientes              Cliente[]
+  produtos              Produto[]
+  vendas                Venda[]
+  avisos                Aviso[]
+  interessados          InteressadoCliente[]
+  fechamentosMes        FechamentoMes[]
+  pagamentos            Pagamento[]
+  plataformas           Plataforma[]
+  chavesPix             ChavePix[]
+  modelosMensagem       ModeloMensagem[]
+  funcionarios          Funcionario[]
+  pushSubscriptions     PushSubscription[]
+  logsAtividade         LogAtividade[]
   notificacoesPagamento NotificacaoPagamento[]
-  importacoesAntigas ImportacaoAntiga[]
-  cuponsRestritos Cupom[]
-  sugestoes       Sugestao[]
+  importacoesAntigas    ImportacaoAntiga[]
+  cuponsRestritos       Cupom[]
+  sugestoes             Sugestao[]
 
   @@index([indicadoPorId])
 }
@@ -259,12 +259,12 @@ model CliqueIndicacao {
 // conteúdo) — sem isso, reimportar o mesmo arquivo duplicava todos os
 // clientes, vendas, movimentos de estoque e renovações.
 model ImportacaoAntiga {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   hash         String
   resumo       String
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   @@unique([revendedorId, hash])
 }
@@ -273,14 +273,14 @@ model ImportacaoAntiga {
 // pra dar pro dono visibilidade de quem fez o quê, principalmente depois
 // que a conta passou a permitir logins de funcionário.
 model LogAtividade {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   autorNome    String
   autorTipo    String
   acao         String
   descricao    String
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   @@index([revendedorId, criadoEm])
 }
@@ -331,14 +331,14 @@ model TokenRecuperacaoSenha {
 // dono/tenant), mas não pode gerenciar credenciais de pagamento nem
 // outros funcionários.
 model Funcionario {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   nome         String
-  email        String  @unique
+  email        String     @unique
   senhaHash    String
-  ativo        Boolean @default(true)
-  criadoEm     DateTime @default(now())
+  ativo        Boolean    @default(true)
+  criadoEm     DateTime   @default(now())
 
   // Permissões granulares — default false preserva o comportamento de
   // antes dessas colunas existirem (funcionário não excluía nada nem via
@@ -353,23 +353,23 @@ model Funcionario {
 // Inscrição de notificação push (Web Push) de um dispositivo do
 // revendedor ou de um funcionário dele, usada pelo lembrete diário.
 model PushSubscription {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
-  endpoint     String @unique
+  endpoint     String     @unique
   p256dh       String
   auth         String
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   @@index([revendedorId])
 }
 
 model Servico {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   nome         String
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   plataformaId      String?
   plataforma        Plataforma? @relation(fields: [plataformaId], references: [id], onDelete: SetNull)
@@ -385,13 +385,13 @@ model Servico {
 }
 
 model Plataforma {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   nome         String
   url          String?
-  minimo       Int    @default(0)
-  criadoEm     DateTime @default(now())
+  minimo       Int        @default(0)
+  criadoEm     DateTime   @default(now())
 
   // Quando preenchido, sobrescreve o "custo por crédito" calculado a partir
   // do histórico de lotes comprados (ver custoMedio em lib/plataformas.ts) —
@@ -407,33 +407,33 @@ model Plataforma {
 }
 
 model LotePlataforma {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   plataformaId String
   plataforma   Plataforma @relation(fields: [plataformaId], references: [id], onDelete: Cascade)
   quantidade   Int
   valorPago    Float
-  data         DateTime @default(now())
+  data         DateTime   @default(now())
 
   @@index([plataformaId])
 }
 
 model Cliente {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   servicoId    String?
-  servico      Servico? @relation(fields: [servicoId], references: [id])
+  servico      Servico?   @relation(fields: [servicoId], references: [id])
 
-  nome      String
-  cpf       String?
-  whatsapp  String?
-  telas     Int      @default(1)
+  nome     String
+  cpf      String?
+  whatsapp String?
+  telas    Int     @default(1)
 
   plano       PlanoCliente
   valorPlano  Float
   vencimento  DateTime
   diaFixo     Int?
-  testeGratis Boolean  @default(false)
+  testeGratis Boolean       @default(false)
   status      StatusCliente @default(ATIVO)
 
   anotacao        String?
@@ -446,14 +446,14 @@ model Cliente {
   indicadoPor   Cliente?  @relation("Indicacoes", fields: [indicadoPorId], references: [id], onDelete: SetNull)
   indicados     Cliente[] @relation("Indicacoes")
 
-  criadoEm    DateTime @default(now())
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  renovacoes    Renovacao[]
-  pagamentos    Pagamento[]
-  vendas        Venda[]
-  cobrancas     Cobranca[]
-  avisosEnviados AvisoEnvio[]
+  renovacoes            Renovacao[]
+  pagamentos            Pagamento[]
+  vendas                Venda[]
+  cobrancas             Cobranca[]
+  avisosEnviados        AvisoEnvio[]
   notificacoesPagamento NotificacaoPagamento[]
 
   @@index([revendedorId, status])
@@ -467,14 +467,14 @@ model Cliente {
 // cliente já atualizando sozinha, sem isso o revendedor só percebe o
 // pagamento se for conferir manualmente.
 model NotificacaoPagamento {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   clienteId    String?
-  cliente      Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cliente      Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   clienteNome  String
   valor        Float
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   @@index([revendedorId])
   @@index([clienteId])
@@ -510,9 +510,9 @@ model CreditoConta {
 // pelo WhatsApp — usado só pra calcular a pontualidade (quantas cobranças
 // foram precisas por pagamento recebido).
 model Cobranca {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   clienteId String
-  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   modelo    String
   criadoEm  DateTime @default(now())
 
@@ -520,13 +520,13 @@ model Cobranca {
 }
 
 model Renovacao {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   clienteId String
-  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente   Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   plano     PlanoCliente
   valor     Float
-  custo     Float    @default(0)
-  data      DateTime @default(now())
+  custo     Float        @default(0)
+  data      DateTime     @default(now())
 
   // Quantos créditos da plataforma essa renovação consumiu — proporcional
   // aos meses do plano (ver PLANO_MESES em lib/planos.ts), não sempre 1,
@@ -573,12 +573,12 @@ model Renovacao {
 }
 
 model Produto {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
 
   modelo        String
-  estoqueMinimo Int    @default(0)
+  estoqueMinimo Int      @default(0)
   criadoEm      DateTime @default(now())
 
   movimentos MovimentoEstoque[]
@@ -588,43 +588,43 @@ model Produto {
 }
 
 model MovimentoEstoque {
-  id            String @id @default(cuid())
+  id            String               @id @default(cuid())
   produtoId     String
-  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produto       Produto              @relation(fields: [produtoId], references: [id], onDelete: Cascade)
   tipo          TipoMovimentoEstoque
   quantidade    Int
   custoUnitario Float
   fornecedor    String?
-  data          DateTime @default(now())
+  data          DateTime             @default(now())
 
   @@index([produtoId])
 }
 
 model Venda {
-  id             String @id @default(cuid())
-  revendedorId   String
-  revendedor     Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
-  produtoId      String
-  produto        Produto @relation(fields: [produtoId], references: [id])
-  clienteId      String?
-  cliente        Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  id           String     @id @default(cuid())
+  revendedorId String
+  revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+  produtoId    String
+  produto      Produto    @relation(fields: [produtoId], references: [id])
+  clienteId    String?
+  cliente      Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   // Só preenchido no combo "Aparelho + assinatura" de Nova venda — a
   // renovação lançada junto nesse mesmo combo. Ver comentário em
   // Renovacao.vendaCombo.
-  renovacaoId    String? @unique
+  renovacaoId    String?    @unique
   renovacaoCombo Renovacao? @relation(fields: [renovacaoId], references: [id], onDelete: SetNull)
 
-  quantidade      Int
-  valorUnitario   Float
+  quantidade     Int
+  valorUnitario  Float
   // Custo real dos lotes consumidos por FIFO no momento da venda (não é
   // recalculado depois) — mesma lógica de "grava e nunca reajusta sozinho"
   // já usada em Renovacao.custo, pra relatórios de meses passados não
   // mudarem se o custo médio do produto mudar depois.
-  custoUnitario   Float @default(0)
-  formaPagamento  String
-  taxaPercentual  Float @default(0)
-  data            DateTime @default(now())
+  custoUnitario  Float    @default(0)
+  formaPagamento String
+  taxaPercentual Float    @default(0)
+  data           DateTime @default(now())
 
   @@index([revendedorId])
   @@index([produtoId])
@@ -632,18 +632,18 @@ model Venda {
 }
 
 model ChavePix {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   tipo         String
   valor        String
-  criadoEm     DateTime @default(now())
+  criadoEm     DateTime   @default(now())
 
   @@index([revendedorId])
 }
 
 model ModeloMensagem {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   chave        String
@@ -653,17 +653,17 @@ model ModeloMensagem {
 }
 
 model Aviso {
-  id           String @id @default(cuid())
+  id           String      @id @default(cuid())
   revendedorId String?
   revendedor   Revendedor? @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   servicoId    String?
-  servico      Servico? @relation(fields: [servicoId], references: [id])
+  servico      Servico?    @relation(fields: [servicoId], references: [id])
 
   destino  DestinoAviso
-  tipo     TipoAviso @default(GERAL)
+  tipo     TipoAviso    @default(GERAL)
   titulo   String
   mensagem String
-  criadoEm DateTime @default(now())
+  criadoEm DateTime     @default(now())
 
   @@index([revendedorId])
   @@index([servicoId])
@@ -673,7 +673,7 @@ model Aviso {
 // pra Administração GestorPro (não pro cliente dele) — aparece no Painel do
 // administrador com o nome de quem mandou e a mensagem.
 model Sugestao {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
 
@@ -688,20 +688,26 @@ model Sugestao {
 }
 
 model Interessado {
-  id          String   @id @default(cuid())
-  nome        String
-  whatsapp    String
-  interesse   String?
-  retornarEm  DateTime?
-  observacao  String?
-  convertido  Boolean  @default(false)
-  criadoEm    DateTime @default(now())
+  id         String    @id @default(cuid())
+  nome       String
+  whatsapp   String
+  interesse  String?
+  retornarEm DateTime?
+  observacao String?
+  convertido Boolean   @default(false)
+  criadoEm   DateTime  @default(now())
+
+  // Único índice que faz sentido aqui: não tem revendedorId (é lead do
+  // próprio GestorPro, não de um revendedor) pra servir de prefixo como nos
+  // outros modelos — e a listagem do admin (admin/interessados) ordena por
+  // criadoEm sem filtro nenhum.
+  @@index([criadoEm])
 }
 
 // Leads do próprio revendedor — pessoas interessadas em virar clientes
 // dele (diferente de Interessado, que é lead de assinatura do GestorPro).
 model InteressadoCliente {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
 
@@ -710,14 +716,14 @@ model InteressadoCliente {
   interesse  String?
   retornarEm DateTime?
   observacao String?
-  convertido Boolean  @default(false)
-  criadoEm   DateTime @default(now())
+  convertido Boolean   @default(false)
+  criadoEm   DateTime  @default(now())
 
   @@index([revendedorId, convertido])
 }
 
 model FechamentoMes {
-  id             String @id @default(cuid())
+  id             String     @id @default(cuid())
   revendedorId   String
   revendedor     Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   ano            Int
@@ -725,8 +731,8 @@ model FechamentoMes {
   receita        Float
   custo          Float
   lucro          Float
-  clientesAtivos Int @default(0)
-  fechadoEm      DateTime @default(now())
+  clientesAtivos Int        @default(0)
+  fechadoEm      DateTime   @default(now())
 
   @@unique([revendedorId, ano, mes])
 }
@@ -736,19 +742,19 @@ model FechamentoMes {
 // cliente. O webhook nunca confia no corpo recebido: ele usa este
 // registro para saber qual token consultar na API do Mercado Pago.
 model Pagamento {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   revendedorId String
   revendedor   Revendedor @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
   clienteId    String?
-  cliente      Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cliente      Cliente?   @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
   tipo   TipoPagamento
   status StatusPagamento @default(PENDENTE)
 
-  plano         PlanoCliente?
-  valor         Float
-  custo         Float @default(0)
-  meses         Int?
+  plano PlanoCliente?
+  valor Float
+  custo Float         @default(0)
+  meses Int?
 
   // Valor líquido depois de descontar a taxa do Mercado Pago (preenchido
   // pelo webhook, a partir do net_received_amount que o MP devolve, só pra
@@ -773,7 +779,7 @@ model Pagamento {
   // campo é só o registro de quanto veio do crédito, pra recibo/histórico.
   creditoAplicado Float @default(0)
 
-  criadoEm    DateTime @default(now())
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   @@index([revendedorId, status])
@@ -790,10 +796,10 @@ model Cupom {
   tipo  TipoCupom
   valor Float // percentual (0-100) se tipo=PERCENTUAL, ou reais se tipo=FIXO
 
-  ativo      Boolean   @default(true)
-  validoAte  DateTime?
-  usoMaximo  Int?
-  usosCount  Int       @default(0)
+  ativo     Boolean   @default(true)
+  validoAte DateTime?
+  usoMaximo Int?
+  usosCount Int       @default(0)
 
   // Restringe o cupom a um único revendedor (ex: negociação individual) —
   // null significa que qualquer revendedor pode usar, respeitando ainda
