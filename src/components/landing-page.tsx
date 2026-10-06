@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LogoMark } from "@/components/logo-mark";
 import { LandingTabsShowcase } from "@/components/landing-tabs-showcase";
 import { Badge, ProgressRing, buttonClassName } from "@/components/ui";
@@ -12,6 +13,7 @@ import {
 import { brl, brl0 } from "@/lib/format";
 
 const WHATSAPP_SUPORTE = process.env.SUPORTE_WHATSAPP ?? "5500000000000";
+const BASE_URL = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 const PASSOS = [
   { n: "1", titulo: "Crie sua conta grátis", texto: "Sem cartão de crédito. Você tem 7 dias pra testar tudo." },
@@ -95,6 +97,42 @@ const FAQ = [
   },
 ];
 
+// Dados estruturados (JSON-LD) pro Google — sem isso o resultado de busca
+// não ganha rich snippet nenhum (preço, categoria, FAQ), mesmo a página
+// estando indexada. type="application/ld+json" não executa como script,
+// então não precisa de nenhuma liberação extra na CSP.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "GestorPro",
+      url: BASE_URL,
+      logo: `${BASE_URL}/icon.svg`,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "GestorPro",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      description: "Gestão de clientes, vendas e estoque para revenda de streaming.",
+      offers: [
+        { "@type": "Offer", name: "Mensal", price: PRECO_MENSAL.toFixed(2), priceCurrency: "BRL" },
+        { "@type": "Offer", name: "Semestral", price: PRECO_SEMESTRAL_MENSALIZADO.toFixed(2), priceCurrency: "BRL" },
+        { "@type": "Offer", name: "Anual", price: PRECO_ANUAL_MENSALIZADO.toFixed(2), priceCurrency: "BRL" },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: FAQ.map((f) => ({
+        "@type": "Question",
+        name: f.pergunta,
+        acceptedAnswer: { "@type": "Answer", text: f.resposta },
+      })),
+    },
+  ],
+};
+
 function CheckIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
@@ -132,6 +170,7 @@ function FeatureIcon({ d }: { d: string }) {
 export function LandingPage() {
   return (
     <div className="min-h-dvh overflow-x-hidden bg-bg text-text">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <header className="sticky top-0 z-10 border-b border-border bg-bg/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2.5">
@@ -210,7 +249,7 @@ export function LandingPage() {
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-bg-deep">
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="text-xs font-semibold text-text">Beatriz renovou · R$ 28</span>
+                  <span className="text-xs font-semibold text-text">Cliente renovou · R$ 28</span>
                 </div>
 
                 {/* Notebook: tela com moldura grossa sobre uma base (deck do teclado)
@@ -219,8 +258,15 @@ export function LandingPage() {
                   <div className="relative rounded-t-xl border-[10px] border-b-0 border-surface-2 bg-bg-deep shadow-2xl">
                     <span className="absolute left-1/2 top-[-5px] h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-bg" aria-hidden="true" />
                     <div className="overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/landing-preview-desktop.png" alt="Painel do GestorPro no computador" className="block w-full" />
+                      <Image
+                        src="/landing-preview-desktop.png"
+                        alt="Painel do GestorPro no computador"
+                        width={3360}
+                        height={1000}
+                        priority
+                        sizes="(min-width: 560px) 560px, 100vw"
+                        className="block h-auto w-full"
+                      />
                     </div>
                   </div>
                   <div
@@ -234,8 +280,15 @@ export function LandingPage() {
                 {/* Celular sobreposto no canto, sugerindo o mesmo painel também no bolso */}
                 <div className="absolute -bottom-8 -right-2 w-[112px] overflow-hidden rounded-[20px] border-[4px] border-surface-2 bg-bg-deep shadow-2xl sm:-right-4 sm:w-[138px]">
                   <div className="absolute left-1/2 top-0 z-10 h-2.5 w-11 -translate-x-1/2 rounded-b-md bg-surface-2" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/landing-preview.png" alt="Painel do GestorPro no celular" className="block w-full" />
+                  <Image
+                    src="/landing-preview.png"
+                    alt="Painel do GestorPro no celular"
+                    width={780}
+                    height={1688}
+                    priority
+                    sizes="138px"
+                    className="block h-auto w-full"
+                  />
                 </div>
               </div>
             </div>
