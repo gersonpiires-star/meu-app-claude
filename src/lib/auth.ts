@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { processarTentativaLogin } from "@/lib/login-seguranca";
+import { excedeuLimite, ipRequisicao } from "@/lib/rate-limit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -17,6 +18,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         const senha = String(credentials?.senha ?? "");
         if (!email || !senha) return null;
+
+        // processarTentativaLogin já bloqueia por e-mail, mas sozinho não
+        // impede alguém de tentar e-mails diferentes rápido a partir do
+        // mesmo IP — por isso soma um limite mais largo por IP aqui.
+        if (await excedeuLimite(`login:${await ipRequisicao()}`, 20, 15)) return null;
 
         // Checagem do bloqueio, verificação de senha e gravação da tentativa
         // rodam atomicamente (trava por e-mail) dentro de

@@ -1,8 +1,25 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { descriptografar } from "@/lib/crypto";
 import { enviarMensagemWhatsapp } from "@/lib/integracoes/whatsapp-cloud-api";
 import { responderMensagemWhatsapp } from "@/lib/integracoes/whatsapp-bot";
+
+// Confirma que o POST veio mesmo da Meta — sem isso, qualquer um que
+// descubra o phone_number_id de um revendedor (não é segredo, é só o
+// identificador do número dele) conseguia forjar uma mensagem recebida e
+// acionar o bot de resposta automática daquele revendedor. A assinatura é
+// HMAC-SHA256 do corpo bruto usando o "App Secret" do app da Meta (Painel >
+// Configurações básicas) — diferente do WHATSAPP_VERIFY_TOKEN, que só serve
+// pro handshake de confirmação da URL do webhook.
+function assinaturaValida(corpoBruto: string, assinaturaRecebida: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret || !assinaturaRecebida) return false;
+  const esperada = "sha256=" + crypto.createHmac("sha256", appSecret).update(corpoBruto).digest("hex");
+  const a = Buffer.from(assinaturaRecebida);
+  const b = Buffer.from(esperada);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Handshake de verificação do webhook — a Meta chama isso uma vez quando o
 // revendedor cadastra essa URL no app dele. Um único token compartilhado
@@ -36,7 +53,11 @@ type MudancaWebhook = {
 };
 
 export async function POST(request: Request) {
-  const corpo = (await request.json()) as { entry?: { changes?: MudancaWebhook[] }[] };
+  const corpoBruto = await request.text();
+  if (!assinaturaValida(corpoBruto, request.headers.get("x-hub-signature-256"))) {
+    return NextResponse.json({ erro: "assinatura inválida" }, { status: 401 });
+  }
+  const corpo = JSON.parse(corpoBruto) as { entry?: { changes?: MudancaWebhook[] }[] };
 
   for (const entrada of corpo.entry ?? []) {
     for (const mudanca of entrada.changes ?? []) {

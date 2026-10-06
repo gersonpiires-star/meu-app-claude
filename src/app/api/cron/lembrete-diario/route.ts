@@ -53,7 +53,7 @@ function mensagemNutricaoTrial(diasDeTrial: number, totalClientes: number): { ti
 // e nutre quem está em trial nos dias-chave pra ajudar a converter.
 export async function GET(req: NextRequest) {
   const segredo = process.env.CRON_SECRET;
-  if (segredo && req.headers.get("authorization") !== `Bearer ${segredo}`) {
+  if (!segredo || req.headers.get("authorization") !== `Bearer ${segredo}`) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
 
