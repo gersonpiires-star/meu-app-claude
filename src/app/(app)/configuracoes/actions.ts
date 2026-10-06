@@ -92,6 +92,15 @@ export async function salvarLembretesAutomaticos(formData: FormData) {
   revalidatePath("/configuracoes");
 }
 
+export async function salvarRelatorioSemanal(formData: FormData) {
+  const revendedor = await exigirRevendedor();
+  await prisma.revendedor.update({
+    where: { id: revendedor.id },
+    data: { relatorioSemanalAtivo: formData.get("relatorioSemanalAtivo") === "true" },
+  });
+  revalidatePath("/configuracoes");
+}
+
 export async function salvarCredenciaisMP(formData: FormData) {
   const revendedor = await exigirDono();
   const dados = schema.parse(Object.fromEntries(formData));

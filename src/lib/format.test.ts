@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diaCivilBr, brMidnightUTC, inicioDoDiaBr, parseDataBr, dataCurta } from "./format";
+import { diaCivilBr, brMidnightUTC, inicioDoDiaBr, parseDataBr, dataCurta, diaDaSemana } from "./format";
 
 describe("diaCivilBr", () => {
   it("lê o dia certo em Brasília no meio do dia, longe de qualquer virada", () => {
@@ -78,6 +78,15 @@ describe("parseDataBr", () => {
     expect(parseDataBr("")).toBeNull();
     expect(parseDataBr(undefined)).toBeNull();
     expect(parseDataBr("lixo")).toBeNull();
+  });
+});
+
+describe("diaDaSemana", () => {
+  it("reconhece a semana de 4 a 10/out/2026 (domingo a sábado)", () => {
+    expect(diaDaSemana({ ano: 2026, mes: 9, dia: 4 })).toBe(0); // domingo
+    expect(diaDaSemana({ ano: 2026, mes: 9, dia: 5 })).toBe(1); // segunda
+    expect(diaDaSemana({ ano: 2026, mes: 9, dia: 6 })).toBe(2); // terça
+    expect(diaDaSemana({ ano: 2026, mes: 9, dia: 10 })).toBe(6); // sábado
   });
 });
 

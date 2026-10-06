@@ -116,6 +116,12 @@ model Revendedor {
   avisoVencimentoAtivo    Boolean @default(true)
   cobrancaAposVencerAtiva Boolean @default(false)
 
+  // Resumo semanal por e-mail (toda segunda, últimos 7 dias — ver
+  // resumoUltimos7Dias em lib/relatorio.ts) — independente dos três acima,
+  // que são sobre cobrar o CLIENTE do revendedor; esse é um e-mail pro
+  // próprio revendedor sobre o negócio dele.
+  relatorioSemanalAtivo Boolean @default(true)
+
   // Saldo de crédito financeiro que o dono do GestorPro concede à conta do
   // revendedor (ex: compensação, bônus de indicação fora do fluxo normal de
   // cupom) — não confundir com os créditos de IPTV que cada revendedor

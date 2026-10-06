@@ -232,3 +232,54 @@ export async function oQueMaisVendeNoPeriodo(revendedorId: string, meses: number
 
   return [...grupos.values()].sort((a, b) => b.receita - a.receita);
 }
+
+// Resumo dos últimos 7 dias corridos (janela rolante, não calendário) —
+// alimenta o e-mail de relatório semanal (api/cron/lembrete-diario). Mesmo
+// cuidado de fuso dos outros relatórios: "fim" é o fim do dia civil de hoje
+// em Brasília (brMidnightUTC do dia seguinte), nunca `agora` bruto, senão a
+// janela de 7 dias cortava umas horas do dia de hoje em produção (UTC).
+export async function resumoUltimos7Dias(revendedorId: string, agora: Date = new Date()) {
+  const hojeCivil = diaCivilBr(agora);
+  const fim = brMidnightUTC(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia + 1);
+  const inicio = new Date(fim.getTime() - 7 * 24 * 60 * 60000);
+
+  const [renovacoes, vendas, clientesNovos, cancelados, clientesAtivos] = await Promise.all([
+    prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+    prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
+    prisma.cliente.count({ where: { revendedorId, criadoEm: { gte: inicio, lt: fim } } }),
+    prisma.cliente.count({ where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } } }),
+    prisma.cliente.findMany({ where: { revendedorId, status: { not: "CANCELADO" } }, select: { vencimento: true } }),
+  ]);
+
+  const receitaRenov = renovacoes.reduce((a, r) => a + r.valor, 0);
+  const custoRenov = renovacoes.reduce((a, r) => a + r.custo, 0);
+  const receitaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario, 0);
+  const custoVendas = vendas.reduce((a, v) => a + v.quantidade * v.custoUnitario, 0);
+  const taxaVendas = vendas.reduce((a, v) => a + v.quantidade * v.valorUnitario * (v.taxaPercentual / 100), 0);
+
+  const receita = receitaRenov + receitaVendas;
+  const custo = custoRenov + custoVendas + taxaVendas;
+
+  let vencidos = 0;
+  let vencendo = 0;
+  for (const c of clientesAtivos) {
+    const faixa = faixaVencimento(c.vencimento, agora);
+    if (faixa === "VENCIDO") vencidos += 1;
+    else if (faixa === "ATE_5_DIAS") vencendo += 1;
+  }
+
+  return {
+    inicio,
+    fim,
+    receita,
+    custo,
+    lucro: receita - custo,
+    renovacoes: renovacoes.length,
+    vendas: vendas.length,
+    clientesNovos,
+    cancelados,
+    ativos: clientesAtivos.length,
+    vencidos,
+    vencendo,
+  };
+}

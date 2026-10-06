@@ -11,6 +11,7 @@ import { ImportarForm } from "./importar-form";
 import { ChavesPixForm } from "./chaves-pix-form";
 import { BackupForm } from "./backup-form";
 import { NotificacoesPush } from "./notificacoes-push";
+import { RelatorioSemanalForm } from "./relatorio-semanal-form";
 import { LinkIndicacao } from "./link-indicacao";
 import { CancelarAssinaturaForm } from "./cancelar-assinatura-form";
 import { SugestaoForm } from "./sugestao-form";
@@ -324,13 +325,22 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
           ) : null}
 
           {catAtiva === "notificacoes" ? (
-            <Item titulo="Lembrete diário de vencimento">
-              <p className="mb-3 text-sm text-text-dim">
-                Receba uma notificação toda manhã no celular ou computador com quem está vencendo ou vencido —
-                sem precisar abrir o app pra conferir.
-              </p>
-              <NotificacoesPush />
-            </Item>
+            <>
+              <Item titulo="Lembrete diário de vencimento">
+                <p className="mb-3 text-sm text-text-dim">
+                  Receba uma notificação toda manhã no celular ou computador com quem está vencendo ou vencido —
+                  sem precisar abrir o app pra conferir.
+                </p>
+                <NotificacoesPush />
+              </Item>
+
+              <Item titulo="Resumo semanal">
+                <p className="mb-3 text-sm text-text-dim">
+                  Toda segunda de manhã, um e-mail com o resumo do seu negócio na última semana.
+                </p>
+                <RelatorioSemanalForm ativo={revendedor.relatorioSemanalAtivo} />
+              </Item>
+            </>
           ) : null}
 
           {catAtiva === "aparencia" ? (

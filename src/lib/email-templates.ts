@@ -1,3 +1,5 @@
+import { brl, brl0 } from "@/lib/format";
+
 // Templates de e-mail transacional do GestorPro — HTML com estilo inline
 // (não dá pra confiar em <style> no <head> nem em classes CSS externas,
 // vários webmails ignoram ou removem) e layout simples em tabela, que é o
@@ -156,5 +158,66 @@ export function emailComunicado({
   return {
     subject: `${atualizacao ? "Atualização" : "Comunicado"} GestorPro — ${titulo}`,
     html: layoutEmail({ titulo, corpoHtml }),
+  };
+}
+
+function linhaStat(label: string, valor: string, destaque = false): string {
+  return `
+    <tr>
+      <td style="padding:8px 0; font-size:13px; color:${COR_TEXTO_DIM}; border-bottom:1px solid ${COR_BORDA};">${label}</td>
+      <td style="padding:8px 0; font-size:13px; font-weight:700; color:${destaque ? COR_ACCENT : COR_TEXTO}; text-align:right; border-bottom:1px solid ${COR_BORDA};">${valor}</td>
+    </tr>
+  `;
+}
+
+// Disparado toda segunda-feira junto do cron diário (api/cron/lembrete-
+// diario) — resumo dos últimos 7 dias corridos (lib/relatorio.ts,
+// resumoUltimos7Dias), pra quem nem sempre abre o app ver que o negócio
+// está sendo acompanhado sem precisar entrar.
+export function emailRelatorioSemanal({
+  nome,
+  receita,
+  lucro,
+  renovacoes,
+  vendas,
+  clientesNovos,
+  cancelados,
+  vencidos,
+  vencendo,
+  linkRelatorio,
+}: {
+  nome: string;
+  receita: number;
+  lucro: number;
+  renovacoes: number;
+  vendas: number;
+  clientesNovos: number;
+  cancelados: number;
+  vencidos: number;
+  vencendo: number;
+  linkRelatorio: string;
+}): { subject: string; html: string } {
+  const primeiroNome = nome.trim().split(" ")[0] || nome;
+  const corpoHtml = `
+    <h1 style="margin:0 0 4px; font-size:19px; font-weight:800; color:${COR_TEXTO};">Oi, ${primeiroNome} — sua semana no GestorPro</h1>
+    <p style="margin:0 0 20px; font-size:13px; line-height:1.6; color:${COR_TEXTO_DIM};">Resumo dos últimos 7 dias.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${linhaStat("Receita (renovações + vendas)", brl(receita), true)}
+      ${linhaStat("Lucro", brl(lucro))}
+      ${linhaStat("Renovações", String(renovacoes))}
+      ${linhaStat("Vendas", String(vendas))}
+      ${linhaStat("Clientes novos", String(clientesNovos))}
+      ${linhaStat("Cancelamentos", String(cancelados))}
+      ${linhaStat("Vencidos agora", String(vencidos))}
+      ${linhaStat("Vencendo em até 5 dias", String(vencendo))}
+    </table>
+    ${botao("Ver relatório completo", linkRelatorio)}
+    <p style="margin:20px 0 0; font-size:12px; line-height:1.6; color:${COR_TEXTO_DIM};">
+      Pra não receber mais esse resumo semanal, desative em Configurações → Notificações dentro do app.
+    </p>
+  `;
+  return {
+    subject: `Sua semana no GestorPro: ${brl0(receita)} em receita`,
+    html: layoutEmail({ titulo: "Seu resumo da semana", corpoHtml }),
   };
 }

@@ -68,6 +68,15 @@ export function diaCivilBr(d: Date): { ano: number; mes: number; dia: number } {
   return { ano: Number(ano), mes: Number(mes) - 1, dia: Number(dia) };
 }
 
+// Dia da semana (0=domingo...6=sábado) de um dia civil em Brasília já
+// extraído por diaCivilBr — usado pra agendar algo por dia da semana (ex:
+// relatório semanal toda segunda) sem reabrir risco de fuso: o
+// Date(ano, mes, dia) aqui nunca vira um instante comparado a nada, só
+// extrai o dia da semana desses três números que já estão certos.
+export function diaDaSemana({ ano, mes, dia }: { ano: number; mes: number; dia: number }): number {
+  return new Date(ano, mes, dia).getDay();
+}
+
 // Constrói o instante UTC correspondente à meia-noite de um DD/MM/AAAA
 // digitado pelo revendedor, no fuso de Brasília — usar sempre que uma data
 // digitada vira um Date, senão ela desalinha com a exibição (que já usa

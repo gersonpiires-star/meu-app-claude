@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
-import { dadosMes } from "@/lib/relatorio";
-import { diaCivilBr } from "@/lib/format";
+import { dadosMes, resumoUltimos7Dias } from "@/lib/relatorio";
+import { diaCivilBr, diaDaSemana } from "@/lib/format";
 import { enviarCobrancasAutomaticas } from "@/lib/cobranca-automatica";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
+import { enviarEmail } from "@/lib/email";
+import { emailRelatorioSemanal } from "@/lib/email-templates";
 
 // "A, B e C" em vez de "A e B e C" — só usado pra montar o corpo do push
 // diário, que pode juntar até 3 fatos (vencidos/vencendo/aniversariantes).
@@ -83,12 +85,15 @@ export async function GET(req: NextRequest) {
   // precisar que ele clique em nada (igual ao protótipo original).
   const ultimoDiaDoMes = new Date(agoraCivil.ano, agoraCivil.mes + 1, 0).getDate();
   const ehUltimoDia = agoraCivil.dia === ultimoDiaDoMes;
+  const ehSegunda = diaDaSemana(agoraCivil) === 1;
+  const baseUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
   let suspensos = 0;
   let notificados = 0;
   let fechados = 0;
   let nutridos = 0;
   let cobrancasAutomaticas = 0;
+  let relatoriosSemanais = 0;
 
   for (const revendedor of revendedores) {
     const clientes = await prisma.cliente.findMany({
@@ -97,6 +102,31 @@ export async function GET(req: NextRequest) {
     });
 
     cobrancasAutomaticas += await enviarCobrancasAutomaticas(revendedor, clientes);
+
+    if (ehSegunda && revendedor.relatorioSemanalAtivo) {
+      try {
+        const resumo = await resumoUltimos7Dias(revendedor.id, agora);
+        const { subject, html } = emailRelatorioSemanal({
+          nome: revendedor.nome,
+          receita: resumo.receita,
+          lucro: resumo.lucro,
+          renovacoes: resumo.renovacoes,
+          vendas: resumo.vendas,
+          clientesNovos: resumo.clientesNovos,
+          cancelados: resumo.cancelados,
+          vencidos: resumo.vencidos,
+          vencendo: resumo.vencendo,
+          linkRelatorio: `${baseUrl}/relatorio`,
+        });
+        await enviarEmail({ to: revendedor.email, subject, html });
+        relatoriosSemanais++;
+      } catch (erro) {
+        // E-mail é best-effort aqui — uma falha no Resend (ou revendedor
+        // sem e-mail válido) não pode interromper o resto do cron pros
+        // outros revendedores, mesma lógica de enviarCobrancasAutomaticas.
+        console.error(`Falha ao enviar relatório semanal pro revendedor ${revendedor.id}`, erro);
+      }
+    }
 
     if (ehUltimoDia) {
       const jaFechou = await prisma.fechamentoMes.findUnique({
@@ -262,5 +292,6 @@ export async function GET(req: NextRequest) {
     fechados,
     nutridos,
     cobrancasAutomaticas,
+    relatoriosSemanais,
   });
 }
