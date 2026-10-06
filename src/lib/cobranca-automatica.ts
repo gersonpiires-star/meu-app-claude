@@ -3,7 +3,7 @@ import { descriptografar } from "@/lib/crypto";
 import { enviarMensagemWhatsapp, ErroWhatsappCloudApi } from "@/lib/integracoes/whatsapp-cloud-api";
 import { mesclarModelos, preencherModelo } from "@/lib/mensagens";
 import { diasParaVencer, PLANO_LABEL } from "@/lib/planos";
-import { brl, dataCurta, diaCivilBr } from "@/lib/format";
+import { brl, dataCurta, diaCivilBr, brMidnightUTC } from "@/lib/format";
 
 type RevendedorComToggles = {
   id: string;
@@ -42,7 +42,12 @@ export async function enviarCobrancasAutomaticas(revendedor: RevendedorComToggle
 
   const agora = new Date();
   const hojeCivil = diaCivilBr(agora);
-  const inicioDeHoje = new Date(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia);
+  // brMidnightUTC, não new Date(ano, mes, dia): esse último monta meia-noite
+  // no fuso do servidor (UTC em produção), que são 21h de ontem em
+  // Brasília — comparado contra Cobranca.criadoEm (instante real) abaixo,
+  // isso alargava a janela de "já mandou hoje" pra incluir as 21h-23h59 de
+  // ontem (mesmo bug já corrigido em dados-admin.ts/receitaMensalAdmin).
+  const inicioDeHoje = brMidnightUTC(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia);
 
   const overrides = await prisma.modeloMensagem.findMany({ where: { revendedorId: revendedor.id } });
   const modelos = mesclarModelos(overrides);
