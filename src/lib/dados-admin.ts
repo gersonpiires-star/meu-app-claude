@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
+import { faixasDosUltimosMeses } from "@/lib/meses";
 
 export async function dadosAdmin() {
   const agora = new Date();
@@ -181,25 +182,9 @@ export async function dadosAdmin() {
 // revendedor cobrando os clientes dele). Alimenta o gráfico "Receita por
 // mês" no Painel do administrador.
 export async function receitaMensalAdmin(quantidade = 6) {
-  const agora = new Date();
-  const agoraCivil = diaCivilBr(agora);
   const meses: { ano: number; mes: number; receita: number }[] = [];
 
-  for (let i = quantidade - 1; i >= 0; i--) {
-    // Normaliza (ano, mes - i) pra virada de ano — essa conta é só
-    // aritmética local (não vira instante comparado a nada), então tanto
-    // faz o fuso do servidor aqui; os limites de busca é que precisam do
-    // instante certo em Brasília, por isso usam brMidnightUTC abaixo em vez
-    // de passar `referencia` pra limitesDoMes (que reinterpretaria esse
-    // instante local pelo fuso de Brasília, voltando pro mês anterior
-    // sempre que o servidor roda em UTC — mesmo bug já corrigido em
-    // ultimosMeses, lib/relatorio.ts).
-    const referencia = new Date(agoraCivil.ano, agoraCivil.mes - i, 1);
-    const ano = referencia.getFullYear();
-    const mes = referencia.getMonth();
-    const inicio = brMidnightUTC(ano, mes, 1);
-    const fim = brMidnightUTC(ano, mes + 1, 1);
-
+  for (const { ano, mes, inicio, fim } of faixasDosUltimosMeses(quantidade)) {
     const agg = await prisma.pagamento.aggregate({
       where: { tipo: "ASSINATURA", status: "APROVADO", atualizadoEm: { gte: inicio, lt: fim } },
       _sum: { valorLiquido: true },

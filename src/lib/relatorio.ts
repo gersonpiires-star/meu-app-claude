@@ -1,23 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
+import { faixasDosUltimosMeses } from "@/lib/meses";
 import { PLANO_MESES, PLANO_LABEL, faixaVencimento } from "@/lib/planos";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
-  const agora = new Date();
-  const agoraCivil = diaCivilBr(agora);
   const meses: { ano: number; mes: number; receita: number; custo: number; lucro: number }[] = [];
 
-  for (let i = quantidade - 1; i >= 0; i--) {
-    // Normaliza (ano, mes - i) pra virada de ano — essa conta é só
-    // aritmética local (não vira instante comparado a nada), então tanto
-    // faz o fuso do servidor aqui; os limites de busca é que precisam do
-    // instante certo em Brasília, por isso usam brMidnightUTC abaixo.
-    const referencia = new Date(agoraCivil.ano, agoraCivil.mes - i, 1);
-    const ano = referencia.getFullYear();
-    const mes = referencia.getMonth();
-    const inicio = brMidnightUTC(ano, mes, 1);
-    const fim = brMidnightUTC(ano, mes + 1, 1);
-
+  for (const { ano, mes, inicio, fim } of faixasDosUltimosMeses(quantidade)) {
     const [renovacoes, vendas] = await Promise.all([
       prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
       prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
