@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { faixasDosUltimosMeses } from "./meses";
+import { faixasDosUltimosMeses, serieAcumuladaDoMes } from "./meses";
+import { brMidnightUTC } from "./format";
 
 describe("faixasDosUltimosMeses", () => {
   it("devolve o mês atual por último, com os rótulos certos (não deslocados)", () => {
@@ -59,5 +60,40 @@ describe("faixasDosUltimosMeses", () => {
     const [unico] = faixasDosUltimosMeses(1, agora);
     expect(unico.ano).toBe(2026);
     expect(unico.mes).toBe(11); // dezembro, 0-indexado
+  });
+});
+
+describe("serieAcumuladaDoMes", () => {
+  const agora = new Date("2026-10-06T15:00:00.000Z"); // 6 de outubro, meio da tarde em Brasília
+
+  it("acumula dia a dia só até hoje, ignorando lançamento de amanhã em diante", () => {
+    const lancamentos = [
+      { data: brMidnightUTC(2026, 9, 1), valor: 100 }, // 1º de outubro
+      { data: brMidnightUTC(2026, 9, 3), valor: 50 }, // 3 de outubro
+      { data: brMidnightUTC(2026, 9, 6), valor: 25 }, // 6 de outubro (hoje)
+      { data: brMidnightUTC(2026, 9, 10), valor: 999 }, // dia futuro — não deveria entrar
+    ];
+    const r = serieAcumuladaDoMes(lancamentos, agora);
+
+    expect(r.acumulado).toEqual([100, 100, 150, 150, 150, 175]);
+    expect(r.diasRestantes).toBe(31 - 6); // outubro tem 31 dias
+    expect(r.mesAnteriorIdx).toBe(8); // setembro, 0-indexado
+  });
+
+  it("compara com o mês anterior só até o mesmo dia, pra variacaoPct", () => {
+    const lancamentos = [
+      { data: brMidnightUTC(2026, 9, 1), valor: 100 }, // outubro: 100 até hoje
+      { data: brMidnightUTC(2026, 8, 3), valor: 80 }, // setembro, dia 3 (dentro dos 6 primeiros dias)
+      { data: brMidnightUTC(2026, 8, 20), valor: 500 }, // setembro, depois do dia 6 — não conta pra comparação
+    ];
+    const r = serieAcumuladaDoMes(lancamentos, agora);
+
+    // (100 - 80) / 80 * 100 = 25
+    expect(r.variacaoPct).toBeCloseTo(25);
+  });
+
+  it("variacaoPct fica null quando não tinha nada no mesmo trecho do mês anterior", () => {
+    const r = serieAcumuladaDoMes([{ data: brMidnightUTC(2026, 9, 1), valor: 100 }], agora);
+    expect(r.variacaoPct).toBeNull();
   });
 });

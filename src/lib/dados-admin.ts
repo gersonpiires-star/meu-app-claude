@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
-import { faixasDosUltimosMeses } from "@/lib/meses";
+import { faixasDosUltimosMeses, serieAcumuladaDoMes } from "@/lib/meses";
 
 export async function dadosAdmin() {
   const agora = new Date();
@@ -202,7 +202,7 @@ export async function receitaMensalAdmin(quantidade = 6) {
 // Renovacao/Venda. Alimenta o minigráfico "Entrou em {mês}" do Painel do
 // administrador.
 export async function serieReceitaMesAdmin(agora: Date = new Date()) {
-  const { ano, mes, dia } = diaCivilBr(agora);
+  const { ano, mes } = diaCivilBr(agora);
   const inicioAnterior = brMidnightUTC(ano, mes - 1, 1);
   const { fim } = limitesDoMes(agora);
 
@@ -211,28 +211,10 @@ export async function serieReceitaMesAdmin(agora: Date = new Date()) {
     select: { valorLiquido: true, valor: true, atualizadoEm: true },
   });
 
-  const diasMesAnterior = diaCivilBr(new Date(brMidnightUTC(ano, mes, 1).getTime() - 1)).dia;
-  const atual = new Array<number>(dia).fill(0);
-  const anterior = new Array<number>(diasMesAnterior).fill(0);
-  for (const p of pagamentos) {
-    const valor = p.valorLiquido ?? p.valor;
-    const d = diaCivilBr(p.atualizadoEm);
-    if (d.ano === ano && d.mes === mes && d.dia <= dia) atual[d.dia - 1] += valor;
-    else if (d.dia <= diasMesAnterior && brMidnightUTC(d.ano, d.mes, 1).getTime() === inicioAnterior.getTime()) anterior[d.dia - 1] += valor;
-  }
-
-  const acumular = (xs: number[]) => {
-    let s = 0;
-    return xs.map((x) => (s += x));
-  };
-  const acumAtual = acumular(atual);
-  const acumAnterior = acumular(anterior);
-  const anteriorAteHoje = acumAnterior[Math.min(dia, diasMesAnterior) - 1] ?? 0;
-  const totalAtual = acumAtual[acumAtual.length - 1] ?? 0;
-  const variacaoPct = anteriorAteHoje > 0 ? ((totalAtual - anteriorAteHoje) / anteriorAteHoje) * 100 : null;
-
-  const diasNoMes = diaCivilBr(new Date(fim.getTime() - 1)).dia;
-  return { acumulado: acumAtual, variacaoPct, diasRestantes: diasNoMes - dia, mesAnteriorIdx: (mes + 11) % 12 };
+  return serieAcumuladaDoMes(
+    pagamentos.map((p) => ({ data: p.atualizadoEm, valor: p.valorLiquido ?? p.valor })),
+    agora
+  );
 }
 
 // Funil de vendas do próprio GestorPro (leads → trial → pago), quem são os

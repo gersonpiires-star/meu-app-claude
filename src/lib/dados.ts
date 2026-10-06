@@ -5,6 +5,7 @@ import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { saldoTotalCreditos } from "@/lib/plataformas";
 import { diaCivilBr, inicioDoDiaBr, brMidnightUTC } from "@/lib/format";
 import { faixaPontualidade } from "@/lib/pontualidade";
+import { serieAcumuladaDoMes } from "@/lib/meses";
 
 export function limitesDoMes(referencia: Date = new Date()) {
   const { ano, mes } = diaCivilBr(referencia);
@@ -251,7 +252,7 @@ export async function dadosPainel(revendedorId: string) {
 // com o mês anterior inteiro, pra não parecer queda só porque o mês atual
 // ainda não acabou.
 export async function serieReceitaMes(revendedorId: string, agora: Date = new Date()) {
-  const { ano, mes, dia } = diaCivilBr(agora);
+  const { ano, mes } = diaCivilBr(agora);
   const inicioAnterior = brMidnightUTC(ano, mes - 1, 1);
   const { fim } = limitesDoMes(agora);
 
@@ -266,27 +267,11 @@ export async function serieReceitaMes(revendedorId: string, agora: Date = new Da
     }),
   ]);
 
-  const diasMesAnterior = diaCivilBr(new Date(brMidnightUTC(ano, mes, 1).getTime() - 1)).dia;
-  const atual = new Array<number>(dia).fill(0);
-  const anterior = new Array<number>(diasMesAnterior).fill(0);
-  const somar = (data: Date, valor: number) => {
-    const d = diaCivilBr(data);
-    if (d.ano === ano && d.mes === mes && d.dia <= dia) atual[d.dia - 1] += valor;
-    else if (d.dia <= diasMesAnterior && brMidnightUTC(d.ano, d.mes, 1).getTime() === inicioAnterior.getTime()) anterior[d.dia - 1] += valor;
-  };
-  renovacoes.forEach((r) => somar(r.data, r.valor));
-  vendas.forEach((v) => somar(v.data, v.quantidade * v.valorUnitario));
-
-  const acumular = (xs: number[]) => {
-    let s = 0;
-    return xs.map((x) => (s += x));
-  };
-  const acumAtual = acumular(atual);
-  const acumAnterior = acumular(anterior);
-  const anteriorAteHoje = acumAnterior[Math.min(dia, diasMesAnterior) - 1] ?? 0;
-  const totalAtual = acumAtual[acumAtual.length - 1] ?? 0;
-  const variacaoPct = anteriorAteHoje > 0 ? ((totalAtual - anteriorAteHoje) / anteriorAteHoje) * 100 : null;
-
-  const diasNoMes = diaCivilBr(new Date(fim.getTime() - 1)).dia;
-  return { acumulado: acumAtual, variacaoPct, diasRestantes: diasNoMes - dia, mesAnteriorIdx: (mes + 11) % 12 };
+  return serieAcumuladaDoMes(
+    [
+      ...renovacoes.map((r) => ({ data: r.data, valor: r.valor })),
+      ...vendas.map((v) => ({ data: v.data, valor: v.quantidade * v.valorUnitario })),
+    ],
+    agora
+  );
 }
