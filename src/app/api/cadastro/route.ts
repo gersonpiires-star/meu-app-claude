@@ -4,15 +4,18 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
 
-const schema = z.object({
-  nome: z.string().trim().min(2, "Informe seu nome completo"),
-  cpf: z.string().trim().optional(),
-  whatsapp: z.string().trim().min(8, "Informe um WhatsApp válido"),
-  email: z.string().trim().email("E-mail inválido"),
-  senha: z.string().min(6, "A senha precisa de pelo menos 6 caracteres"),
-  indicadoPorId: z.string().trim().optional(),
-  indicadoPorEmail: z.string().trim().email().optional(),
-});
+const schema = z
+  .object({
+    nome: z.string().trim().min(2, "Informe seu nome completo"),
+    cpf: z.string().trim().optional(),
+    whatsapp: z.string().trim().min(8, "Informe um WhatsApp válido"),
+    email: z.string().trim().email("E-mail inválido"),
+    senha: z.string().min(6, "A senha precisa de pelo menos 6 caracteres"),
+    confirmarSenha: z.string(),
+    indicadoPorId: z.string().trim().optional(),
+    indicadoPorEmail: z.string().trim().email().optional(),
+  })
+  .refine((d) => d.senha === d.confirmarSenha, { message: "As senhas não coincidem", path: ["confirmarSenha"] });
 
 export async function POST(request: Request) {
   const ip = ipDoRequest(request);

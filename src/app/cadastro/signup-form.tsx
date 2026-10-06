@@ -16,6 +16,7 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
       whatsapp: String(formData.get("whatsapp") ?? ""),
       email: String(formData.get("email") ?? ""),
       senha: String(formData.get("senha") ?? ""),
+      confirmarSenha: String(formData.get("confirmarSenha") ?? ""),
       indicadoPorId,
       indicadoPorEmail: indicadoPorId ? undefined : String(formData.get("indicadoPorEmail") ?? "").trim() || undefined,
     };
@@ -53,6 +54,9 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
       </Field>
       <Field label="Senha">
         <Input type="password" name="senha" autoComplete="new-password" minLength={6} required />
+      </Field>
+      <Field label="Confirmar senha">
+        <Input type="password" name="confirmarSenha" autoComplete="new-password" minLength={6} required />
       </Field>
       {!indicadoPorId ? (
         <Field label="E-mail de quem te indicou (opcional)">
