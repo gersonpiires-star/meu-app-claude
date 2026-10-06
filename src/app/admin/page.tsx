@@ -145,7 +145,19 @@ export default async function AdminPainelPage() {
     prisma.revendedor.findMany({
       where: { papel: "REVENDEDOR" },
       orderBy: { criadoEm: "desc" },
-      include: { _count: { select: { clientes: true } } },
+      select: {
+        id: true,
+        nome: true,
+        nomeNegocio: true,
+        email: true,
+        planoAssinatura: true,
+        saldoCreditos: true,
+        statusAssinatura: true,
+        pausadoEm: true,
+        trialFim: true,
+        assinaturaVence: true,
+        _count: { select: { clientes: true } },
+      },
     }),
     prisma.creditoConta.aggregate({
       where: { criadoEm: { gte: inicio, lt: fim } },

@@ -51,7 +51,27 @@ export default async function AssinanteDetalhePage({ params }: { params: Promise
 
   const revendedor = await prisma.revendedor.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      papel: true,
+      nome: true,
+      email: true,
+      cpf: true,
+      whatsapp: true,
+      criadoEm: true,
+      statusAssinatura: true,
+      planoAssinatura: true,
+      trialFim: true,
+      assinaturaVence: true,
+      canceladoEm: true,
+      motivoCancelamento: true,
+      motivoPausa: true,
+      diasParaCancelarAutomatico: true,
+      metaReceitaMensal: true,
+      // Só o truthy/falsy desses dois é usado (badge "configurado"/"não
+      // configurado") — nunca o valor em si é exibido na tela.
+      mpAccessToken: true,
+      asaasApiKey: true,
       servicos: true,
       _count: { select: { clientes: true, vendas: true, funcionarios: true, chavesPix: true } },
       indicadoPor: { select: { id: true, nome: true } },

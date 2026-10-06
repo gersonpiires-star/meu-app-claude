@@ -78,7 +78,15 @@ export default async function AssinantesPage({
         : {}),
     },
     orderBy: { criadoEm: "desc" },
-    include: {
+    select: {
+      id: true,
+      nome: true,
+      whatsapp: true,
+      criadoEm: true,
+      statusAssinatura: true,
+      planoAssinatura: true,
+      trialFim: true,
+      assinaturaVence: true,
       _count: { select: { clientes: true } },
       pagamentos: {
         where: { tipo: "ASSINATURA", status: "APROVADO" },
