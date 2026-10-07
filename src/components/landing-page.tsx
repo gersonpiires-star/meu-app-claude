@@ -322,7 +322,6 @@ export function LandingPage() {
 
         <section className="border-t border-border py-16 md:py-20">
           <div className="mx-auto max-w-6xl px-5">
-            <Eyebrow>Antes e depois</Eyebrow>
             <h2 className="text-2xl font-bold text-text md:text-3xl">Chega de revenda no caderno</h2>
             <p className="mt-2 max-w-xl text-text-muted">
               O que muda quando tudo que você controla de cabeça passa a estar numa tela só.
@@ -360,7 +359,6 @@ export function LandingPage() {
 
         <section className="border-t border-border bg-surface/40 py-16 md:py-20">
           <div className="mx-auto max-w-6xl px-5">
-            <Eyebrow>Funcionalidades</Eyebrow>
             <h2 className="text-2xl font-bold text-text md:text-3xl">Tudo que sua revenda precisa</h2>
             <p className="mt-2 max-w-xl text-text-muted">Sem depender de planilha, papel ou mensagem perdida no WhatsApp.</p>
 
@@ -451,7 +449,6 @@ export function LandingPage() {
 
         <section className="border-t border-border bg-surface/40 py-16 md:py-20">
           <div className="mx-auto max-w-6xl px-5">
-            <Eyebrow>Como funciona</Eyebrow>
             <h2 className="text-2xl font-bold text-text md:text-3xl">Comece em 5 minutos</h2>
             <p className="mt-2 max-w-xl text-text-muted">
               Sem instalação, sem treinamento. Se você usa WhatsApp, você usa o GestorPro.
@@ -554,7 +551,6 @@ export function LandingPage() {
         <section className="border-t border-border py-16 md:py-20">
           <div className="mx-auto grid max-w-5xl gap-8 px-5 md:grid-cols-[280px_1fr]">
             <div>
-              <Eyebrow>Dúvidas</Eyebrow>
               <h2 className="text-2xl font-bold text-text md:text-3xl">Perguntas frequentes</h2>
               <p className="mt-2 text-text-muted">Não achou sua dúvida? Chama a gente no WhatsApp.</p>
             </div>
