@@ -287,7 +287,7 @@ export default async function RelatorioPage({
           <h2 className="text-base font-bold text-text">
             Detalhe do mês · {MESES_NOME[mes]} de {ano}
           </h2>
-          <p className="text-xs text-text-dim">Navegue mês a mês pra fechar contas, ver o calendário e ajustar lançamentos</p>
+          <p className="text-xs text-text-dim">Toque num mês no gráfico abaixo pra fechar contas, ver o calendário e ajustar lançamentos dele</p>
         </div>
       </div>
 
