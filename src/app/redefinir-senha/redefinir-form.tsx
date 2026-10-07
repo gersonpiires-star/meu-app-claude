@@ -26,6 +26,12 @@ export function RedefinirForm({ token }: { token: string }) {
       className="flex flex-col gap-4"
       action={(formData) => {
         setErro(null);
+        // Confere no cliente antes do round-trip pro servidor — mesma lógica
+        // do cadastro (ver signup-form.tsx).
+        if (formData.get("senha") !== formData.get("confirmarSenha")) {
+          setErro("As senhas não coincidem");
+          return;
+        }
         iniciarTransicao(async () => {
           const resultado = await redefinirSenha(formData);
           if (resultado.ok) setOk(true);

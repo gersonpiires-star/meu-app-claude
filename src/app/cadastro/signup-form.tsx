@@ -21,6 +21,15 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
       indicadoPorEmail: indicadoPorId ? undefined : String(formData.get("indicadoPorEmail") ?? "").trim() || undefined,
     };
 
+    // Confere a senha no cliente antes de qualquer round-trip — o servidor
+    // também confere (defesa em profundidade), mas sem essa checagem aqui o
+    // usuário só descobria o erro depois de esperar a resposta da rede pra
+    // algo que já dava pra saber na hora, com os dois campos preenchidos.
+    if (dados.senha !== dados.confirmarSenha) {
+      setErro("As senhas não coincidem");
+      return;
+    }
+
     iniciarTransicao(async () => {
       const resposta = await fetch("/api/cadastro", {
         method: "POST",

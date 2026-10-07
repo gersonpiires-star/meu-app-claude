@@ -13,7 +13,13 @@ export function SenhaForm() {
     <form
       ref={formRef}
       className="flex flex-col gap-3"
-      action={(formData) =>
+      action={(formData) => {
+        // Confere no cliente antes do round-trip pro servidor — mesma lógica
+        // do cadastro (ver signup-form.tsx).
+        if (formData.get("novaSenha") !== formData.get("confirmarSenha")) {
+          setResultado({ ok: false, texto: "As senhas não coincidem" });
+          return;
+        }
         iniciarTransicao(async () => {
           const resposta = await trocarSenha(formData);
           if ("ok" in resposta) {
@@ -22,8 +28,8 @@ export function SenhaForm() {
           } else {
             setResultado({ ok: false, texto: resposta.erro });
           }
-        })
-      }
+        });
+      }}
     >
       <Field label="Senha atual">
         <Input type="password" name="senhaAtual" autoComplete="current-password" required />
