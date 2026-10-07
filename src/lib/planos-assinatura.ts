@@ -64,11 +64,23 @@ export function adicionarMeses(data: Date, meses: number): Date {
 export const LIMITE_CLIENTES_ATIVOS_MENSAL = 100;
 export const LIMITE_FUNCIONARIOS_MENSAL = 1;
 
+// Add-ons avulsos (upsell) pra quem precisa de mais do que o limite do
+// Mensal sem trocar de ciclo — ver iniciarPagamentoAddon em
+// app/assinatura/addon-actions.ts e aprovarAddonPago em lib/pagamentos.ts.
+export const ADDON_CLIENTES_PRECO = 29.9;
+export const ADDON_CLIENTES_QUANTIDADE = 50;
+export const ADDON_FUNCIONARIO_PRECO = 19.9;
+
 export function limitesDoPlano(revendedor: {
   statusAssinatura: string;
   planoAssinatura: PlanoAssinaturaChave | null;
+  addonsClientesExtras?: number;
+  addonsFuncionariosExtras?: number;
 }): { maxClientesAtivos: number | null; maxFuncionarios: number | null } {
   const noMensalPago = revendedor.statusAssinatura === "ATIVO" && revendedor.planoAssinatura === "MENSAL";
   if (!noMensalPago) return { maxClientesAtivos: null, maxFuncionarios: null };
-  return { maxClientesAtivos: LIMITE_CLIENTES_ATIVOS_MENSAL, maxFuncionarios: LIMITE_FUNCIONARIOS_MENSAL };
+  return {
+    maxClientesAtivos: LIMITE_CLIENTES_ATIVOS_MENSAL + (revendedor.addonsClientesExtras ?? 0) * ADDON_CLIENTES_QUANTIDADE,
+    maxFuncionarios: LIMITE_FUNCIONARIOS_MENSAL + (revendedor.addonsFuncionariosExtras ?? 0),
+  };
 }

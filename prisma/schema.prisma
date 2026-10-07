@@ -65,6 +65,8 @@ enum TipoAviso {
 enum TipoPagamento {
   ASSINATURA
   RENOVACAO
+  ADDON_CLIENTES
+  ADDON_FUNCIONARIO
 }
 
 enum StatusPagamento {
@@ -100,6 +102,15 @@ model Revendedor {
   assinaturaVence  DateTime?
   pausadoEm        DateTime?
   motivoPausa      String?
+
+  // Pacotes extras comprados avulso (ver limitesDoPlano em
+  // lib/planos-assinatura.ts) — só têm efeito enquanto o plano continuar
+  // Mensal pago; em Semestral/Anual (sem limite) ficam sem uso, mas o
+  // revendedor não perde o que já comprou se voltar pro Mensal depois.
+  // Cada unidade = 1 compra aprovada (ADDON_CLIENTES = +50 clientes,
+  // ADDON_FUNCIONARIO = +1 funcionário cada).
+  addonsClientesExtras     Int @default(0)
+  addonsFuncionariosExtras Int @default(0)
 
   // Identidade do negócio (não a conta do revendedor) — usados como
   // remetente nas mensagens de cobrança e, no futuro, em recibos/e-mails.

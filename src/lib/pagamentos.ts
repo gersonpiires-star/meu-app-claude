@@ -374,3 +374,58 @@ export async function aprovarAssinaturaPaga(
 
   return { jaProcessado: resultado.jaProcessado };
 }
+
+// Efeito de aprovar um add-on avulso (upsell — ver iniciarPagamentoAddon em
+// app/assinatura/addon-actions.ts): soma 1 no contador certo do revendedor
+// (limitesDoPlano em lib/planos-assinatura.ts lê esses contadores pra
+// ampliar o limite do plano Mensal). Mesma idempotência por updateMany
+// condicional dos outros dois aprovarXPago acima — webhook reentregando a
+// mesma notificação nunca soma o contador duas vezes.
+export async function aprovarAddonPago(
+  pagamentoId: string,
+  gatewayPaymentId: string,
+  tipo: "ADDON_CLIENTES" | "ADDON_FUNCIONARIO"
+): Promise<{ jaProcessado: boolean }> {
+  const pagamento = await prisma.pagamento.findUnique({
+    where: { id: pagamentoId },
+    include: { revendedor: { include: { pushSubscriptions: true } } },
+  });
+  if (!pagamento || pagamento.tipo !== tipo) {
+    return { jaProcessado: true };
+  }
+
+  const campo = tipo === "ADDON_CLIENTES" ? "addonsClientesExtras" : "addonsFuncionariosExtras";
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const trocou = await tx.pagamento.updateMany({
+      where: { id: pagamento.id, status: { not: "APROVADO" } },
+      data: { status: "APROVADO", mpPaymentId: gatewayPaymentId },
+    });
+    if (trocou.count === 0) return { jaProcessado: true };
+
+    await tx.revendedor.update({
+      where: { id: pagamento.revendedorId },
+      data: { [campo]: { increment: 1 } },
+    });
+    return { jaProcessado: false };
+  });
+
+  if (!resultado.jaProcessado) {
+    await registrarEvento(pagamento.revendedorId, "addon_comprado", { tipo, valor: pagamento.valor });
+    revalidatePath("/assinatura");
+    revalidatePath("/configuracoes/funcionarios");
+
+    const mensagem =
+      tipo === "ADDON_CLIENTES"
+        ? "Seu limite de clientes já está maior — pode cadastrar mais."
+        : "Você já pode cadastrar mais um funcionário.";
+    for (const inscricao of pagamento.revendedor.pushSubscriptions) {
+      const manter = await enviarPush(inscricao, { titulo: "Add-on liberado!", corpo: mensagem, url: "/assinatura" });
+      if (!manter) {
+        await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+      }
+    }
+  }
+
+  return { jaProcessado: resultado.jaProcessado };
+}

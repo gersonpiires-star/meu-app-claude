@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
-import { aprovarRenovacaoPaga, aprovarAssinaturaPaga } from "@/lib/pagamentos";
+import { aprovarRenovacaoPaga, aprovarAssinaturaPaga, aprovarAddonPago } from "@/lib/pagamentos";
 import { enviarPush } from "@/lib/push";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
 
@@ -55,8 +55,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignorado: "pagamento não encontrado" });
   }
 
+  // Add-on usa o token da plataforma igual ASSINATURA: é receita do
+  // GestorPro, criada pelo mesmo iniciarPagamentoAddon via tokenPlataforma()
+  // — não tem como verificar esse pagamento com o token do revendedor.
   const accessToken =
-    pagamento.tipo === "ASSINATURA"
+    pagamento.tipo === "ASSINATURA" || pagamento.tipo === "ADDON_CLIENTES" || pagamento.tipo === "ADDON_FUNCIONARIO"
       ? tokenPlataforma()
       : pagamento.revendedor.mpAccessToken && descriptografarOuTextoPuro(pagamento.revendedor.mpAccessToken);
   if (!accessToken) {
@@ -141,6 +144,11 @@ export async function POST(request: Request) {
   // Asaas — mora num helper compartilhado em vez de duplicado aqui.
   if (pagamento.tipo === "RENOVACAO") {
     const resultado = await aprovarRenovacaoPaga(pagamentoId, String(pagamentoMP.id), "mpPaymentId");
+    return NextResponse.json({ ok: true, ignorado: resultado.jaProcessado ? "já processado" : undefined });
+  }
+
+  if (pagamento.tipo === "ADDON_CLIENTES" || pagamento.tipo === "ADDON_FUNCIONARIO") {
+    const resultado = await aprovarAddonPago(pagamentoId, String(pagamentoMP.id), pagamento.tipo);
     return NextResponse.json({ ok: true, ignorado: resultado.jaProcessado ? "já processado" : undefined });
   }
 

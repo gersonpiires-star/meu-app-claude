@@ -78,7 +78,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
     if (totalAtivos >= maxClientesAtivos) {
       return {
         ok: false,
-        erro: `O plano Mensal permite até ${maxClientesAtivos} clientes ativos. Mude pro Semestral ou Anual em Assinatura pra cadastrar sem limite.`,
+        erro: `O plano Mensal permite até ${maxClientesAtivos} clientes ativos. Compre mais capacidade ou mude pro Semestral/Anual em Assinatura.`,
       };
     }
   }

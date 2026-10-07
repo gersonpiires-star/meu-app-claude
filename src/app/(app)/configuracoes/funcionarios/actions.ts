@@ -25,7 +25,7 @@ export async function criarFuncionario(formData: FormData): Promise<{ erro?: str
   if (maxFuncionarios != null) {
     const totalFuncionarios = await prisma.funcionario.count({ where: { revendedorId: revendedor.id, ativo: true } });
     if (totalFuncionarios >= maxFuncionarios) {
-      return { erro: `O plano Mensal permite até ${maxFuncionarios} funcionário. Mude pro Semestral ou Anual em Assinatura pra adicionar mais.` };
+      return { erro: `O plano Mensal permite até ${maxFuncionarios} funcionário. Compre mais capacidade ou mude pro Semestral/Anual em Assinatura.` };
     }
   }
 

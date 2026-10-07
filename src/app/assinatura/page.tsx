@@ -2,12 +2,18 @@ import Link from "next/link";
 import { exigirRevendedor, souFuncionario } from "@/lib/sessao";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { iniciarPagamentoAssinatura } from "./actions";
+import { iniciarPagamentoAddon } from "./addon-actions";
 import {
   PRECO_MENSAL,
   PRECO_SEMESTRAL,
   PRECO_SEMESTRAL_MENSALIZADO,
   PRECO_ANUAL,
   PRECO_ANUAL_MENSALIZADO,
+  ADDON_CLIENTES_PRECO,
+  ADDON_CLIENTES_QUANTIDADE,
+  ADDON_FUNCIONARIO_PRECO,
+  LIMITE_CLIENTES_ATIVOS_MENSAL,
+  LIMITE_FUNCIONARIOS_MENSAL,
 } from "@/lib/planos-assinatura";
 import { brl, brl0 } from "@/lib/format";
 
@@ -156,6 +162,44 @@ export default async function AssinaturaPage({
             </a>
           </Card>
         </div>
+
+        {MP_DISPONIVEL && !ehFuncionario && revendedor.statusAssinatura === "ATIVO" && revendedor.planoAssinatura === "MENSAL" ? (
+          <Card className="mt-5">
+            <h2 className="text-sm font-bold text-text">Precisa de mais espaço no Mensal?</h2>
+            <p className="mt-1 text-xs text-text-dim">
+              Compre capacidade extra avulsa, sem trocar de plano. Vale enquanto sua assinatura Mensal continuar ativa —
+              ou assine o Semestral/Anual acima pra remover o limite de vez.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-2 rounded-xl border border-border-strong p-3">
+                <span className="text-sm font-semibold text-text">+{ADDON_CLIENTES_QUANTIDADE} clientes ativos</span>
+                <p className="text-[11px] text-text-dim">
+                  Limite atual: {LIMITE_CLIENTES_ATIVOS_MENSAL + revendedor.addonsClientesExtras * ADDON_CLIENTES_QUANTIDADE}
+                  {revendedor.addonsClientesExtras > 0 ? ` (${revendedor.addonsClientesExtras} comprado${revendedor.addonsClientesExtras === 1 ? "" : "s"})` : ""}
+                </p>
+                <form action={iniciarPagamentoAddon}>
+                  <input type="hidden" name="tipo" value="ADDON_CLIENTES" />
+                  <Button type="submit" variant="ghost" className="w-full text-sm">
+                    Comprar — {brl(ADDON_CLIENTES_PRECO)}
+                  </Button>
+                </form>
+              </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-border-strong p-3">
+                <span className="text-sm font-semibold text-text">+1 funcionário</span>
+                <p className="text-[11px] text-text-dim">
+                  Limite atual: {LIMITE_FUNCIONARIOS_MENSAL + revendedor.addonsFuncionariosExtras}
+                  {revendedor.addonsFuncionariosExtras > 0 ? ` (${revendedor.addonsFuncionariosExtras} comprado${revendedor.addonsFuncionariosExtras === 1 ? "" : "s"})` : ""}
+                </p>
+                <form action={iniciarPagamentoAddon}>
+                  <input type="hidden" name="tipo" value="ADDON_FUNCIONARIO" />
+                  <Button type="submit" variant="ghost" className="w-full text-sm">
+                    Comprar — {brl(ADDON_FUNCIONARIO_PRECO)}
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </Card>
+        ) : null}
 
         <Link
           href={revendedor.papel === "ADMIN" ? "/admin" : "/painel"}
