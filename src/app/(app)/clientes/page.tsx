@@ -143,6 +143,11 @@ export default async function ClientesPage({
               {filtrados.map((cliente) => {
                 const estado = estadoCliente(cliente.status, cliente.vencimento);
                 const ativo = cliente.id === selecionadoId;
+                // Cliente "Em dia" não precisa do mesmo peso visual de ação
+                // que um vencido/vencendo — o Badge de status já diferencia
+                // a urgência, os dois botões cheios ao lado é que repetiam
+                // esse sinal em toda linha, inclusive nas sem pressa nenhuma.
+                const semUrgencia = estado.tom === "success";
 
                 return (
                   <div
@@ -169,7 +174,7 @@ export default async function ClientesPage({
                     <span className="hidden xl:block">
                       <Badge tone={estado.tom}>{estado.label}</Badge>
                     </span>
-                    <span className="hidden xl:flex xl:gap-1.5">
+                    <span className={cx("hidden xl:flex xl:gap-1.5", semUrgencia && "opacity-60 transition hover:opacity-100 focus-within:opacity-100")}>
                       {cliente.status !== "CANCELADO" ? (
                         <>
                           {cliente.whatsapp ? (

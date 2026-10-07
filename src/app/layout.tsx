@@ -60,6 +60,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
+      // O script de tema logo abaixo marca data-theme no <html> antes da
+      // hidratação (pra evitar flash de tema errado) — isso sempre diverge
+      // do HTML renderizado no servidor, que não tem como saber o tema
+      // salvo no localStorage do navegador. React trata essa divergência
+      // específica (atributo do próprio <html>, não dos filhos) como só um
+      // warning — suppressHydrationWarning aqui silencia só esse aviso
+      // esperado, sem esconder mismatch de verdade em nenhum outro elemento.
+      suppressHydrationWarning
     >
       <head>
         {/* Resolve o tema (claro/escuro/automático) e marca data-theme antes

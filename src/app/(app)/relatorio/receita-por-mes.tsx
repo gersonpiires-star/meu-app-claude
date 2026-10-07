@@ -6,6 +6,7 @@ import { brl0 } from "@/lib/format";
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export function ReceitaPorMes({ meses }: { meses: { ano: number; mes: number; receita: number }[] }) {
+  const semReceita = meses.every((m) => m.receita === 0);
   const topo = Math.max(1, ...meses.map((m) => m.receita));
   const scrollRef = useRef<HTMLDivElement>(null);
   const [temEsquerda, setTemEsquerda] = useState(false);
@@ -34,6 +35,15 @@ export function ReceitaPorMes({ meses }: { meses: { ano: number; mes: number; re
       window.removeEventListener("resize", atualizar);
     };
   }, [meses]);
+
+  if (semReceita) {
+    return (
+      <div className="flex min-h-[160px] flex-col items-center justify-center gap-1 text-center">
+        <p className="text-sm font-semibold text-text-dim">Nenhuma receita registrada ainda</p>
+        <p className="text-xs text-text-dim">O gráfico aparece assim que a primeira cobrança entrar.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

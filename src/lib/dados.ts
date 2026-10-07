@@ -221,12 +221,17 @@ export async function dadosPainel(revendedorId: string) {
     .map((c) => ({ cliente: c, ...ehAniversarioDeCasa(c.criadoEm, agora) }))
     .filter((a) => a.ehAniversario);
 
+  // Conta renovações + vendas do mês pra dar o ticket médio no Painel —
+  // nenhuma query nova, os dois arrays já foram buscados acima.
+  const transacoesMes = renovacoesMes.length + vendasMes.length;
+
   return {
     receitaRecorrente,
     receitaApar,
     receitaTotal,
     custoTotal,
     lucro,
+    transacoesMes,
     proximoMes,
     previstoProxMes,
     previstoProxMesRealista,

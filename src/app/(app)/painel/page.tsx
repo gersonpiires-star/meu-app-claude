@@ -234,13 +234,19 @@ export default async function PainelPage() {
       </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Lucro do mês</span>
-          <span className={`text-2xl font-bold tabular-nums ${dados.lucro >= 0 ? "text-money" : "text-danger"}`}>{brl0(dados.lucro)}</span>
-          <span className="text-xs text-text-dim">
-            {receitaMes > 0 ? `margem de ${Math.round((dados.lucro / receitaMes) * 100)}%` : "sem vendas ainda"}
-          </span>
-        </Card>
+        <Link href="/relatorio" className="flex">
+          <Card className="flex w-full flex-col gap-1 transition hover:border-accent-strong">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">Ticket médio</span>
+            <span className="text-2xl font-bold tabular-nums text-text">
+              {dados.transacoesMes > 0 ? brl0(receitaMes / dados.transacoesMes) : "—"}
+            </span>
+            <span className="text-xs text-text-dim">
+              {dados.transacoesMes > 0
+                ? `${dados.transacoesMes} cobrança${dados.transacoesMes === 1 ? "" : "s"} no mês`
+                : "sem cobrança ainda"}
+            </span>
+          </Card>
+        </Link>
         <Link href="/relatorio" className="flex">
           <Card className="flex w-full flex-col gap-1 transition hover:border-accent-strong">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-text-dim">
