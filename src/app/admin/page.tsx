@@ -711,21 +711,29 @@ export default async function AdminPainelPage() {
                       <h2 className="mb-3 text-sm font-bold text-text">
                         Funil — de lead a assinante pago
                       </h2>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-xl border border-border bg-surface-2 p-3">
-                          <p className="text-xl font-bold text-text">
-                            {crescimento.trialsVencidosSemConverter.length}
-                          </p>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
-                            Trial vencido
-                          </p>
-                        </div>
+                      <div className="grid grid-cols-4 gap-2 text-center">
                         <div className="rounded-xl border border-border bg-surface-2 p-3">
                           <p className="text-xl font-bold text-text">
                             {crescimento.totalRevendedores}
                           </p>
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
                             Criaram trial
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-surface-2 p-3">
+                          <p className="text-xl font-bold text-text">
+                            {crescimento.ativados}
+                          </p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
+                            Ativaram (1º cliente)
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-surface-2 p-3">
+                          <p className="text-xl font-bold text-text">
+                            {crescimento.trialsVencidosSemConverter.length}
+                          </p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
+                            Trial vencido
                           </p>
                         </div>
                         <div className="rounded-xl border border-accent-strong bg-accent-soft p-3">
@@ -738,6 +746,18 @@ export default async function AdminPainelPage() {
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-dim">
+                        <span>
+                          Trial → ativação:{" "}
+                          <strong className="text-text">
+                            {crescimento.taxaAtivacao.toFixed(0)}%
+                          </strong>
+                        </span>
+                        <span>
+                          Ativação → pago:{" "}
+                          <strong className="text-text">
+                            {crescimento.taxaAtivacaoParaPago.toFixed(0)}%
+                          </strong>
+                        </span>
                         <span>
                           Trial → pago:{" "}
                           <strong className="text-text">

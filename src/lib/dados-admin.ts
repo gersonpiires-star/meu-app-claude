@@ -263,6 +263,13 @@ export async function dadosCrescimento() {
   const convertidos = primeiraConversao.size;
   const taxaConversaoTrial = totalRevendedores > 0 ? (convertidos / totalRevendedores) * 100 : 0;
 
+  // "Ativação" = cadastrou pelo menos 1 cliente de verdade — o passo do
+  // meio do funil entre criar o trial e virar pagante. _count.clientes já
+  // vem na mesma query de revendedores (sem custo extra de consulta).
+  const ativados = revendedores.filter((r) => r._count.clientes > 0).length;
+  const taxaAtivacao = totalRevendedores > 0 ? (ativados / totalRevendedores) * 100 : 0;
+  const taxaAtivacaoParaPago = ativados > 0 ? (convertidos / ativados) * 100 : 0;
+
   const diasParaConverter: number[] = [];
   const histogramaMap = new Map<number, number>();
   for (const r of revendedores) {
@@ -345,6 +352,9 @@ export async function dadosCrescimento() {
     interessadosConvertidos,
     taxaConversaoInteressados,
     totalRevendedores,
+    ativados,
+    taxaAtivacao,
+    taxaAtivacaoParaPago,
     convertidos,
     taxaConversaoTrial,
     diaMedioConversao,
