@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
-import { diaCivilBr, brMidnightUTC } from "@/lib/format";
+import { diaCivilBr, brMidnightUTC, inicioDoDiaBr } from "@/lib/format";
 import { faixasDosUltimosMeses, serieAcumuladaDoMes } from "@/lib/meses";
 
 export async function dadosAdmin() {
@@ -364,5 +364,71 @@ export async function dadosCrescimento() {
     assinantesEsfriando,
     coorte,
     cancelamentosRecentes,
+  };
+}
+
+function variacaoPct(atual: number, anterior: number): number | null {
+  if (anterior === 0) return atual > 0 ? 100 : null;
+  return ((atual - anterior) / anterior) * 100;
+}
+
+// Métricas de plataforma inteira (todos os revendedores somados) pro
+// Dashboard administrativo: novos usuários (revendedores) e clientes finais
+// deles num período (7/30/90 dias), com série dia a dia dos sinais de conta
+// pro gráfico. Tudo vem de contagem real (criadoEm) — nada aqui é estimado
+// nem interpolado; sem assinantes/clientes suficientes no período, as séries
+// e variações saem zeradas/nulas de propósito, pra tela mostrar estado vazio
+// em vez de inventar tendência.
+export async function metricasPlataforma(dias: 7 | 30 | 90) {
+  const agora = new Date();
+  const hojeCivil = inicioDoDiaBr(agora);
+  const UM_DIA_MS = 24 * 60 * 60000;
+  const inicio = new Date(hojeCivil.getTime() - (dias - 1) * UM_DIA_MS);
+  const inicioAnterior = new Date(inicio.getTime() - dias * UM_DIA_MS);
+
+  const [
+    novosRevendedores,
+    revendedoresPeriodoAnterior,
+    totalClientesPlataforma,
+    clientesAtivosPlataforma,
+    novosClientesPlataforma,
+    novosClientesPeriodoAnterior,
+    revendedoresNoPeriodo,
+  ] = await Promise.all([
+    prisma.revendedor.count({ where: { papel: "REVENDEDOR", criadoEm: { gte: inicio } } }),
+    prisma.revendedor.count({ where: { papel: "REVENDEDOR", criadoEm: { gte: inicioAnterior, lt: inicio } } }),
+    prisma.cliente.count(),
+    prisma.cliente.count({ where: { status: { not: "CANCELADO" } } }),
+    prisma.cliente.count({ where: { criadoEm: { gte: inicio } } }),
+    prisma.cliente.count({ where: { criadoEm: { gte: inicioAnterior, lt: inicio } } }),
+    prisma.revendedor.findMany({
+      where: { papel: "REVENDEDOR", criadoEm: { gte: inicio } },
+      select: { criadoEm: true },
+    }),
+  ]);
+
+  // Agrupa os cadastros do período por dia civil (Brasília) — mesma lógica
+  // de "nunca usar getFullYear/getMonth/getDate direto" do resto do app.
+  const buckets = new Map<string, number>();
+  for (let i = 0; i < dias; i++) {
+    const dia = new Date(hojeCivil.getTime() - (dias - 1 - i) * UM_DIA_MS);
+    buckets.set(dia.toISOString().slice(0, 10), 0);
+  }
+  for (const r of revendedoresNoPeriodo) {
+    const chave = inicioDoDiaBr(r.criadoEm).toISOString().slice(0, 10);
+    if (buckets.has(chave)) buckets.set(chave, (buckets.get(chave) ?? 0) + 1);
+  }
+  const serieNovosUsuarios = [...buckets.entries()].map(([data, quantidade]) => ({ data, quantidade }));
+
+  return {
+    dias,
+    novosRevendedores,
+    variacaoRevendedores: variacaoPct(novosRevendedores, revendedoresPeriodoAnterior),
+    totalClientesPlataforma,
+    clientesAtivosPlataforma,
+    clientesInativosPlataforma: totalClientesPlataforma - clientesAtivosPlataforma,
+    novosClientesPlataforma,
+    variacaoClientes: variacaoPct(novosClientesPlataforma, novosClientesPeriodoAnterior),
+    serieNovosUsuarios,
   };
 }
