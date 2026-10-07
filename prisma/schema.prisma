@@ -257,6 +257,10 @@ model Revendedor {
   sugestoes             Sugestao[]
 
   @@index([indicadoPorId])
+  // Quase toda consulta do admin filtra por papel+statusAssinatura (contas
+  // ativas/trial/pausadas, funil, dashboard da plataforma) — sem índice,
+  // cada uma varria a tabela inteira de revendedores.
+  @@index([papel, statusAssinatura])
 }
 
 // Um clique no link de indicação (/cadastro?ref=<revendedorId>), gravado
@@ -819,6 +823,11 @@ model Pagamento {
   @@index([revendedorId, status])
   @@index([clienteId])
   @@index([cupomId])
+  // Receita/MRR/ARR do admin e o cron filtram por tipo+status sem
+  // revendedorId (é receita da plataforma, não de um tenant) — sem esse
+  // índice, dadosAdmin()/receitaMensalAdmin()/serieReceitaMesAdmin()
+  // varriam Pagamento inteiro a cada carregamento do painel admin.
+  @@index([tipo, status, atualizadoEm])
 }
 
 // Evento de uso do produto (cadastro, ativação, primeira cobrança,
