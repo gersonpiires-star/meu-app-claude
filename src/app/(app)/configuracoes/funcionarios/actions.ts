@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
+import { limitesDoPlano } from "@/lib/planos-assinatura";
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome"),
@@ -19,6 +20,14 @@ export async function criarFuncionario(formData: FormData): Promise<{ erro?: str
   const revendedor = await exigirDono();
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos" };
+
+  const { maxFuncionarios } = limitesDoPlano(revendedor);
+  if (maxFuncionarios != null) {
+    const totalFuncionarios = await prisma.funcionario.count({ where: { revendedorId: revendedor.id, ativo: true } });
+    if (totalFuncionarios >= maxFuncionarios) {
+      return { erro: `O plano Mensal permite até ${maxFuncionarios} funcionário. Mude pro Semestral ou Anual em Assinatura pra adicionar mais.` };
+    }
+  }
 
   const email = parsed.data.email.toLowerCase();
   const senhaHash = await bcrypt.hash(parsed.data.senha, 10);

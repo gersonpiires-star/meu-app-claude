@@ -58,14 +58,19 @@ const COM_GESTORPRO = [
   "Alerta antes de faltar crédito do aparelho",
 ];
 
-const PLANO_CHECKLIST = [
-  "Clientes ilimitados",
+// Mensal e Semestral/Anual diferem em 2 itens (limite de clientes/usuários
+// — ver limitesDoPlano em lib/planos-assinatura.ts) — o resto é igual nos
+// três. Checklist por plano em vez de um único array pra não anunciar
+// "clientes ilimitados" no Mensal, que não é mais verdade.
+const PLANO_CHECKLIST_BASE = [
   "Cobrança pelo WhatsApp",
   "Financeiro e relatórios",
   "Vendas e estoque",
   "Plataformas de crédito",
   "Suporte no WhatsApp",
 ];
+const PLANO_CHECKLIST_MENSAL = ["Até 100 clientes ativos", ...PLANO_CHECKLIST_BASE];
+const PLANO_CHECKLIST_SEMESTRAL_ANUAL = ["Clientes e usuários ilimitados", ...PLANO_CHECKLIST_BASE];
 
 const FILA_PREVIEW = [
   { iniciais: "LA", nome: "Lucas Andrade", dias: "22 dias vencido" },
@@ -479,7 +484,7 @@ export function LandingPage() {
                   <p className="mt-1 text-xs text-text-dim">Cancele quando quiser</p>
                 </div>
                 <ul className="mt-5 flex flex-1 flex-col gap-2.5">
-                  {PLANO_CHECKLIST.map((item) => (
+                  {PLANO_CHECKLIST_MENSAL.map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm text-text-muted">
                       <span className="text-accent">
                         <CheckIcon className="h-4 w-4" />
@@ -504,7 +509,7 @@ export function LandingPage() {
                   <p className="mt-1 text-xs text-text-dim">{brl(PRECO_SEMESTRAL)} a cada 6 meses</p>
                 </div>
                 <ul className="mt-5 flex flex-1 flex-col gap-2.5">
-                  {PLANO_CHECKLIST.map((item) => (
+                  {PLANO_CHECKLIST_SEMESTRAL_ANUAL.map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm text-text-muted">
                       <span className="text-accent">
                         <CheckIcon className="h-4 w-4" />
@@ -529,7 +534,7 @@ export function LandingPage() {
                   <p className="mt-1 text-xs text-text-dim">{brl(PRECO_ANUAL)} por ano</p>
                 </div>
                 <ul className="mt-5 flex flex-1 flex-col gap-2.5">
-                  {PLANO_CHECKLIST.map((item) => (
+                  {PLANO_CHECKLIST_SEMESTRAL_ANUAL.map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm font-medium text-text">
                       <span className="text-accent">
                         <CheckIcon className="h-4 w-4" />

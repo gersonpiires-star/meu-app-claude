@@ -10,6 +10,7 @@ import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUG
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { registrarEvento } from "@/lib/analytics";
+import { limitesDoPlano } from "@/lib/planos-assinatura";
 import { brl, parseDataBr } from "@/lib/format";
 import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
@@ -70,6 +71,18 @@ async function resolverIndicadoPor(revendedorId: string, indicadoPorId: string |
 
 export async function criarCliente(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
+
+  const { maxClientesAtivos } = limitesDoPlano(revendedor);
+  if (maxClientesAtivos != null) {
+    const totalAtivos = await prisma.cliente.count({ where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } } });
+    if (totalAtivos >= maxClientesAtivos) {
+      return {
+        ok: false,
+        erro: `O plano Mensal permite até ${maxClientesAtivos} clientes ativos. Mude pro Semestral ou Anual em Assinatura pra cadastrar sem limite.`,
+      };
+    }
+  }
+
   const dados = clienteSchema.parse(Object.fromEntries(formData));
   const servico = await resolverServico(revendedor.id, dados.servicoId);
   const servicoId = servico?.id ?? null;

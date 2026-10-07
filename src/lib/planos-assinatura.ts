@@ -56,3 +56,19 @@ export function adicionarMeses(data: Date, meses: number): Date {
   alvo.setDate(Math.min(dia, ultimoDiaDoMesAlvo));
   return alvo;
 }
+
+// Limites do plano Mensal — empurra pra um compromisso mais longo (Semestral
+// ou Anual), que ficam sem limite nenhum. Trial também fica sem limite: o
+// objetivo é incentivar quem já cresceu a migrar de ciclo, não dificultar
+// quem ainda está avaliando o produto. null = sem limite.
+export const LIMITE_CLIENTES_ATIVOS_MENSAL = 100;
+export const LIMITE_FUNCIONARIOS_MENSAL = 1;
+
+export function limitesDoPlano(revendedor: {
+  statusAssinatura: string;
+  planoAssinatura: PlanoAssinaturaChave | null;
+}): { maxClientesAtivos: number | null; maxFuncionarios: number | null } {
+  const noMensalPago = revendedor.statusAssinatura === "ATIVO" && revendedor.planoAssinatura === "MENSAL";
+  if (!noMensalPago) return { maxClientesAtivos: null, maxFuncionarios: null };
+  return { maxClientesAtivos: LIMITE_CLIENTES_ATIVOS_MENSAL, maxFuncionarios: LIMITE_FUNCIONARIOS_MENSAL };
+}
