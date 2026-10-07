@@ -4,11 +4,12 @@ import { Prisma } from "@/generated/prisma/client";
 import { faixaVencimento } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
 import { dadosMes, resumoUltimos7Dias } from "@/lib/relatorio";
-import { diaCivilBr, diaDaSemana } from "@/lib/format";
+import { diaCivilBr, diaDaSemana, brMidnightUTC } from "@/lib/format";
 import { enviarCobrancasAutomaticas } from "@/lib/cobranca-automatica";
 import { ehAniversarioDeCasa } from "@/lib/aniversario";
 import { enviarEmail } from "@/lib/email";
-import { emailRelatorioSemanal } from "@/lib/email-templates";
+import { emailRelatorioSemanal, emailWinBack } from "@/lib/email-templates";
+import { gerarCupomWinback, buscarCanceladosParaWinback, WINBACK_PERCENTUAL_DESCONTO } from "@/lib/winback";
 
 // "A, B e C" em vez de "A e B e C" — só usado pra montar o corpo do push
 // diário, que pode juntar até 3 fatos (vencidos/vencendo/aniversariantes).
@@ -94,6 +95,7 @@ export async function GET(req: NextRequest) {
   let nutridos = 0;
   let cobrancasAutomaticas = 0;
   let relatoriosSemanais = 0;
+  let winbacksEnviados = 0;
 
   for (const revendedor of revendedores) {
     const clientes = await prisma.cliente.findMany({
@@ -125,6 +127,30 @@ export async function GET(req: NextRequest) {
         // sem e-mail válido) não pode interromper o resto do cron pros
         // outros revendedores, mesma lógica de enviarCobrancasAutomaticas.
         console.error(`Falha ao enviar relatório semanal pro revendedor ${revendedor.id}`, erro);
+      }
+    }
+
+    // Win-back de trial vencido: exatamente 3 dias depois do trialFim, pra
+    // não mandar nem cedo demais (ainda pode converter sem desconto) nem
+    // tarde demais (já esqueceu do produto). "diasEntreCivil === 3" garante
+    // que isso só bate uma vez — no dia seguinte já são 4 dias, nunca mais 3.
+    if (revendedor.statusAssinatura === "TRIAL" && diasEntreCivil(revendedor.trialFim, agora) === 3) {
+      try {
+        const cupom = await gerarCupomWinback(revendedor.id);
+        if (cupom) {
+          const { subject, html } = emailWinBack({
+            nome: revendedor.nome,
+            motivo: "trial",
+            codigoCupom: cupom.codigo,
+            percentualDesconto: WINBACK_PERCENTUAL_DESCONTO,
+            validoAteFormatado: cupom.validoAteFormatado,
+            linkAssinatura: `${baseUrl}/assinatura`,
+          });
+          await enviarEmail({ to: revendedor.email, subject, html });
+          winbacksEnviados++;
+        }
+      } catch (erro) {
+        console.error(`Falha ao enviar win-back de trial pro revendedor ${revendedor.id}`, erro);
       }
     }
 
@@ -235,6 +261,34 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Win-back de quem cancelou a assinatura exatamente há 3 dias — separado
+  // do loop acima porque a query principal só busca ATIVO/TRIAL (statusAssinatura),
+  // nunca CANCELADO.
+  const tresDiasAtras = new Date(agora.getTime() - 3 * 24 * 60 * 60000);
+  const tresDiasAtrasCivil = diaCivilBr(tresDiasAtras);
+  const inicioTresDiasAtras = brMidnightUTC(tresDiasAtrasCivil.ano, tresDiasAtrasCivil.mes, tresDiasAtrasCivil.dia);
+  const fimTresDiasAtras = brMidnightUTC(tresDiasAtrasCivil.ano, tresDiasAtrasCivil.mes, tresDiasAtrasCivil.dia + 1);
+  const canceladosParaWinback = await buscarCanceladosParaWinback(inicioTresDiasAtras, fimTresDiasAtras);
+  for (const revendedor of canceladosParaWinback) {
+    try {
+      const cupom = await gerarCupomWinback(revendedor.id);
+      if (cupom) {
+        const { subject, html } = emailWinBack({
+          nome: revendedor.nome,
+          motivo: "cancelamento",
+          codigoCupom: cupom.codigo,
+          percentualDesconto: WINBACK_PERCENTUAL_DESCONTO,
+          validoAteFormatado: cupom.validoAteFormatado,
+          linkAssinatura: `${baseUrl}/assinatura`,
+        });
+        await enviarEmail({ to: revendedor.email, subject, html });
+        winbacksEnviados++;
+      }
+    } catch (erro) {
+      console.error(`Falha ao enviar win-back de cancelamento pro revendedor ${revendedor.id}`, erro);
+    }
+  }
+
   // Resumo da plataforma pro(s) administrador(es) — trials vencendo em
   // breve e pagamentos de assinatura recusados nas últimas 24h. Separado do
   // loop acima porque não depende do statusAssinatura do admin (o acesso
@@ -293,5 +347,6 @@ export async function GET(req: NextRequest) {
     nutridos,
     cobrancasAutomaticas,
     relatoriosSemanais,
+    winbacksEnviados,
   });
 }

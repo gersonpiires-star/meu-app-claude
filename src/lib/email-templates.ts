@@ -221,3 +221,53 @@ export function emailRelatorioSemanal({
     html: layoutEmail({ titulo: "Seu resumo da semana", corpoHtml }),
   };
 }
+
+// Disparado 3 dias depois do trial vencer sem converter, ou 3 dias depois
+// de cancelar a assinatura (ver winback.ts) — junto de um cupom de
+// desconto de uso único pra reduzir o atrito de voltar.
+export function emailWinBack({
+  nome,
+  motivo,
+  codigoCupom,
+  percentualDesconto,
+  validoAteFormatado,
+  linkAssinatura,
+}: {
+  nome: string;
+  motivo: "trial" | "cancelamento";
+  codigoCupom: string;
+  percentualDesconto: number;
+  validoAteFormatado: string;
+  linkAssinatura: string;
+}): { subject: string; html: string } {
+  const primeiroNome = nome.trim().split(" ")[0] || nome;
+  const abertura =
+    motivo === "trial"
+      ? "Vimos que seu teste grátis do GestorPro venceu e você ainda não assinou."
+      : "Vimos que você cancelou sua assinatura do GestorPro.";
+  const corpoHtml = `
+    <h1 style="margin:0 0 12px; font-size:20px; font-weight:800; color:${COR_TEXTO};">Oi, ${primeiroNome} — sentimos sua falta</h1>
+    <p style="margin:0; font-size:14px; line-height:1.6; color:${COR_TEXTO_DIM};">
+      ${abertura} Pra te ajudar a voltar, preparamos um desconto só seu.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
+      <tr>
+        <td style="background-color:${COR_AVISO_FUNDO}; border:1px solid ${COR_AVISO_BORDA}; border-radius:10px; padding:18px 16px; text-align:center;">
+          <p style="margin:0 0 6px; font-size:12px; font-weight:700; color:${COR_AVISO_TEXTO}; text-transform:uppercase; letter-spacing:0.03em;">
+            ${percentualDesconto}% de desconto na próxima assinatura
+          </p>
+          <p style="margin:0; font-size:22px; font-weight:800; letter-spacing:0.04em; color:${COR_TEXTO};">${codigoCupom}</p>
+          <p style="margin:6px 0 0; font-size:12px; color:${COR_TEXTO_DIM};">Válido até ${validoAteFormatado} — uso único</p>
+        </td>
+      </tr>
+    </table>
+    ${botao("Assinar com desconto", linkAssinatura)}
+    <p style="margin:20px 0 0; font-size:12px; line-height:1.6; color:${COR_TEXTO_DIM};">
+      Seus dados continuam guardados — é só assinar de novo pra voltar a usar o GestorPro.
+    </p>
+  `;
+  return {
+    subject: `${percentualDesconto}% de desconto pra voltar ao GestorPro`,
+    html: layoutEmail({ titulo: "Sentimos sua falta", corpoHtml }),
+  };
+}
