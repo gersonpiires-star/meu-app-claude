@@ -47,6 +47,11 @@ next-env.d.ts
 *.db
 *.db-journal
 
+# Playwright (E2E)
+/test-results/
+/playwright-report/
+/blob-report/
+
 # HyperFrames video tooling (installed ad hoc for marketing video work,
 # not part of the GestorPro app itself)
 /.agents/
