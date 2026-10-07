@@ -9,6 +9,7 @@ import { snapshotDoCliente } from "@/lib/renovacao";
 import { enviarPush } from "@/lib/push";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
+import { registrarEvento } from "@/lib/analytics";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
 
@@ -203,6 +204,11 @@ export async function aprovarRenovacaoPaga(
   );
 
   if (!resultado.jaProcessado && pagamento.cliente) {
+    await registrarEvento(pagamento.revendedorId, "renovacao_paga_gateway", {
+      clienteId: pagamento.cliente.id,
+      valor: pagamento.valor,
+    });
+
     revalidatePath("/clientes");
     revalidatePath(`/clientes/${pagamento.cliente.id}`);
     revalidatePath("/painel");
@@ -260,7 +266,11 @@ export async function aprovarAssinaturaPaga(
       data: { status: "APROVADO", mpPaymentId: gatewayPaymentId, valorLiquido },
     });
     if (trocou.count === 0) {
-      return { jaProcessado: true, recompensaIndicacao: null as { indicadorId: string; codigo: string } | null };
+      return {
+        jaProcessado: true,
+        recompensaIndicacao: null as { indicadorId: string; codigo: string } | null,
+        primeiraAssinaturaPaga: false,
+      };
     }
 
     // Trava a linha do revendedor antes de ler o status — sem isso, duas
@@ -327,8 +337,16 @@ export async function aprovarAssinaturaPaga(
       });
       recompensaIndicacao = { indicadorId: revendedorAtual.indicadoPorId, codigo };
     }
-    return { jaProcessado: false, recompensaIndicacao };
+    return { jaProcessado: false, recompensaIndicacao, primeiraAssinaturaPaga };
   });
+
+  if (!resultado.jaProcessado) {
+    await registrarEvento(
+      pagamento.revendedorId,
+      resultado.primeiraAssinaturaPaga ? "trial_convertido" : "assinatura_renovada",
+      { valor: valorLiquido }
+    );
+  }
 
   if (!resultado.jaProcessado && resultado.recompensaIndicacao) {
     const { indicadorId, codigo } = resultado.recompensaIndicacao;

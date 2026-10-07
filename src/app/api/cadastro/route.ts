@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
+import { registrarEvento } from "@/lib/analytics";
 
 const schema = z
   .object({
@@ -53,14 +54,14 @@ export async function POST(request: Request) {
   // (mesmo padrão de processarTentativaLogin/criarFuncionario), um cadastro
   // aqui podia colidir com o e-mail de login de um funcionário já existente
   // (nem checado antes) ou com outro cadastro concorrente pro mesmo e-mail.
-  const jaExiste = await prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${emailNormalizado}))`;
 
     const existente = await tx.revendedor.findUnique({ where: { email: emailNormalizado } });
     const existenteFuncionario = existente ? null : await tx.funcionario.findUnique({ where: { email: emailNormalizado } });
-    if (existente || existenteFuncionario) return true;
+    if (existente || existenteFuncionario) return { jaExiste: true, id: null };
 
-    await tx.revendedor.create({
+    const criado = await tx.revendedor.create({
       data: {
         nome,
         cpf,
@@ -71,13 +72,16 @@ export async function POST(request: Request) {
         statusAssinatura: "TRIAL",
         indicadoPorId: indicador?.id ?? null,
       },
+      select: { id: true },
     });
-    return false;
+    return { jaExiste: false, id: criado.id };
   });
 
-  if (jaExiste) {
+  if (resultado.jaExiste) {
     return NextResponse.json({ error: "Já existe uma conta com esse e-mail" }, { status: 409 });
   }
+
+  await registrarEvento(resultado.id, "cadastro", { indicado: Boolean(indicador) });
 
   return NextResponse.json({ ok: true });
 }

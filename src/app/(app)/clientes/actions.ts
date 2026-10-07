@@ -9,6 +9,7 @@ import { exigirRevendedor, exigirDono, permissoesFuncionario } from "@/lib/sessa
 import { calcularVencimentoComDiaFixo, PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
+import { registrarEvento } from "@/lib/analytics";
 import { brl, parseDataBr } from "@/lib/format";
 import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
@@ -130,6 +131,13 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
   }
 
   await registrarLog(revendedor.id, "cliente.criar", `Cadastrou o cliente ${dados.nome}`);
+
+  // "Ativação" = primeiro cliente de verdade do revendedor. Checado depois
+  // do commit (best-effort, não pode travar o cadastro do cliente).
+  const totalClientes = await prisma.cliente.count({ where: { revendedorId: revendedor.id } });
+  if (totalClientes === 1) {
+    await registrarEvento(revendedor.id, "ativacao_primeiro_cliente");
+  }
 
   // Só marca o interessado como convertido depois que o cliente realmente
   // foi salvo — se o revendedor abrir "Virou cliente" e desistir sem

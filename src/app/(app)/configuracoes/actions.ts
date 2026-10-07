@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
+import { registrarEvento } from "@/lib/analytics";
 import { criptografar, descriptografar } from "@/lib/crypto";
 import { loginUnitv, ErroUnitv } from "@/lib/integracoes/unitv";
 import { testarCredenciaisWhatsapp, ErroWhatsappCloudApi } from "@/lib/integracoes/whatsapp-cloud-api";
@@ -175,6 +176,7 @@ export async function cancelarAssinatura(formData: FormData) {
     "assinatura.cancelar",
     `Cancelou a assinatura${motivo ? ` — motivo: ${motivo}` : ""}`
   );
+  await registrarEvento(revendedor.id, "cancelamento", motivo ? { motivo } : undefined);
 
   revalidatePath("/configuracoes");
 }

@@ -242,6 +242,7 @@ model Revendedor {
   notificacoesPagamento NotificacaoPagamento[]
   importacoesAntigas    ImportacaoAntiga[]
   cuponsRestritos       Cupom[]
+  eventosAnalytics      EventoAnalytics[]
   sugestoes             Sugestao[]
 
   @@index([indicadoPorId])
@@ -807,6 +808,23 @@ model Pagamento {
   @@index([revendedorId, status])
   @@index([clienteId])
   @@index([cupomId])
+}
+
+// Evento de uso do produto (cadastro, ativação, primeira cobrança,
+// conversão de trial, cancelamento) — base pra métricas de funil sem
+// depender de um provedor terceiro. revendedorId é opcional porque o
+// evento de "cadastro" acontece antes de qualquer sessão/log de atividade
+// precisar de um dono já autenticado consultável.
+model EventoAnalytics {
+  id           String      @id @default(cuid())
+  revendedorId String?
+  revendedor   Revendedor? @relation(fields: [revendedorId], references: [id], onDelete: SetNull)
+  evento       String
+  metadata     Json?
+  criadoEm     DateTime    @default(now())
+
+  @@index([evento, criadoEm])
+  @@index([revendedorId])
 }
 
 // Cupom de desconto pra assinatura do GestorPro (não é dos clientes do
