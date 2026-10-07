@@ -1,19 +1,9 @@
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { limitesDoMes } from "@/lib/dados";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
 import { faixasDosUltimosMeses, serieAcumuladaDoMes } from "@/lib/meses";
 
-// dadosAdmin/dadosCrescimento escaneiam a tabela Revendedor inteira (todos
-// os assinantes da plataforma) em toda carga do Painel do administrador —
-// bem mais pesado que qualquer consulta por revendedorId. É visão
-// gerencial, não uma tela de ação (a lista de Contas, essa sim precisa
-// estar sempre fresca, é buscada direto em admin/page.tsx, sem cache), então
-// tolera ficar até 60s desatualizada em troca de não reconsultar tudo em
-// cada refresh. Time-based (sem tags) de propósito: teria dezenas de pontos
-// de mutação pra marcar como "sujam" esse cache, e esquecer um deles vira
-// dado financeiro errado — o revalidate curto já resolve sem esse risco.
-async function dadosAdminQuery() {
+export async function dadosAdmin() {
   const agora = new Date();
   const { inicio, fim } = limitesDoMes(agora);
   const em3Dias = new Date(agora.getTime() + 3 * 24 * 60 * 60000);
@@ -186,8 +176,6 @@ async function dadosAdminQuery() {
   };
 }
 
-export const dadosAdmin = unstable_cache(dadosAdminQuery, ["admin-visao-geral"], { revalidate: 60 });
-
 // Receita de assinaturas mês a mês (últimos `quantidade` meses) — mesmo
 // padrão de ultimosMeses() em lib/relatorio.ts, só que somando Pagamento
 // (a plataforma cobrando os revendedores) em vez de Renovacao/Venda (o
@@ -233,7 +221,7 @@ export async function serieReceitaMesAdmin(agora: Date = new Date()) {
 // trials mais engajados (uso real, não só tempo restante), e a coorte de
 // retenção de quem virou pagante — tudo pra ajudar a vender/reter melhor,
 // não pra operar o dia a dia dos assinantes (isso já é dadosAdmin).
-async function dadosCrescimentoQuery() {
+export async function dadosCrescimento() {
   const [totalInteressados, interessadosConvertidos, revendedores, pagamentosAprovados, cancelamentosRecentes] = await Promise.all([
     prisma.interessado.count(),
     prisma.interessado.count({ where: { convertido: true } }),
@@ -378,5 +366,3 @@ async function dadosCrescimentoQuery() {
     cancelamentosRecentes,
   };
 }
-
-export const dadosCrescimento = unstable_cache(dadosCrescimentoQuery, ["admin-crescimento"], { revalidate: 60 });
