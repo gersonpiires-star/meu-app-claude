@@ -32,6 +32,16 @@ export function dataCurta(d: Date): string {
   return `${dia}/${mes}`;
 }
 
+// "YYYY-MM-DD" no dia civil de Brasília — pro value de <input type="date">.
+// Nunca usar d.toISOString().slice(0,10) pra isso: é o dia civil em UTC, que
+// vira amanhã entre 21h e meia-noite (horário de Brasília) mais cedo do que
+// devia, e diverge entre servidor (UTC) e navegador (Brasília) bem nessa
+// janela — um real mismatch de hidratação, não só a data errada.
+export function dataISOBr(d: Date = new Date()): string {
+  const { ano, mes, dia } = partesBr(d);
+  return `${ano}-${mes}-${dia}`;
+}
+
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export function dataPorExtenso(d: Date): string {

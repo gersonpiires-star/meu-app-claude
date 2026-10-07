@@ -89,7 +89,12 @@ export function NotificacoesAvisos({
   function abrir() {
     const rect = botaoRef.current?.getBoundingClientRect();
     if (rect) {
-      const left = Math.min(Math.max(rect.right - LARGURA_PAINEL, MARGEM), window.innerWidth - LARGURA_PAINEL - MARGEM);
+      // O painel tem max-w-[85vw] (classe abaixo) — em telas bem estreitas
+      // isso encolhe a largura real pra menos que LARGURA_PAINEL, e usar a
+      // constante fixa no clamp empurrava a caixa parcialmente pra fora da
+      // tela à esquerda. Precisa ser a mesma largura efetiva dos dois lados.
+      const larguraEfetiva = Math.min(LARGURA_PAINEL, window.innerWidth * 0.85);
+      const left = Math.min(Math.max(rect.right - larguraEfetiva, MARGEM), window.innerWidth - larguraEfetiva - MARGEM);
       setPosicao({ top: rect.bottom + 8, left });
     }
     if (naoLidosLocal > 0) {

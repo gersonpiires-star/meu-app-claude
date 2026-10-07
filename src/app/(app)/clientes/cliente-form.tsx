@@ -47,12 +47,13 @@ export function ClienteForm({
   return (
     <form
       className="flex flex-col gap-4"
-      action={(formData) =>
+      action={(formData) => {
+        setErro(null);
         iniciarTransicao(async () => {
           const resultado = await acao(formData);
           if (resultado?.ok === false) setErro(resultado.erro);
-        })
-      }
+        });
+      }}
     >
       {interessadoId ? <input type="hidden" name="interessadoId" value={interessadoId} /> : null}
       <Field label="Nome">

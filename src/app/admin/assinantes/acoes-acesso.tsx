@@ -35,7 +35,7 @@ export function AcoesAcesso({ revendedorId, statusAssinatura }: { revendedorId: 
   if (statusAssinatura === "PAUSADO") {
     return (
       <Button disabled={pendente} onClick={() => iniciarTransicao(() => retomarAcesso(revendedorId))}>
-        Retomar acesso
+        {pendente ? "Aguarde…" : "Retomar acesso"}
       </Button>
     );
   }
@@ -45,10 +45,10 @@ export function AcoesAcesso({ revendedorId, statusAssinatura }: { revendedorId: 
       {erro ? <p className="text-sm text-danger">{erro}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button disabled={pendente} onClick={() => liberar(1)}>
-          Liberar +1 mês
+          {pendente ? "Aguarde…" : "Liberar +1 mês"}
         </Button>
         <Button variant="ghost" disabled={pendente} onClick={() => liberar(12)}>
-          Liberar +12 meses
+          {pendente ? "Aguarde…" : "Liberar +12 meses"}
         </Button>
         <Button
           variant="danger"
@@ -58,7 +58,7 @@ export function AcoesAcesso({ revendedorId, statusAssinatura }: { revendedorId: 
             if (motivo && motivo.trim()) iniciarTransicao(() => pausarAcesso(revendedorId, motivo));
           }}
         >
-          Pausar acesso
+          {pendente ? "Aguarde…" : "Pausar acesso"}
         </Button>
       </div>
     </div>

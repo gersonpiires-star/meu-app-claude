@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, Button, Card, Field, Input, Select, cx } from "@/components/ui";
-import { brl } from "@/lib/format";
+import { brl, dataISOBr } from "@/lib/format";
 import { PLANO_LABEL, PLANO_MESES, PLANO_VALOR_SUGERIDO } from "@/lib/planos";
 import { precoAVista } from "@/lib/maquininha";
 import type { PlanoCliente } from "@/generated/prisma/enums";
@@ -24,10 +24,6 @@ type Cliente = {
 type Produto = { id: string; modelo: string; custoProximoLote: number; estoqueAtual: number };
 
 type Tipo = "RENOVACAO" | "COMBO" | "SO_APARELHO";
-
-function hojeISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function NovaVendaWizard({
   clientes,
@@ -64,7 +60,7 @@ export function NovaVendaWizard({
   const [valorAparelho, setValorAparelho] = useState<number | "">(0);
 
   const [formaPagamento, setFormaPagamento] = useState(FORMAS_PAGAMENTO[0]);
-  const [data, setData] = useState(hojeISO());
+  const [data, setData] = useState(dataISOBr());
 
   const cliente = clientes.find((c) => c.id === clienteId);
   const produto = produtos.find((p) => p.id === produtoId);

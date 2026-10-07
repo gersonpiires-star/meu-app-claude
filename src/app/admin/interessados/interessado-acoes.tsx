@@ -13,7 +13,7 @@ export function InteressadoAcoes({ id }: { id: string }) {
         className="text-accent hover:brightness-110"
         onClick={() => iniciarTransicao(() => marcarConvertido(id))}
       >
-        Virou cliente
+        {pendente ? "Aguarde…" : "Virou cliente"}
       </button>
       <button
         disabled={pendente}
@@ -22,7 +22,7 @@ export function InteressadoAcoes({ id }: { id: string }) {
           if (confirm("Remover este interessado?")) iniciarTransicao(() => excluirInteressado(id));
         }}
       >
-        Remover
+        {pendente ? "Aguarde…" : "Remover"}
       </button>
     </div>
   );
