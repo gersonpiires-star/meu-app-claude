@@ -5,12 +5,18 @@ import { dadosPainel, serieReceitaMes } from "@/lib/dados";
 import { brl0, dataCurta, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer } from "@/lib/planos";
 import { linkWhatsApp } from "@/lib/mensagens";
+import { funilIndicacao } from "@/lib/indicacao";
 import { Avatar, Badge, Button, Card, EmptyState, Sparkline, StatTile, TrendChip, buttonClassName, cx } from "@/components/ui";
 import { DonutChart } from "@/components/charts";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "../clientes/cobrar-botao";
 import { MetaMensalCard } from "./meta-mensal";
+import { IndicacaoCard } from "./indicacao-card";
+
+function baseUrl() {
+  return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
 
 const IconCreditos = (
   <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
@@ -26,10 +32,11 @@ const MESES = [
 
 export default async function PainelPage() {
   const revendedor = await exigirRevendedor();
-  const [dados, cobradosHoje, serie] = await Promise.all([
+  const [dados, cobradosHoje, serie, funilIndicacaoRevendedor] = await Promise.all([
     dadosPainel(revendedor.id),
     cobradosHojePorCliente(revendedor.id),
     serieReceitaMes(revendedor.id),
+    funilIndicacao(revendedor.id),
   ]);
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
@@ -429,6 +436,12 @@ export default async function PainelPage() {
             </div>
           </Card>
         ) : null}
+
+        <IndicacaoCard
+          link={`${baseUrl()}/cadastro?ref=${revendedor.id}`}
+          cliques={funilIndicacaoRevendedor.cliques}
+          assinantes={funilIndicacaoRevendedor.assinantes}
+        />
       </aside>
       </div>
     </div>
