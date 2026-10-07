@@ -372,6 +372,24 @@ function variacaoPct(atual: number, anterior: number): number | null {
   return ((atual - anterior) / anterior) * 100;
 }
 
+// Agrupa uma lista de datas de cadastro por dia civil (Brasília) dentro da
+// janela do período — mesma lógica de "nunca usar getFullYear/getMonth/getDate
+// direto" do resto do app. Compartilhado entre a série de revendedores e a de
+// clientes, que usam exatamente o mesmo agrupamento.
+function bucketsPorDia(datas: Date[], hojeCivil: Date, dias: number): { data: string; quantidade: number }[] {
+  const UM_DIA_MS = 24 * 60 * 60000;
+  const buckets = new Map<string, number>();
+  for (let i = 0; i < dias; i++) {
+    const dia = new Date(hojeCivil.getTime() - (dias - 1 - i) * UM_DIA_MS);
+    buckets.set(dia.toISOString().slice(0, 10), 0);
+  }
+  for (const d of datas) {
+    const chave = inicioDoDiaBr(d).toISOString().slice(0, 10);
+    if (buckets.has(chave)) buckets.set(chave, (buckets.get(chave) ?? 0) + 1);
+  }
+  return [...buckets.entries()].map(([data, quantidade]) => ({ data, quantidade }));
+}
+
 // Métricas de plataforma inteira (todos os revendedores somados) pro
 // Dashboard administrativo: novos usuários (revendedores) e clientes finais
 // deles num período (7/30/90 dias), com série dia a dia dos sinais de conta
@@ -394,6 +412,7 @@ export async function metricasPlataforma(dias: 7 | 30 | 90) {
     novosClientesPlataforma,
     novosClientesPeriodoAnterior,
     revendedoresNoPeriodo,
+    clientesNoPeriodo,
   ] = await Promise.all([
     prisma.revendedor.count({ where: { papel: "REVENDEDOR", criadoEm: { gte: inicio } } }),
     prisma.revendedor.count({ where: { papel: "REVENDEDOR", criadoEm: { gte: inicioAnterior, lt: inicio } } }),
@@ -405,20 +424,14 @@ export async function metricasPlataforma(dias: 7 | 30 | 90) {
       where: { papel: "REVENDEDOR", criadoEm: { gte: inicio } },
       select: { criadoEm: true },
     }),
+    prisma.cliente.findMany({
+      where: { criadoEm: { gte: inicio } },
+      select: { criadoEm: true },
+    }),
   ]);
 
-  // Agrupa os cadastros do período por dia civil (Brasília) — mesma lógica
-  // de "nunca usar getFullYear/getMonth/getDate direto" do resto do app.
-  const buckets = new Map<string, number>();
-  for (let i = 0; i < dias; i++) {
-    const dia = new Date(hojeCivil.getTime() - (dias - 1 - i) * UM_DIA_MS);
-    buckets.set(dia.toISOString().slice(0, 10), 0);
-  }
-  for (const r of revendedoresNoPeriodo) {
-    const chave = inicioDoDiaBr(r.criadoEm).toISOString().slice(0, 10);
-    if (buckets.has(chave)) buckets.set(chave, (buckets.get(chave) ?? 0) + 1);
-  }
-  const serieNovosUsuarios = [...buckets.entries()].map(([data, quantidade]) => ({ data, quantidade }));
+  const serieNovosUsuarios = bucketsPorDia(revendedoresNoPeriodo.map((r) => r.criadoEm), hojeCivil, dias);
+  const serieNovosClientes = bucketsPorDia(clientesNoPeriodo.map((c) => c.criadoEm), hojeCivil, dias);
 
   return {
     dias,
@@ -430,5 +443,6 @@ export async function metricasPlataforma(dias: 7 | 30 | 90) {
     novosClientesPlataforma,
     variacaoClientes: variacaoPct(novosClientesPlataforma, novosClientesPeriodoAnterior),
     serieNovosUsuarios,
+    serieNovosClientes,
   };
 }

@@ -238,8 +238,23 @@ export default async function AdminPainelPage({
         </div>
 
         <Card>
-          <h3 className="mb-3 text-sm font-bold text-text">Novos revendedores por dia</h3>
-          <EvolucaoUsuarios serie={plataforma.serieNovosUsuarios} />
+          <h3 className="mb-3 text-sm font-bold text-text">Novos cadastros por dia</h3>
+          <EvolucaoUsuarios
+            series={[
+              {
+                chave: "revendedores",
+                label: "Revendedores",
+                pontos: plataforma.serieNovosUsuarios,
+                dicaVazio: "O gráfico aparece assim que um novo revendedor se cadastrar.",
+              },
+              {
+                chave: "clientes",
+                label: "Clientes",
+                pontos: plataforma.serieNovosClientes,
+                dicaVazio: "O gráfico aparece assim que um cliente novo for cadastrado.",
+              },
+            ]}
+          />
         </Card>
       </section>
 
