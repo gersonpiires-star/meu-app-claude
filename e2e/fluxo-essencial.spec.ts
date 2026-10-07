@@ -74,7 +74,9 @@ test("criar cliente aparece na página do cliente e na lista", async ({ page }) 
   await page.getByRole("button", { name: "Salvar cliente" }).click();
 
   // criarCliente redireciona pra /clientes/[id] ao salvar com sucesso.
-  await expect(page).toHaveURL(/\/clientes\/[a-z0-9]+$/);
+  // "novo" também dá match em /[a-z0-9]+$/ (só letras) — o heading abaixo é
+  // o sinal real de sucesso, a asserção de URL aqui é só um double-check.
+  await expect(page).toHaveURL(/\/clientes\/(?!novo$)[a-z0-9]+$/);
   await expect(page.getByRole("heading", { name: NOME_CLIENTE })).toBeVisible();
 
   await page.goto("/clientes");
