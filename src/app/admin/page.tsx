@@ -6,7 +6,6 @@ import {
   dadosCrescimento,
   receitaMensalAdmin,
   serieReceitaMesAdmin,
-  metricasPlataforma,
 } from "@/lib/dados-admin";
 import { rankingIndicacao } from "@/lib/indicacao";
 import { limitesDoMes } from "@/lib/dados";
@@ -21,7 +20,6 @@ import {
   Sparkline,
   StatTile,
   TrendChip,
-  cx,
 } from "@/components/ui";
 import { ReceitaPorMes } from "@/app/(app)/relatorio/receita-por-mes";
 import { MarcarSugestaoLidaBotao } from "./marcar-sugestao-lida-botao";
@@ -30,7 +28,6 @@ import { PublicarAvisoRapidoForm } from "./publicar-aviso-rapido-form";
 import { MigrarCredenciaisButton } from "./migrar-credenciais-button";
 import { MetaPlataformaCard } from "./meta-plataforma";
 import { AdminTabs } from "./admin-tabs";
-import { EvolucaoUsuarios } from "./evolucao-usuarios";
 
 const PLANO_LABEL: Record<string, string> = {
   MENSAL: "Mensal",
@@ -122,20 +119,8 @@ const IconTendencia = (
   </svg>
 );
 
-const PERIODOS_PLATAFORMA = [
-  { chave: "7", label: "7 dias", dias: 7 as const },
-  { chave: "30", label: "30 dias", dias: 30 as const },
-  { chave: "90", label: "90 dias", dias: 90 as const },
-];
-
-export default async function AdminPainelPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ periodo?: string }>;
-}) {
+export default async function AdminPainelPage() {
   const admin = await exigirAdmin();
-  const { periodo } = await searchParams;
-  const periodoAtivo = PERIODOS_PLATAFORMA.find((p) => p.chave === periodo) ?? PERIODOS_PLATAFORMA[1];
   const { inicio, fim } = limitesDoMes();
   const agora = new Date();
   const agoraCivil = diaCivilBr(agora);
@@ -148,7 +133,6 @@ export default async function AdminPainelPage({
     creditosMes,
     receitaPorMes,
     serie,
-    plataforma,
   ] = await Promise.all([
     dadosAdmin(),
     dadosCrescimento(),
@@ -182,7 +166,6 @@ export default async function AdminPainelPage({
     }),
     receitaMensalAdmin(6),
     serieReceitaMesAdmin(agora),
-    metricasPlataforma(periodoAtivo.dias),
   ]);
   const mrr =
     dados.previstoMensal + dados.previstoSemestral + dados.previstoAnual;
@@ -191,57 +174,6 @@ export default async function AdminPainelPage({
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold text-text">Painel do administrador</h1>
-
-      <section aria-label="Dashboard da plataforma" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-bold text-text">Plataforma</h2>
-          <div className="flex gap-1 rounded-xl border border-border-strong p-1 text-xs">
-            {PERIODOS_PLATAFORMA.map((p) => (
-              <Link
-                key={p.chave}
-                href={`/admin?periodo=${p.chave}`}
-                className={cx(
-                  "whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold",
-                  periodoAtivo.chave === p.chave ? "bg-accent-soft text-accent" : "text-text-dim hover:text-text"
-                )}
-              >
-                {p.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile
-            label="Novos revendedores"
-            value={String(plataforma.novosRevendedores)}
-            sub={plataforma.variacaoRevendedores != null ? `${plataforma.variacaoRevendedores >= 0 ? "+" : ""}${plataforma.variacaoRevendedores.toFixed(0)}% vs período anterior` : `últimos ${plataforma.dias} dias`}
-            tone="accent"
-          />
-          <StatTile
-            label="Clientes na plataforma"
-            value={String(plataforma.totalClientesPlataforma)}
-            sub={`${plataforma.clientesAtivosPlataforma} ativos · ${plataforma.clientesInativosPlataforma} inativos`}
-          />
-          <StatTile
-            label="Novos clientes"
-            value={String(plataforma.novosClientesPlataforma)}
-            sub={plataforma.variacaoClientes != null ? `${plataforma.variacaoClientes >= 0 ? "+" : ""}${plataforma.variacaoClientes.toFixed(0)}% vs período anterior` : `últimos ${plataforma.dias} dias`}
-            tone="money"
-          />
-          <StatTile
-            label="Assinantes ativos"
-            value={String(dados.ativos)}
-            sub={`${dados.trial} em trial · ${dados.pausados} pausados`}
-            tone="accent"
-          />
-        </div>
-
-        <Card>
-          <h3 className="mb-3 text-sm font-bold text-text">Novos revendedores por dia</h3>
-          <EvolucaoUsuarios serie={plataforma.serieNovosUsuarios} />
-        </Card>
-      </section>
 
       <section
         aria-label="Resultado do mês"
