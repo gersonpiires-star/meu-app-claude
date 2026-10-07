@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +34,12 @@ const THROTTLE_ULTIMO_ACESSO_MS = 60 * 60 * 1000;
 // o próprio dono quanto quando é um funcionário dele (a sessão carrega o
 // tenantId, que aponta pro dono). Assim toda a filtragem `revendedorId:
 // revendedor.id` espalhada pelo app continua funcionando sem mudar nada.
-export async function exigirRevendedor() {
+// cache() memoiza por requisição (via AsyncLocalStorage do RSC) — sem isso,
+// layout.tsx chama exigirRevendedor() e cada page.tsx embaixo dele chama de
+// novo, duplicando o SELECT (e a checagem de throttle do ultimoAcessoEm) em
+// toda navegação autenticada do app inteiro. Mesmas chamadas, mesmo
+// resultado dentro de uma única requisição — memoizar é seguro.
+export const exigirRevendedor = cache(async function exigirRevendedor() {
   const session = await sessaoValida();
   if (!session) redirect("/entrar");
 
@@ -52,7 +58,7 @@ export async function exigirRevendedor() {
   }
 
   return revendedor;
-}
+});
 
 // true quando quem está logado é um funcionário (não o dono da conta) —
 // usado para esconder/gatear ações sensíveis como credenciais de
@@ -81,16 +87,22 @@ export async function exigirDono() {
   return revendedor;
 }
 
-export async function exigirAdmin() {
+// Mesma memoização por requisição de exigirRevendedor acima — admin/layout.tsx
+// e cada página do admin chamavam isso de novo cada uma.
+export const exigirAdmin = cache(async function exigirAdmin() {
   const session = await auth();
   if (!session?.user) redirect("/entrar");
   if (session.user.papel !== "ADMIN") redirect("/painel");
 
   const admin = await prisma.revendedor.findUnique({ where: { id: session.user.id } });
-  if (!admin) redirect("/entrar");
+  // Mesmo motivo do funcionario.ativo em sessaoValida: o papel vem do JWT,
+  // que dura ~30 dias sem revalidar sozinho — sem reconferir contra o banco
+  // aqui, revogar o admin de alguém não tirava o acesso de quem já tinha
+  // uma sessão aberta até o token expirar.
+  if (!admin || admin.papel !== "ADMIN") redirect("/entrar");
 
   return admin;
-}
+});
 
 export function acessoLiberado(revendedor: { statusAssinatura: string; trialFim: Date; assinaturaVence: Date | null }) {
   const agora = new Date();

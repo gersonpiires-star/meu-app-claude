@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -62,9 +63,19 @@ function mensagemNutricaoTrial(diasDeTrial: number, totalClientes: number): { ti
 // quem ficou vencido além do prazo configurado, manda um push resumindo
 // quem está vencendo/vencido pra quem ativou o lembrete em Configurações,
 // e nutre quem está em trial nos dias-chave pra ajudar a converter.
+// Comparação em tempo constante — mesmo padrão já usado pro webhook do
+// WhatsApp (ver assinaturaValida em api/webhooks/whatsapp/route.ts). Um
+// "!==" comum entre strings sai no primeiro byte diferente, então o tempo de
+// resposta vaza quantos caracteres do segredo o header acertou.
+function autorizacaoValida(recebido: string | null, esperado: string): boolean {
+  const a = Buffer.from(recebido ?? "");
+  const b = Buffer.from(`Bearer ${esperado}`);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function GET(req: NextRequest) {
   const segredo = process.env.CRON_SECRET;
-  if (!segredo || req.headers.get("authorization") !== `Bearer ${segredo}`) {
+  if (!segredo || !autorizacaoValida(req.headers.get("authorization"), segredo)) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
 
