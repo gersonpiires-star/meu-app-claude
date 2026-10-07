@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { GUIAS } from "@/lib/guias";
 
 const baseUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
@@ -14,5 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/recuperar-senha`, changeFrequency: "yearly", priority: 0.1 },
     { url: `${baseUrl}/termos`, changeFrequency: "yearly", priority: 0.1 },
     { url: `${baseUrl}/privacidade`, changeFrequency: "yearly", priority: 0.1 },
+    { url: `${baseUrl}/guias`, changeFrequency: "monthly", priority: 0.6 },
+    ...GUIAS.map((g) => ({ url: `${baseUrl}/guias/${g.slug}`, changeFrequency: "monthly" as const, priority: 0.6 })),
   ];
 }
