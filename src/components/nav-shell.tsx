@@ -173,26 +173,10 @@ export function NavShell({
             <LogoMark className="h-7 w-7" />
             <span className="text-sm font-bold">GestorPro</span>
           </div>
-          <div className="flex items-center gap-2">
-            <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
-            {ehAdmin ? (
-              <Link href="/admin" className="text-xs font-semibold text-accent">
-                Admin
-              </Link>
-            ) : null}
-            <Link href="/configuracoes" className="text-xs font-semibold text-text-dim">
-              Config.
-            </Link>
-            <a
-              href="/manual-revendedor.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold text-text-dim"
-            >
-              Manual
-            </a>
-            <SairButton />
-          </div>
+          {/* Admin/Config./Manual/Sair já estão todos a um toque no "Mais"
+          da barra inferior (ver abaixo) — repeti-los aqui só empilhava
+          texto pequeno competindo com o sino, sem abrir nenhum caminho novo. */}
+          <NotificacoesAvisos notificacoes={notificacoes} naoLidos={notificacoesNaoLidas} />
         </header>
 
         {/* pb-24 no mobile — sem isso, o conteúdo rolava até embaixo da barra

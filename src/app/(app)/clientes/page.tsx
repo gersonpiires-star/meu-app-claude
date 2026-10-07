@@ -3,7 +3,7 @@ import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, fmtTelefone } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
-import { Avatar, Badge, Button, Card, EmptyState, cx } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Input, cx } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "./cobrar-botao";
@@ -33,13 +33,21 @@ function diasTexto(vencimento: Date): string {
   return dias < 0 ? `${Math.abs(dias)}d atrás` : `em ${dias}d`;
 }
 
+const ORDENS = [
+  { chave: "vencimento", label: "Vencimento" },
+  { chave: "nome", label: "Nome" },
+  { chave: "valor", label: "Valor" },
+] as const;
+type Ordem = (typeof ORDENS)[number]["chave"];
+
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string; id?: string }>;
+  searchParams: Promise<{ aba?: string; id?: string; q?: string; ordenar?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const { aba = "ativos", id: selecionadoId } = await searchParams;
+  const { aba = "ativos", id: selecionadoId, q, ordenar } = await searchParams;
+  const ordem: Ordem = ORDENS.some((o) => o.chave === ordenar) ? (ordenar as Ordem) : "vencimento";
 
   const [clientes, cobradosHoje, interessados, clienteSelecionado] = await Promise.all([
     prisma.cliente.findMany({
@@ -62,15 +70,30 @@ export default async function ClientesPage({
       : Promise.resolve(null),
   ]);
 
-  const filtrados = clientes.filter((c) => {
-    if (aba === "cancelados") return c.status === "CANCELADO";
-    if (c.status === "CANCELADO") return false;
-    if (aba === "atencao") {
-      const faixa = faixaVencimento(c.vencimento);
-      return faixa === "VENCIDO" || faixa === "ATE_5_DIAS";
-    }
-    return true;
-  });
+  const busca = q?.trim().toLowerCase();
+  const buscaSoDigitos = busca?.replace(/\D/g, "");
+
+  const filtrados = clientes
+    .filter((c) => {
+      if (aba === "cancelados") return c.status === "CANCELADO";
+      if (c.status === "CANCELADO") return false;
+      if (aba === "atencao") {
+        const faixa = faixaVencimento(c.vencimento);
+        return faixa === "VENCIDO" || faixa === "ATE_5_DIAS";
+      }
+      return true;
+    })
+    .filter(
+      (c) =>
+        !busca ||
+        c.nome.toLowerCase().includes(busca) ||
+        (buscaSoDigitos && c.whatsapp?.includes(buscaSoDigitos))
+    )
+    .sort((a, b) => {
+      if (ordem === "nome") return a.nome.localeCompare(b.nome, "pt-BR");
+      if (ordem === "valor") return b.valorPlano - a.valorPlano;
+      return a.vencimento.getTime() - b.vencimento.getTime();
+    });
 
   return (
     <div className="flex flex-col gap-5">
@@ -107,6 +130,31 @@ export default async function ClientesPage({
         ))}
       </div>
 
+      {aba !== "interessados" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <form action="/clientes" className="flex min-w-0 flex-1 gap-2 sm:max-w-xs">
+            <input type="hidden" name="aba" value={aba} />
+            <input type="hidden" name="ordenar" value={ordem} />
+            <Input type="search" name="q" placeholder="Buscar por nome ou WhatsApp" defaultValue={q ?? ""} className="min-w-0" />
+          </form>
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-text-dim">Ordenar por</span>
+            {ORDENS.map((o) => (
+              <Link
+                key={o.chave}
+                href={`/clientes?aba=${aba}&ordenar=${o.chave}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+                className={cx(
+                  "whitespace-nowrap rounded-lg px-2.5 py-1.5 font-semibold",
+                  ordem === o.chave ? "bg-accent-soft text-accent" : "text-text-dim hover:text-text"
+                )}
+              >
+                {o.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {aba === "interessados" ? (
         interessados.length === 0 ? (
           <EmptyState>Nenhum interessado cadastrado ainda.</EmptyState>
@@ -118,7 +166,7 @@ export default async function ClientesPage({
           </div>
         )
       ) : filtrados.length === 0 ? (
-        <EmptyState>Nenhum cliente nesta lista ainda.</EmptyState>
+        <EmptyState>{busca ? `Nenhum cliente encontrado pra "${q}".` : "Nenhum cliente nesta lista ainda."}</EmptyState>
       ) : (
         <div className={cx("flex flex-col gap-5", selecionadoId ? "xl:flex-row xl:items-start" : "")}>
           {/* O painel lateral (360px) só entra no layout quando um cliente está selecionado
