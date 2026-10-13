@@ -11,7 +11,7 @@ import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { registrarLog } from "@/lib/log";
 import { registrarEvento } from "@/lib/analytics";
 import { limitesDoPlano } from "@/lib/planos-assinatura";
-import { brl, parseDataBr } from "@/lib/format";
+import { brl, parseDataBr, parseDataISOBr } from "@/lib/format";
 import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
@@ -250,8 +250,12 @@ export async function renovarCliente(
   // passado (em vez do padrão abaixo, que só faz isso pra quem ainda não
   // venceu e cai pra "hoje" pra quem já está vencido).
   const apartirDoVencimento = formData.get("apartirDoVencimento") === "true";
+  // parseDataISOBr, não `new Date(dataTexto)` — o input manda "AAAA-MM-DD"
+  // puro, que o construtor nativo do Date interpreta como meia-noite UTC em
+  // vez de meia-noite em Brasília, registrando a renovação ~3h mais cedo e,
+  // perto da virada do dia, no dia civil errado (ver comentário no helper).
   const dataTexto = String(formData.get("data") ?? "").trim();
-  const dataLancamento = dataTexto ? new Date(dataTexto) : null;
+  const dataLancamento = parseDataISOBr(dataTexto);
   if (!Number.isFinite(valor) || valor < 0) return { ok: false, erro: "Valor inválido." };
   if (!Number.isFinite(custo) || custo < 0) return { ok: false, erro: "Custo inválido." };
 
@@ -286,7 +290,7 @@ export async function renovarCliente(
             creditos: PLANO_MESES[plano],
             formaPagamento,
             snapshotAnterior: snapshotDoCliente(cliente),
-            ...(dataLancamento && !isNaN(dataLancamento.getTime()) ? { data: dataLancamento } : {}),
+            ...(dataLancamento ? { data: dataLancamento } : {}),
           },
         });
         renovacaoId = renovacao.id;

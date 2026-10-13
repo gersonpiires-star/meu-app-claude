@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diaCivilBr, brMidnightUTC, inicioDoDiaBr, parseDataBr, dataCurta, diaDaSemana } from "./format";
+import { diaCivilBr, brMidnightUTC, inicioDoDiaBr, parseDataBr, parseDataISOBr, dataCurta, diaDaSemana } from "./format";
 
 describe("diaCivilBr", () => {
   it("lê o dia certo em Brasília no meio do dia, longe de qualquer virada", () => {
@@ -78,6 +78,41 @@ describe("parseDataBr", () => {
     expect(parseDataBr("")).toBeNull();
     expect(parseDataBr(undefined)).toBeNull();
     expect(parseDataBr("lixo")).toBeNull();
+  });
+});
+
+describe("parseDataISOBr", () => {
+  it("interpreta AAAA-MM-DD como meia-noite em Brasília, não em UTC", () => {
+    expect(parseDataISOBr("2026-10-13")?.toISOString()).toBe(brMidnightUTC(2026, 9, 13).toISOString());
+  });
+
+  // Regressão direta do bug relatado: renovarCliente (chamado pelo wizard de
+  // Nova Venda, que manda a data de <input type="date"> como "AAAA-MM-DD")
+  // usava `new Date(dataTexto)` — a spec do JS lê uma data-only ISO string
+  // como meia-noite em UTC. Em Brasília (UTC-3) isso cai às 21h do dia
+  // ANTERIOR: uma renovação lançada "hoje 13/10" salvava e exibia como tendo
+  // acontecido 12/10 21:00.
+  it("não reproduz o bug de `new Date(texto)`: 21h do dia anterior em Brasília", () => {
+    const comBugAntigo = new Date("2026-10-13");
+    const corrigido = parseDataISOBr("2026-10-13")!;
+    expect(comBugAntigo.getTime()).toBe(corrigido.getTime() - 3 * 60 * 60000);
+    expect(dataCurta(comBugAntigo)).toBe("12/10"); // o que o usuário via na tela
+    expect(dataCurta(corrigido)).toBe("13/10"); // o que devia ver
+  });
+
+  it("rejeita dia inválido pro mês (31 de fevereiro)", () => {
+    expect(parseDataISOBr("2026-02-31")).toBeNull();
+  });
+
+  it("rejeita mês fora de 1-12", () => {
+    expect(parseDataISOBr("2026-13-10")).toBeNull();
+  });
+
+  it("rejeita texto vazio, malformado ou no formato DD/MM/AAAA", () => {
+    expect(parseDataISOBr("")).toBeNull();
+    expect(parseDataISOBr(undefined)).toBeNull();
+    expect(parseDataISOBr("lixo")).toBeNull();
+    expect(parseDataISOBr("13/10/2026")).toBeNull();
   });
 });
 

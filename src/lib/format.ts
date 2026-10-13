@@ -42,6 +42,26 @@ export function dataISOBr(d: Date = new Date()): string {
   return `${ano}-${mes}-${dia}`;
 }
 
+// Inverso de dataISOBr: recebe o "AAAA-MM-DD" que <input type="date"> sempre
+// manda e devolve o instante UTC da meia-noite em Brasília daquele dia.
+// NUNCA use `new Date(texto)` direto pra isso — a spec do JS interpreta uma
+// string "AAAA-MM-DD" pura como meia-noite em UTC, que em Brasília já é 21h
+// do dia ANTERIOR. Foi exatamente esse desvio que fazia uma renovação lançada
+// "hoje" (ex: 13/10) salvar e exibir como tendo acontecido 12/10 21:00.
+export function parseDataISOBr(texto?: string | null): Date | null {
+  if (!texto) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto);
+  if (!m) return null;
+  const ano = Number(m[1]);
+  const mes = Number(m[2]);
+  const dia = Number(m[3]);
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const data = brMidnightUTC(ano, mes - 1, dia);
+  // Mesma proteção contra normalização silenciosa de Date.UTC do parseDataBr.
+  if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) return null;
+  return data;
+}
+
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export function dataPorExtenso(d: Date): string {
