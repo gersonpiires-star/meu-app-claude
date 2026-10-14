@@ -48,7 +48,7 @@ export async function restaurarBackup(
   // com metade do backup restaurado e a outra metade já apagada.
   await prisma.$transaction(
     async (tx) => {
-      await tx.renovacao.deleteMany({ where: { cliente: { revendedorId } } });
+      await tx.renovacao.deleteMany({ where: { revendedorId } });
       await tx.pagamento.deleteMany({ where: { revendedorId } });
       await tx.movimentoEstoque.deleteMany({ where: { produto: { revendedorId } } });
       await tx.venda.deleteMany({ where: { revendedorId } });
@@ -154,6 +154,7 @@ export async function restaurarBackup(
           await tx.renovacao.create({
             data: {
               clienteId: criado.id,
+              revendedorId: revendedor.id,
               servicoId: servicoIdRenov,
               plano: r.plano as "MENSAL" | "DOIS_MESES" | "TRIMESTRAL" | "SEMESTRAL",
               valor: r.valor as number,

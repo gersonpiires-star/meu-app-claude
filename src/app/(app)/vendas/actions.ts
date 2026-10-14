@@ -88,6 +88,7 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
         const renovacao = await tx.renovacao.create({
           data: {
             clienteId: dados.clienteId,
+            revendedorId: revendedor.id,
             servicoId: cliente.servicoId,
             plano: dados.plano,
             valor: dados.valorPlano,

@@ -10,7 +10,7 @@ export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   return Promise.all(
     faixasDosUltimosMeses(quantidade).map(async ({ ano, mes, inicio, fim }) => {
       const [renovacoes, vendas] = await Promise.all([
-        prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+        prisma.renovacao.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
         prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
       ]);
 
@@ -40,7 +40,7 @@ export async function dadosMes(revendedorId: string, ano: number, mes: number) {
 
   const [renovacoes, vendas, cancelados] = await Promise.all([
     prisma.renovacao.findMany({
-      where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } },
+      where: { revendedorId, data: { gte: inicio, lt: fim } },
       include: { cliente: true, servico: true },
       orderBy: { data: "desc" },
     }),
@@ -205,7 +205,7 @@ export async function oQueMaisVendeNoPeriodo(revendedorId: string, meses: number
   const fim = brMidnightUTC(ano, mes + 1, 1);
 
   const [renovacoes, vendas] = await Promise.all([
-    prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+    prisma.renovacao.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
     prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } }, include: { produto: true } }),
   ]);
 
@@ -244,7 +244,7 @@ export async function resumoUltimos7Dias(revendedorId: string, agora: Date = new
   const inicio = new Date(fim.getTime() - 7 * 24 * 60 * 60000);
 
   const [renovacoes, vendas, clientesNovos, cancelados, clientesAtivos] = await Promise.all([
-    prisma.renovacao.findMany({ where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } } }),
+    prisma.renovacao.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
     prisma.venda.findMany({ where: { revendedorId, data: { gte: inicio, lt: fim } } }),
     prisma.cliente.count({ where: { revendedorId, criadoEm: { gte: inicio, lt: fim } } }),
     prisma.cliente.count({ where: { revendedorId, status: "CANCELADO", motivoSaidaData: { gte: inicio, lt: fim } } }),

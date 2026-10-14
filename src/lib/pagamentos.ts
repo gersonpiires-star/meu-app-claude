@@ -171,6 +171,7 @@ export async function aprovarRenovacaoPaga(
       await tx.renovacao.create({
         data: {
           clienteId: cliente.id,
+          revendedorId: pagamento.revendedorId,
           servicoId: cliente.servicoId,
           plano: pagamento.plano!,
           valor: pagamento.valor,

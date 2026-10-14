@@ -233,7 +233,7 @@ async function importar({
       // falhar, os deletes também desfazem — nunca fica com a conta vazia e
       // a importação pela metade.
       if (zerarAntes) {
-        await tx.renovacao.deleteMany({ where: { cliente: { revendedorId } } });
+        await tx.renovacao.deleteMany({ where: { revendedorId } });
         await tx.movimentoEstoque.deleteMany({ where: { produto: { revendedorId } } });
         await tx.venda.deleteMany({ where: { revendedorId } });
         await tx.cliente.deleteMany({ where: { revendedorId } });
@@ -410,6 +410,7 @@ async function importar({
         const plano = mapearPlano(r.tipo);
         return {
           clienteId,
+          revendedorId,
           servicoId: servicoIdPorClienteNovo.get(clienteId) ?? null,
           plano,
           valor: r.valor,

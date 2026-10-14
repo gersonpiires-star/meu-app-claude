@@ -25,7 +25,7 @@ export async function editarRenovacao(
   if (!Number.isFinite(custo) || custo < 0) return { ok: false, erro: "Custo inválido." };
 
   const renovacao = await prisma.renovacao.findFirst({
-    where: { id: renovacaoId, cliente: { revendedorId: revendedor.id } },
+    where: { id: renovacaoId, revendedorId: revendedor.id },
     include: { cliente: true },
   });
   if (!renovacao) return { ok: false, erro: "Renovação não encontrada." };

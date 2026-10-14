@@ -134,7 +134,7 @@ export async function dadosPainel(revendedorId: string) {
       orderBy: { vencimento: "asc" },
     }),
     prisma.renovacao.findMany({
-      where: { cliente: { revendedorId }, data: { gte: inicio, lt: fim } },
+      where: { revendedorId, data: { gte: inicio, lt: fim } },
     }),
     prisma.venda.findMany({
       where: { revendedorId, data: { gte: inicio, lt: fim } },
@@ -263,7 +263,7 @@ export async function serieReceitaMes(revendedorId: string, agora: Date = new Da
 
   const [renovacoes, vendas] = await Promise.all([
     prisma.renovacao.findMany({
-      where: { cliente: { revendedorId }, data: { gte: inicioAnterior, lt: fim } },
+      where: { revendedorId, data: { gte: inicioAnterior, lt: fim } },
       select: { valor: true, data: true },
     }),
     prisma.venda.findMany({

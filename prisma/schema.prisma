@@ -240,6 +240,7 @@ model Revendedor {
   clientes              Cliente[]
   produtos              Produto[]
   vendas                Venda[]
+  renovacoes            Renovacao[]
   avisos                Aviso[]
   interessados          InteressadoCliente[]
   fechamentosMes        FechamentoMes[]
@@ -553,6 +554,17 @@ model Renovacao {
   id        String       @id @default(cuid())
   clienteId String
   cliente   Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  // Denormalizado de cliente.revendedorId — sem isso, toda consulta de
+  // relatório/painel que soma renovações "do tenant" precisa filtrar via
+  // `cliente: { revendedorId }`, obrigando o Postgres a resolver por
+  // join/EXISTS contra Cliente em vez de usar um índice direto, igual Venda
+  // já faz (ver Venda.revendedorId). É a tabela que mais cresce do sistema
+  // (toda renovação, de todo cliente, pra sempre) — vale o índice próprio.
+  // Nunca muda depois de criado (uma renovação não troca de dono).
+  revendedorId String
+  revendedor   Revendedor   @relation(fields: [revendedorId], references: [id], onDelete: Cascade)
+
   plano     PlanoCliente
   valor     Float
   custo     Float        @default(0)
@@ -600,6 +612,7 @@ model Renovacao {
 
   @@index([clienteId])
   @@index([servicoId])
+  @@index([revendedorId, data])
 }
 
 model Produto {

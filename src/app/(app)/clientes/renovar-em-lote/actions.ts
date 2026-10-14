@@ -45,6 +45,7 @@ export async function renovarComPlanoAtual(id: string): Promise<{ erro: string }
         await tx.renovacao.create({
           data: {
             clienteId: id,
+            revendedorId: revendedor.id,
             servicoId: cliente.servicoId,
             plano: cliente.plano,
             valor: cliente.valorPlano,

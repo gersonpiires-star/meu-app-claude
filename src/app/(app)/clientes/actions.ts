@@ -128,6 +128,7 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
           await tx.renovacao.create({
             data: {
               clienteId: cliente.id,
+              revendedorId: revendedor.id,
               servicoId,
               plano: dados.plano as PlanoCliente,
               valor: dados.valorPlano,
@@ -288,6 +289,7 @@ export async function renovarCliente(
         const renovacao = await tx.renovacao.create({
           data: {
             clienteId: id,
+            revendedorId: revendedor.id,
             servicoId: cliente.servicoId,
             plano,
             valor,
@@ -347,7 +349,7 @@ export async function excluirRenovacao(id: string): Promise<{ ok: true; restaura
   if (!podeExcluir) return { ok: false, erro: "Você não tem permissão para excluir registros." };
 
   const renovacao = await prisma.renovacao.findFirst({
-    where: { id, cliente: { revendedorId: revendedor.id } },
+    where: { id, revendedorId: revendedor.id },
     include: { cliente: true },
   });
   if (!renovacao) {
@@ -449,6 +451,7 @@ export async function converterTeste(id: string): Promise<{ ok: true } | { ok: f
         await tx.renovacao.create({
           data: {
             clienteId: id,
+            revendedorId: revendedor.id,
             servicoId: cliente.servicoId,
             plano: "MENSAL",
             valor: PLANO_VALOR_SUGERIDO.MENSAL,
