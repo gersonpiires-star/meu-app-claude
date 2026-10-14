@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { faixaVencimento } from "@/lib/planos";
+import { faixaVencimento, corteSuspensaoExclusivo } from "@/lib/planos";
 import { enviarPush } from "@/lib/push";
 import { dadosMes, resumoUltimos7Dias } from "@/lib/relatorio";
 import { diaCivilBr, diaDaSemana, brMidnightUTC } from "@/lib/format";
@@ -23,6 +23,25 @@ function diasEntreCivil(de: Date, ate: Date): number {
   const d = diaCivilBr(de);
   const a = diaCivilBr(ate);
   return Math.round((new Date(a.ano, a.mes, a.dia).getTime() - new Date(d.ano, d.mes, d.dia).getTime()) / 86400000);
+}
+
+// Processa os revendedores em paralelo, mas com um teto de tarefas
+// simultâneas — cada revendedor dispara várias queries e chamadas externas
+// (push, WhatsApp, e-mail), então paralelizar sem limite arriscava estourar
+// o pool de conexão do banco e os rate limits dos provedores externos pra
+// bases com muitos revendedores. Esse teto é o que evita isso enquanto
+// ainda corta o tempo total de execução (o risco original de timeout do
+// Cron era o loop 100% sequencial, um revendedor esperando o anterior
+// terminar mesmo sem nenhuma dependência real entre eles).
+async function executarComConcorrencia<T>(itens: T[], concorrencia: number, tarefa: (item: T) => Promise<void>): Promise<void> {
+  let indice = 0;
+  async function trabalhador() {
+    while (indice < itens.length) {
+      const atual = itens[indice++];
+      await tarefa(atual);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concorrencia, itens.length) }, trabalhador));
 }
 
 // Mensagens de nutrição do trial — só nos dias 1, 3 e 6 (trial dura 7 dias),
@@ -107,8 +126,9 @@ export async function GET(req: NextRequest) {
   let cobrancasAutomaticas = 0;
   let relatoriosSemanais = 0;
   let winbacksEnviados = 0;
+  let revendedoresComErro = 0;
 
-  for (const revendedor of revendedores) {
+  async function processarRevendedor(revendedor: (typeof revendedores)[number]): Promise<void> {
     const clientes = await prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
       include: { servico: { select: { nome: true } } },
@@ -189,41 +209,39 @@ export async function GET(req: NextRequest) {
         } catch (erro) {
           // Duas execuções desse cron sobrepostas podiam ambas passar pela
           // checagem "jaFechou" acima e colidir aqui na constraint única —
-          // sem esse catch, o erro não tratado interrompia o loop inteiro,
-          // pulando suspensão automática e notificações de TODOS os
-          // revendedores seguintes na lista, não só desse.
+          // sem esse catch, o erro não tratado pulava a suspensão automática
+          // e as notificações desse revendedor (o try/catch em volta da
+          // chamada a processarRevendedor isola isso dos demais, mas não
+          // deste aqui).
           if (!(erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002")) throw erro;
         }
       }
     }
 
     if (revendedor.diasParaCancelarAutomatico) {
-      for (const cliente of clientes) {
-        // Precisa ser diferença de dia CIVIL (Brasília), não de milissegundos
-        // brutos entre dois instantes — vencimento só fica ancorado à meia-
-        // noite de Brasília quando o cliente tem diaFixo configurado
-        // (calcularVencimentoComDiaFixo em lib/planos.ts); sem diaFixo, ele
-        // carrega o horário exato em que a renovação/cadastro foi feito.
-        // Subtrair milissegundos direto contava esse resto de horas como
-        // fração de dia perdida ou ganha, atrasando ou adiantando a
-        // suspensão automática em relação ao que a própria tela já mostra
-        // como "vencido há N dias" (que usa diasParaVencer/diaCivilBr).
-        const diasVencido = diasEntreCivil(cliente.vencimento, agora);
-        if (diasVencido >= revendedor.diasParaCancelarAutomatico) {
-          await prisma.cliente.update({
-            where: { id: cliente.id },
-            data: {
-              status: "CANCELADO",
-              motivoSaida: "Suspensão automática por atraso no pagamento",
-              motivoSaidaData: agora,
-            },
-          });
-          suspensos++;
-        }
-      }
+      // Um updateMany só, em vez de um update por cliente vencido — o corte
+      // de data abaixo é equivalente a "diasEntreCivil(vencimento, agora) >=
+      // diasParaCancelarAutomatico" (ver corteSuspensaoExclusivo), a mesma
+      // comparação em dia CIVIL de Brasília que a tela já usa pra "vencido
+      // há N dias" (diasParaVencer/diaCivilBr) — nunca diferença bruta de
+      // milissegundos, que adiantava ou atrasava a suspensão perto da virada
+      // do dia.
+      const resultado = await prisma.cliente.updateMany({
+        where: {
+          revendedorId: revendedor.id,
+          status: { not: "CANCELADO" },
+          vencimento: { lt: corteSuspensaoExclusivo(agora, revendedor.diasParaCancelarAutomatico) },
+        },
+        data: {
+          status: "CANCELADO",
+          motivoSaida: "Suspensão automática por atraso no pagamento",
+          motivoSaidaData: agora,
+        },
+      });
+      suspensos += resultado.count;
     }
 
-    if (revendedor.pushSubscriptions.length === 0) continue;
+    if (revendedor.pushSubscriptions.length === 0) return;
 
     if (revendedor.statusAssinatura === "TRIAL") {
       const mensagem = mensagemNutricaoTrial(diasEntreCivil(revendedor.criadoEm, agora), clientes.length);
@@ -243,7 +261,7 @@ export async function GET(req: NextRequest) {
       const faixa = faixaVencimento(c.vencimento, agora);
       return (faixa === "VENCIDO" || faixa === "ATE_5_DIAS") && c.whatsapp;
     });
-    if (emRisco.length === 0) continue;
+    if (emRisco.length === 0) return;
 
     const vencidosCount = emRisco.filter((c) => faixaVencimento(c.vencimento, agora) === "VENCIDO").length;
     const vencendoCount = emRisco.length - vencidosCount;
@@ -271,6 +289,19 @@ export async function GET(req: NextRequest) {
       notificados++;
     }
   }
+
+  // Processa os revendedores em paralelo (ver executarComConcorrencia) — cada
+  // um é isolado num try/catch próprio, então um erro inesperado num
+  // revendedor (DB, push, WhatsApp) não derruba o cron nem pula os outros,
+  // só é contado e logado.
+  await executarComConcorrencia(revendedores, 10, async (revendedor) => {
+    try {
+      await processarRevendedor(revendedor);
+    } catch (erro) {
+      revendedoresComErro++;
+      console.error(`Falha ao processar o cron diário pro revendedor ${revendedor.id}`, erro);
+    }
+  });
 
   // Win-back de quem cancelou a assinatura exatamente há 3 dias — separado
   // do loop acima porque a query principal só busca ATIVO/TRIAL (statusAssinatura),
@@ -351,6 +382,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     revendedores: revendedores.length,
+    revendedoresComErro,
     suspensos,
     notificados,
     notificadosAdmin,

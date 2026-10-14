@@ -1,5 +1,5 @@
 import { PlanoCliente } from "@/generated/prisma/enums";
-import { diaCivilBr, brMidnightUTC } from "@/lib/format";
+import { diaCivilBr, brMidnightUTC, inicioDoDiaBr } from "@/lib/format";
 
 export const PLANO_LABEL: Record<PlanoCliente, string> = {
   MENSAL: "Mensal",
@@ -83,4 +83,16 @@ export function faixaVencimento(vencimento: Date, hoje: Date = new Date()): Faix
   if (dias < 0) return "VENCIDO";
   if (dias <= 5) return "ATE_5_DIAS";
   return "EM_DIA";
+}
+
+// Converte "suspender quem está vencido há N dias ou mais" (mesma régua de
+// diasParaVencer/faixaVencimento, em dia CIVIL de Brasília, nunca diferença
+// bruta de milissegundos) num corte de data direto pro WHERE de uma query:
+// vencimento < corte ⟺ diasParaVencer(vencimento, hoje) <= -diasAtraso.
+// É o que permite suspender o lote inteiro de um revendedor num updateMany
+// só, em vez de um update por cliente vencido.
+export function corteSuspensaoExclusivo(hoje: Date, diasAtraso: number): Date {
+  const corte = inicioDoDiaBr(hoje);
+  corte.setUTCDate(corte.getUTCDate() - diasAtraso + 1);
+  return corte;
 }

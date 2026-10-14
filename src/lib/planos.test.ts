@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { diasParaVencer, faixaVencimento, calcularVencimento, calcularVencimentoComDiaFixo, PLANO_DIAS } from "./planos";
+import {
+  diasParaVencer,
+  faixaVencimento,
+  calcularVencimento,
+  calcularVencimentoComDiaFixo,
+  corteSuspensaoExclusivo,
+  PLANO_DIAS,
+} from "./planos";
 import { brMidnightUTC } from "./format";
 
 describe("diasParaVencer", () => {
@@ -34,6 +41,34 @@ describe("calcularVencimento", () => {
       const diasReais = Math.round((venc.getTime() - base.getTime()) / 86400000);
       expect(diasReais).toBe(PLANO_DIAS[plano]);
     }
+  });
+});
+
+describe("corteSuspensaoExclusivo", () => {
+  it("é equivalente a diasParaVencer <= -diasAtraso pra uma faixa de vencimentos, incluindo hora do dia variada", () => {
+    // Cron de suspensão compara em lote (vencimento < corte) o que a tela já
+    // compara cliente a cliente via diasParaVencer — se os dois discordarem
+    // em algum dia, a suspensão em massa erra exatamente na borda (suspende
+    // 1 dia cedo ou atrasa 1 dia), que é o jeito mais silencioso de causar
+    // prejuízo: ninguém nota até o cliente errado ser cancelado.
+    const hoje = brMidnightUTC(2026, 9, 14); // 14/out/2026, meio-dia em Brasília
+    for (const diasAtraso of [1, 3, 5, 10, 30]) {
+      const corte = corteSuspensaoExclusivo(hoje, diasAtraso);
+      for (let offsetDias = -3; offsetDias <= diasAtraso + 3; offsetDias++) {
+        for (const horas of [0, 11, 23]) {
+          const vencimento = new Date(brMidnightUTC(2026, 9, 14 - offsetDias).getTime() + horas * 3600000);
+          const deveriaSuspender = -diasParaVencer(vencimento, hoje) >= diasAtraso;
+          expect(vencimento.getTime() < corte.getTime()).toBe(deveriaSuspender);
+        }
+      }
+    }
+  });
+
+  it("inclui quem venceu exatamente no limite e exclui um dia antes do limite", () => {
+    const hoje = brMidnightUTC(2026, 9, 14);
+    const corte = corteSuspensaoExclusivo(hoje, 5);
+    expect(brMidnightUTC(2026, 9, 9).getTime() < corte.getTime()).toBe(true); // 5 dias vencido: suspende
+    expect(brMidnightUTC(2026, 9, 10).getTime() < corte.getTime()).toBe(false); // 4 dias vencido: não suspende
   });
 });
 
