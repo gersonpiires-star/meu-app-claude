@@ -624,6 +624,17 @@ model Produto {
   estoqueMinimo Int      @default(0)
   criadoEm      DateTime @default(now())
 
+  // Fila FIFO dos lotes de compra ainda não totalmente vendidos (mais
+  // antigo primeiro), mantida incrementalmente a cada entrada/saída — ver
+  // registrarMovimentoEstoque em lib/dados.ts, o único write path que pode
+  // tocar nesse campo. Existe pra custoMedioProdutos não precisar
+  // reconstituir o FIFO do zero, varrendo todo o histórico de movimentos,
+  // toda vez que alguém abre Painel/Estoque/Vendas Nova/Precificação.
+  // Formato: [{ restante: number, custoUnitario: number }, ...]. Sempre
+  // reconstituível do zero a partir de MovimentoEstoque (ver lib/dados.ts
+  // lotesAbertos) se algum dia precisar recalcular.
+  lotesAbertosJson Json @default("[]")
+
   movimentos MovimentoEstoque[]
   vendas     Venda[]
 

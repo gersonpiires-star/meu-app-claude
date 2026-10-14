@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
+import { lotesAbertos, type MovimentoOrdenavel } from "@/lib/dados";
 
 export async function restaurarBackup(
   formData: FormData
@@ -105,8 +106,15 @@ export async function restaurarBackup(
           },
         });
         produtoIdAntigoParaNovo.set(p.id as string, criado.id);
+        // Movimentos restaurados já trazem o custoUnitario original de cada
+        // um (o backup é um dump do que já foi calculado) — não precisa
+        // recalcular FIFO pra isso. Mas a ORDEM de chegada no arquivo não é
+        // garantida cronológica, então a fila que sobra em aberto
+        // (lotesAbertosJson) precisa ser recalculada depois, não só copiada
+        // na ordem em que os movimentos foram inseridos.
+        const movimentosCriados: MovimentoOrdenavel[] = [];
         for (const m of movimentos) {
-          await tx.movimentoEstoque.create({
+          const criadoMovimento = await tx.movimentoEstoque.create({
             data: {
               produtoId: criado.id,
               tipo: m.tipo as "ENTRADA" | "SAIDA",
@@ -114,6 +122,20 @@ export async function restaurarBackup(
               custoUnitario: m.custoUnitario as number,
               data: m.data ? new Date(m.data as string) : new Date(),
             },
+          });
+          movimentosCriados.push({
+            id: criadoMovimento.id,
+            tipo: criadoMovimento.tipo,
+            quantidade: criadoMovimento.quantidade,
+            custoUnitario: criadoMovimento.custoUnitario,
+            data: criadoMovimento.data,
+          });
+        }
+        if (movimentosCriados.length > 0) {
+          const { fila } = lotesAbertos(movimentosCriados);
+          await tx.produto.update({
+            where: { id: criado.id },
+            data: { lotesAbertosJson: fila.map((l) => ({ restante: l.restante, custoUnitario: l.custoUnitario })) },
           });
         }
       }

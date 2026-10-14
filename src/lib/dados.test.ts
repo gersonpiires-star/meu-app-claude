@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { limitesDoMes, lotesAbertos, consumirFifo, type MovimentoOrdenavel, type Lote } from "./dados";
+import { limitesDoMes, lotesAbertos, consumirFifo, filaDeJson, type MovimentoOrdenavel, type Lote } from "./dados";
 
 function mov(id: string, tipo: "ENTRADA" | "SAIDA", quantidade: number, custoUnitario: number, data: string): MovimentoOrdenavel {
   return { id, tipo, quantidade, custoUnitario, data: new Date(data) };
@@ -95,5 +95,45 @@ describe("lotesAbertos", () => {
 
   it("sem nenhum movimento, devolve fila vazia e totais zerados", () => {
     expect(lotesAbertos([])).toEqual({ fila: [], qtdEntrada: 0, qtdSaida: 0 });
+  });
+});
+
+describe("filaDeJson", () => {
+  // Produto.lotesAbertosJson é escrito só por código interno (nunca por
+  // input de usuário), mas é dado persistido — um deploy que mudasse o
+  // formato, ou uma linha corrompida, não pode quebrar Painel/Estoque pra
+  // todo mundo. Cada caso aqui é uma forma de "isso não devia estar nessa
+  // coluna, mas se estiver, ignora em vez de derrubar a tela".
+  it("faz o caminho de ida e volta com o formato gravado por registrarMovimentoEstoque", () => {
+    const fila: Lote[] = [
+      { restante: 3, custoUnitario: 120.5 },
+      { restante: 1, custoUnitario: 200 },
+    ];
+    expect(filaDeJson(JSON.parse(JSON.stringify(fila)))).toEqual(fila);
+  });
+
+  it("valor padrão da coluna ([]) e null/undefined viram fila vazia", () => {
+    expect(filaDeJson([])).toEqual([]);
+    expect(filaDeJson(null)).toEqual([]);
+  });
+
+  it("não é um array (campo corrompido ou nunca inicializado) vira fila vazia, não erro", () => {
+    expect(filaDeJson("não é json de fila" as never)).toEqual([]);
+    expect(filaDeJson({ restante: 1, custoUnitario: 2 } as never)).toEqual([]);
+  });
+
+  it("descarta só os itens malformados dentro do array, mantém os válidos", () => {
+    const entrada = [
+      { restante: 5, custoUnitario: 100 },
+      { restante: "cinco", custoUnitario: 100 }, // tipo errado
+      { restante: 2 }, // custoUnitario faltando
+      null,
+      "string solta",
+      { restante: 3, custoUnitario: 50 },
+    ];
+    expect(filaDeJson(entrada as never)).toEqual([
+      { restante: 5, custoUnitario: 100 },
+      { restante: 3, custoUnitario: 50 },
+    ]);
   });
 });

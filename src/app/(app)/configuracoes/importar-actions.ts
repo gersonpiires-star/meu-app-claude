@@ -369,7 +369,12 @@ async function importar({
         eventosPorProduto.set(v.produtoId, lista);
       }
       const saidasCusto = new Map<(typeof vendasData)[number], number>();
-      for (const eventos of eventosPorProduto.values()) {
+      // Fila FIFO que sobra depois de simular todo o histórico importado
+      // desse produto — persistida em lotesAbertosJson logo abaixo, pra não
+      // nascer com a fila vazia (o padrão da coluna) quando na verdade tem
+      // lote em aberto vindo da importação.
+      const filaFinalPorProduto = new Map<string, Lote[]>();
+      for (const [produtoId, eventos] of eventosPorProduto.entries()) {
         eventos.sort((a, b) => a.data.getTime() - b.data.getTime());
         const fila: Lote[] = [];
         for (const ev of eventos) {
@@ -380,6 +385,7 @@ async function importar({
             if (ev.venda) saidasCusto.set(ev.venda, ev.quantidade > 0 ? custoTotal / ev.quantidade : 0);
           }
         }
+        filaFinalPorProduto.set(produtoId, fila);
       }
       for (const v of vendasData) v.custoUnitario = saidasCusto.get(v) ?? 0;
 
@@ -393,6 +399,12 @@ async function importar({
             custoUnitario: v.custoUnitario,
             data: v.data,
           })),
+        });
+      }
+      for (const [produtoId, fila] of filaFinalPorProduto) {
+        await tx.produto.update({
+          where: { id: produtoId },
+          data: { lotesAbertosJson: fila.map((l) => ({ restante: l.restante, custoUnitario: l.custoUnitario })) },
         });
       }
       const vendasImportadas = vendasValidas.length;

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirRevendedor } from "@/lib/sessao";
-import { estoqueAtualProduto, custoConsumoFifo } from "@/lib/dados";
+import { estoqueAtualProduto, registrarMovimentoEstoque } from "@/lib/dados";
 import { calcularVencimentoComDiaFixo, PLANO_MESES } from "@/lib/planos";
 import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { snapshotDoCliente } from "@/lib/renovacao";
@@ -80,7 +80,12 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
         const erroCredito = await erroCreditoIndisponivel(tx, cliente.servicoId, PLANO_MESES[dados.plano]);
         if (erroCredito) throw new SemCreditoError(erroCredito);
 
-        const { custoUnitario } = await custoConsumoFifo(dados.produtoId, dados.quantidade, tx);
+        // Baixa o estoque (FIFO) antes de criar a Venda, não depois — é o
+        // custo real devolvido aqui que vai gravado nela.
+        const { custoUnitario } = await registrarMovimentoEstoque(
+          { produtoId: dados.produtoId, tipo: "SAIDA", quantidade: dados.quantidade },
+          tx
+        );
 
         const base = dados.apartirDoVencimento || cliente.vencimento > new Date() ? cliente.vencimento : new Date();
         const novoVencimento = calcularVencimentoComDiaFixo(dados.plano, base, cliente.diaFixo);
@@ -118,9 +123,6 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
           },
         });
         vendaId = venda.id;
-        await tx.movimentoEstoque.create({
-          data: { produtoId: dados.produtoId, tipo: "SAIDA", quantidade: dados.quantidade, custoUnitario },
-        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -181,7 +183,11 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
 
         // Custo real (FIFO) dos lotes que essa venda consome — gravado na
         // venda pra sempre, não recalculado depois se o custo médio mudar.
-        const { custoUnitario } = await custoConsumoFifo(dados.produtoId, dados.quantidade, tx);
+        // Baixa o estoque antes de criar a Venda, não depois.
+        const { custoUnitario } = await registrarMovimentoEstoque(
+          { produtoId: dados.produtoId, tipo: "SAIDA", quantidade: dados.quantidade },
+          tx
+        );
 
         const venda = await tx.venda.create({
           data: {
@@ -197,14 +203,6 @@ export async function registrarVenda(formData: FormData): Promise<{ erro: string
           },
         });
         vendaId = venda.id;
-        await tx.movimentoEstoque.create({
-          data: {
-            produtoId: dados.produtoId,
-            tipo: "SAIDA",
-            quantidade: dados.quantidade,
-            custoUnitario,
-          },
-        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );

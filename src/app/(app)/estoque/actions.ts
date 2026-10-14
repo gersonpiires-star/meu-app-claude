@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
 import { validarOuErro } from "@/lib/validacao";
+import { registrarMovimentoEstoque } from "@/lib/dados";
 
 const produtoSchema = z.object({
   modelo: z.string().trim().min(1, "Informe o modelo"),
@@ -28,13 +29,11 @@ export async function criarProduto(formData: FormData): Promise<{ ok: false; err
   });
 
   if (dados.quantidade > 0) {
-    await prisma.movimentoEstoque.create({
-      data: {
-        produtoId: produto.id,
-        tipo: "ENTRADA",
-        quantidade: dados.quantidade,
-        custoUnitario: dados.custoUnitario,
-      },
+    await registrarMovimentoEstoque({
+      produtoId: produto.id,
+      tipo: "ENTRADA",
+      quantidade: dados.quantidade,
+      custoUnitario: dados.custoUnitario,
     });
   }
 
@@ -58,14 +57,12 @@ export async function reporEstoque(produtoId: string, formData: FormData): Promi
     where: { id: produtoId, revendedorId: revendedor.id },
   });
 
-  await prisma.movimentoEstoque.create({
-    data: {
-      produtoId: produto.id,
-      tipo: "ENTRADA",
-      quantidade: dados.quantidade,
-      custoUnitario: dados.custoUnitario,
-      fornecedor: dados.fornecedor || null,
-    },
+  await registrarMovimentoEstoque({
+    produtoId: produto.id,
+    tipo: "ENTRADA",
+    quantidade: dados.quantidade,
+    custoUnitario: dados.custoUnitario,
+    fornecedor: dados.fornecedor || null,
   });
 
   revalidatePath("/estoque");
@@ -89,14 +86,12 @@ export async function registrarEntrada(formData: FormData): Promise<{ ok: false;
     where: { id: dados.produtoId, revendedorId: revendedor.id },
   });
 
-  await prisma.movimentoEstoque.create({
-    data: {
-      produtoId: produto.id,
-      tipo: "ENTRADA",
-      quantidade: dados.quantidade,
-      custoUnitario: dados.custoUnitario,
-      fornecedor: dados.fornecedor || null,
-    },
+  await registrarMovimentoEstoque({
+    produtoId: produto.id,
+    tipo: "ENTRADA",
+    quantidade: dados.quantidade,
+    custoUnitario: dados.custoUnitario,
+    fornecedor: dados.fornecedor || null,
   });
 
   revalidatePath("/estoque");

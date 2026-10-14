@@ -79,16 +79,46 @@ export function lotesAbertos(movimentos: MovimentoOrdenavel[]): { fila: Lote[]; 
   return { fila, qtdEntrada, qtdSaida };
 }
 
-// Seleção mínima de MovimentoEstoque pra reconstituir o FIFO — nem todas as
-// colunas (ex: fornecedor) nem o restante de Produto, que include buscava
-// inteiro antes sem precisar de nada além de id/movimentos.
-const SELECAO_MOVIMENTO_FIFO = { tipo: true, quantidade: true, custoUnitario: true, data: true, id: true } as const;
+// Seleção mínima de MovimentoEstoque pra reconstituir o FIFO — usada só
+// pelo backfill/restore (lotesAbertos opera no histórico completo); o dia a
+// dia lê/grava direto em Produto.lotesAbertosJson via registrarMovimentoEstoque.
+export const SELECAO_MOVIMENTO_FIFO = { tipo: true, quantidade: true, custoUnitario: true, data: true, id: true } as const;
+
+// Produto.lotesAbertosJson guarda [{ restante, custoUnitario }, ...] — Json
+// não garante esse formato em tempo de compilação, então valida cada item
+// na leitura (um valor fora do formato esperado vira "ignora esse lote" em
+// vez de quebrar a tela toda).
+export function filaDeJson(json: Prisma.JsonValue): Lote[] {
+  if (!Array.isArray(json)) return [];
+  const fila: Lote[] = [];
+  for (const item of json) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) continue;
+    const { restante, custoUnitario } = item as Record<string, unknown>;
+    if (typeof restante === "number" && typeof custoUnitario === "number") {
+      fila.push({ restante, custoUnitario });
+    }
+  }
+  return fila;
+}
+
+function filaParaJson(fila: Lote[]): Prisma.InputJsonValue {
+  return fila.map((l) => ({ restante: l.restante, custoUnitario: l.custoUnitario }));
+}
 
 export async function custoMedioProdutos(revendedorId: string) {
-  const produtos = await prisma.produto.findMany({
-    where: { revendedorId },
-    select: { id: true, movimentos: { select: SELECAO_MOVIMENTO_FIFO } },
-  });
+  const [produtos, totaisPorTipo] = await Promise.all([
+    prisma.produto.findMany({ where: { revendedorId }, select: { id: true, lotesAbertosJson: true } }),
+    // Entradas/saídas totais via agregação no banco (um groupBy só, pra
+    // todos os produtos do revendedor de uma vez) — não precisa trazer
+    // nenhuma linha de movimento pra memória só pra somar quantidade.
+    prisma.movimentoEstoque.groupBy({
+      by: ["produtoId", "tipo"],
+      where: { produto: { revendedorId } },
+      _sum: { quantidade: true },
+    }),
+  ]);
+  const totalPorProdutoTipo = new Map<string, number>();
+  for (const t of totaisPorTipo) totalPorProdutoTipo.set(`${t.produtoId}:${t.tipo}`, t._sum.quantidade ?? 0);
 
   const mapa = new Map<
     string,
@@ -96,37 +126,75 @@ export async function custoMedioProdutos(revendedorId: string) {
   >();
   for (const produto of produtos) {
     // custoMedio aqui é o custo médio só do estoque que ainda está parado —
-    // não da vida inteira do produto. Se um lote velho e barato já foi todo
-    // vendido, ele não conta mais pro custo do que sobrou.
-    const { fila, qtdEntrada, qtdSaida } = lotesAbertos(produto.movimentos);
+    // não da vida inteira do produto. Lido direto da fila FIFO já
+    // mantida incrementalmente (lotesAbertosJson) — ver
+    // registrarMovimentoEstoque, único lugar que escreve nesse campo —
+    // nunca reconstituída do histórico aqui.
+    const fila = filaDeJson(produto.lotesAbertosJson);
     const atual = fila.reduce((a, l) => a + l.restante, 0);
     const custoTotalAtual = fila.reduce((a, l) => a + l.restante * l.custoUnitario, 0);
 
     mapa.set(produto.id, {
       custoMedio: atual > 0 ? custoTotalAtual / atual : 0,
       proximoCusto: fila[0]?.custoUnitario ?? 0,
-      atual: qtdEntrada - qtdSaida,
-      entradas: qtdEntrada,
-      vendido: qtdSaida,
+      atual: (totalPorProdutoTipo.get(`${produto.id}:ENTRADA`) ?? 0) - (totalPorProdutoTipo.get(`${produto.id}:SAIDA`) ?? 0),
+      entradas: totalPorProdutoTipo.get(`${produto.id}:ENTRADA`) ?? 0,
+      vendido: totalPorProdutoTipo.get(`${produto.id}:SAIDA`) ?? 0,
     });
   }
   return mapa;
 }
 
-// Custo real (FIFO) de vender `quantidade` unidades agora — consome os
-// lotes de compra mais antigos primeiro. Aceita um client de transação
-// opcional pra rodar no mesmo snapshot da checagem de estoque em
-// registrarVenda (vendas/actions.ts), evitando que duas vendas concorrentes
-// "vejam" os mesmos lotes ainda abertos.
-export async function custoConsumoFifo(
-  produtoId: string,
-  quantidade: number,
+// Único write path que pode criar um MovimentoEstoque — grava o movimento E
+// atualiza a fila FIFO persistida (Produto.lotesAbertosJson) no mesmo
+// passo, pra esse cache nunca ficar fora de sincronia com o histórico real.
+// Pra SAIDA, consome a fila e devolve o custo real (FIFO) — substitui o que
+// antes era uma chamada separada a lotesAbertos/consumirFifo lendo o
+// histórico inteiro toda vez. Aceita client de transação opcional pelo
+// mesmo motivo de estoqueAtualProduto: rodar no mesmo snapshot da checagem
+// de estoque em registrarVenda (vendas/actions.ts), evitando que duas
+// vendas concorrentes "vejam" os mesmos lotes ainda abertos.
+export async function registrarMovimentoEstoque(
+  args: {
+    produtoId: string;
+    tipo: "ENTRADA" | "SAIDA";
+    quantidade: number;
+    custoUnitario?: number;
+    fornecedor?: string | null;
+    data?: Date;
+  },
   db: Prisma.TransactionClient | typeof prisma = prisma
 ): Promise<{ custoUnitario: number; custoTotal: number }> {
-  const movimentos = await db.movimentoEstoque.findMany({ where: { produtoId }, select: SELECAO_MOVIMENTO_FIFO });
-  const { fila } = lotesAbertos(movimentos);
-  const custoTotal = consumirFifo(fila, quantidade);
-  return { custoUnitario: quantidade > 0 ? custoTotal / quantidade : 0, custoTotal };
+  const produto = await db.produto.findUniqueOrThrow({
+    where: { id: args.produtoId },
+    select: { lotesAbertosJson: true },
+  });
+  const fila = filaDeJson(produto.lotesAbertosJson);
+
+  let custoUnitario: number;
+  let custoTotal: number;
+  if (args.tipo === "ENTRADA") {
+    custoUnitario = args.custoUnitario ?? 0;
+    custoTotal = custoUnitario * args.quantidade;
+    if (args.quantidade > 0) fila.push({ restante: args.quantidade, custoUnitario });
+  } else {
+    custoTotal = consumirFifo(fila, args.quantidade);
+    custoUnitario = args.quantidade > 0 ? custoTotal / args.quantidade : 0;
+  }
+
+  await db.movimentoEstoque.create({
+    data: {
+      produtoId: args.produtoId,
+      tipo: args.tipo,
+      quantidade: args.quantidade,
+      custoUnitario,
+      fornecedor: args.fornecedor ?? null,
+      ...(args.data ? { data: args.data } : {}),
+    },
+  });
+  await db.produto.update({ where: { id: args.produtoId }, data: { lotesAbertosJson: filaParaJson(fila) } });
+
+  return { custoUnitario, custoTotal };
 }
 
 export async function dadosPainel(revendedorId: string) {
