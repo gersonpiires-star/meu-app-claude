@@ -284,7 +284,22 @@ export function AvisoEmMassaClient({
 
       <Button
         disabled={pendente || selecionados.size === 0 || !titulo.trim() || !mensagem.trim()}
-        onClick={() => iniciarTransicao(enviar)}
+        onClick={() => {
+          // O reajuste já grava o novo valorPlano de verdade pra todo mundo
+          // selecionado (updateMany em publicarAvisoEmMassa) — diferente do
+          // aviso em si, que só fica pendente de enviar no WhatsApp, isso não
+          // tem como desfazer com um clique. Confirmação só entra nesse caso.
+          if (aplicarReajuste) {
+            const valorNum = Number(novoValor) || 0;
+            if (
+              !confirm(
+                `Isso muda o valor do plano de ${selecionados.size} cliente${selecionados.size === 1 ? "" : "s"} selecionado${selecionados.size === 1 ? "" : "s"} pra ${brl(valorNum)} agora, além de publicar o aviso. Confirma?`
+              )
+            )
+              return;
+          }
+          iniciarTransicao(enviar);
+        }}
       >
         {pendente ? "Publicando…" : `Publicar para ${selecionados.size} selecionados`}
       </Button>

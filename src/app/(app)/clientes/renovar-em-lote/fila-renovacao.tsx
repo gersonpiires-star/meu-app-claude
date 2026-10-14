@@ -81,7 +81,8 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
         <Button
           variant="ghost"
           disabled={pendente}
-          onClick={() =>
+          onClick={() => {
+            if (!confirm(`Renovar ${fila.length} clientes de uma vez, com o plano/valor atual de cada um? Isso já lança a receita e empurra o vencimento de todos — não dá pra revisar antes.`)) return;
             iniciarTransicao(async () => {
               setErro(null);
               const ids = fila.map((c) => c.id);
@@ -94,8 +95,8 @@ export function FilaRenovacao({ clientes }: { clientes: ClienteFila[] }) {
               }
               setFeitos((n) => n + ids.length);
               setFila([]);
-            })
-          }
+            });
+          }}
         >
           Renovar todos os {fila.length} restantes de uma vez
         </Button>
