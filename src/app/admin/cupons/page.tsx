@@ -1,17 +1,29 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl, dataHora } from "@/lib/format";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Card, EmptyState, Paginacao } from "@/components/ui";
 import { NovoCupomForm } from "./novo-cupom-form";
 import { AlternarAtivoBotao } from "./alternar-ativo-botao";
 import { ExcluirCupomBotao } from "./excluir-cupom-botao";
 
-export default async function CupomsPage() {
+const POR_PAGINA = 25;
+
+export default async function CupomsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
   await exigirAdmin();
-  const [cupons, revendedores, aprovadosPorCupomRaw] = await Promise.all([
+  const { pagina } = await searchParams;
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
+
+  const [totalCupons, cupons, revendedores, aprovadosPorCupomRaw] = await Promise.all([
+    prisma.cupom.count(),
     prisma.cupom.findMany({
       include: { revendedor: { select: { nome: true, email: true } } },
       orderBy: { criadoEm: "desc" },
+      skip: (paginaAtual - 1) * POR_PAGINA,
+      take: POR_PAGINA,
     }),
     prisma.revendedor.findMany({
       where: { papel: "REVENDEDOR" },
@@ -29,6 +41,7 @@ export default async function CupomsPage() {
     }),
   ]);
   const aprovadosPorCupom = new Map(aprovadosPorCupomRaw.map((a) => [a.cupomId, a._count._all]));
+  const totalPaginas = Math.max(1, Math.ceil(totalCupons / POR_PAGINA));
 
   return (
     <div className="flex flex-col gap-5">
@@ -80,6 +93,7 @@ export default async function CupomsPage() {
           })}
         </div>
       )}
+      <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} href={(p) => `/admin/cupons?pagina=${p}`} />
     </div>
   );
 }

@@ -1,18 +1,32 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataCurta } from "@/lib/format";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Card, EmptyState, Paginacao } from "@/components/ui";
 import { MarcarSugestaoLidaBotao } from "../marcar-sugestao-lida-botao";
 import { SugestaoDestaqueBotao } from "./sugestao-destaque-botao";
 
-export default async function SugestoesPage() {
-  await exigirAdmin();
-  const sugestoes = await prisma.sugestao.findMany({
-    include: { revendedor: { select: { nome: true, email: true } } },
-    orderBy: [{ destaque: "desc" }, { criadoEm: "desc" }],
-  });
+const POR_PAGINA = 25;
 
-  const naoLidas = sugestoes.filter((s) => !s.lida).length;
+export default async function SugestoesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
+  await exigirAdmin();
+  const { pagina } = await searchParams;
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
+
+  const [naoLidas, totalSugestoes, sugestoes] = await Promise.all([
+    prisma.sugestao.count({ where: { lida: false } }),
+    prisma.sugestao.count(),
+    prisma.sugestao.findMany({
+      include: { revendedor: { select: { nome: true, email: true } } },
+      orderBy: [{ destaque: "desc" }, { criadoEm: "desc" }],
+      skip: (paginaAtual - 1) * POR_PAGINA,
+      take: POR_PAGINA,
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(totalSugestoes / POR_PAGINA));
 
   return (
     <div className="flex flex-col gap-5">
@@ -50,6 +64,7 @@ export default async function SugestoesPage() {
           ))}
         </div>
       )}
+      <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} href={(p) => `/admin/sugestoes?pagina=${p}`} />
     </div>
   );
 }

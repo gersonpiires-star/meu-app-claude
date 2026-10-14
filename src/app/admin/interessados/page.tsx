@@ -1,23 +1,49 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataCurta, diaCivilBr } from "@/lib/format";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Card, EmptyState, Paginacao } from "@/components/ui";
 import { NovoInteressadoForm } from "./novo-interessado-form";
 import { InteressadoAcoes } from "./interessado-acoes";
 
-export default async function InteressadosPage() {
+const POR_PAGINA = 25;
+
+export default async function InteressadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
   await exigirAdmin();
-  const interessados = await prisma.interessado.findMany({ orderBy: { criadoEm: "desc" } });
+  const { pagina } = await searchParams;
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
 
   const hojeCivil = diaCivilBr(new Date());
   const hoje = new Date(hojeCivil.ano, hojeCivil.mes, hojeCivil.dia);
-  const precisaRetornar = (i: (typeof interessados)[number]) => {
+  const precisaRetornar = (i: { convertido: boolean; retornarEm: Date | null }) => {
     if (i.convertido || i.retornarEm == null) return false;
     const rc = diaCivilBr(i.retornarEm);
     return new Date(rc.ano, rc.mes, rc.dia) <= hoje;
   };
 
-  const leadsHoje = interessados.filter(precisaRetornar);
+  const [totalInteressados, interessados, candidatosRetorno] = await Promise.all([
+    prisma.interessado.count(),
+    prisma.interessado.findMany({
+      orderBy: { criadoEm: "desc" },
+      skip: (paginaAtual - 1) * POR_PAGINA,
+      take: POR_PAGINA,
+    }),
+    // Contagem exata do aviso "retornar hoje" não pode ficar presa à página
+    // atual — só os 2 campos (sem o resto da linha) pra não reintroduzir
+    // uma listagem pesada sem limite só pra montar esse número.
+    prisma.interessado.findMany({
+      where: { convertido: false, retornarEm: { not: null } },
+      select: { convertido: true, retornarEm: true },
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(totalInteressados / POR_PAGINA));
+
+  const leadsHojeCount = candidatosRetorno.filter(precisaRetornar).length;
+  // A ordenação "mais urgente primeiro" só vale dentro da página carregada —
+  // paginado, não dá mais pra trazer a tabela inteira só pra reordenar.
   const ordenados = [...interessados].sort((a, b) => Number(precisaRetornar(b)) - Number(precisaRetornar(a)));
 
   return (
@@ -27,10 +53,10 @@ export default async function InteressadosPage() {
         <NovoInteressadoForm />
       </div>
 
-      {leadsHoje.length > 0 ? (
+      {leadsHojeCount > 0 ? (
         <Card className="border-danger/40 bg-danger/5">
           <p className="text-sm font-semibold text-danger">
-            {leadsHoje.length} lead(s) para retornar hoje ou atrasado(s)
+            {leadsHojeCount} lead(s) para retornar hoje ou atrasado(s)
           </p>
         </Card>
       ) : null}
@@ -66,6 +92,7 @@ export default async function InteressadosPage() {
           })}
         </div>
       )}
+      <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} href={(p) => `/admin/interessados?pagina=${p}`} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { brl0, dataCurta, diaCivilBr, fmtTelefone, iniciais } from "@/lib/format";
 import { linkWhatsApp } from "@/lib/mensagens";
-import { Badge, Button, Card, EmptyState, Input, cx } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Input, Paginacao, cx } from "@/components/ui";
 import { planoDosMeses, assinaturaVencida } from "@/lib/planos-assinatura";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
@@ -55,55 +55,65 @@ function linkNutricaoWhatsapp(whatsapp: string, nome: string, temClientes: boole
   return linkWhatsApp(whatsapp, texto);
 }
 
+function statusPorAba(aba: string): "ATIVO" | "TRIAL" | "PAUSADO" | "CANCELADO" | undefined {
+  if (aba === "assinantes") return "ATIVO";
+  if (aba === "trial") return "TRIAL";
+  if (aba === "pausados") return "PAUSADO";
+  if (aba === "cancelados") return "CANCELADO";
+  return undefined;
+}
+
+const POR_PAGINA = 25;
+
 export default async function AssinantesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; aba?: string }>;
+  searchParams: Promise<{ q?: string; aba?: string; pagina?: string }>;
 }) {
   await exigirAdmin();
-  const { q, aba = "assinantes" } = await searchParams;
+  const { q, aba = "assinantes", pagina } = await searchParams;
   const busca = q?.trim();
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
 
-  const revendedores = await prisma.revendedor.findMany({
-    where: {
-      papel: "REVENDEDOR",
-      ...(busca
-        ? {
-            OR: [
-              { nome: { contains: busca, mode: "insensitive" } },
-              { email: { contains: busca, mode: "insensitive" } },
-              { cpf: { contains: busca } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { criadoEm: "desc" },
-    select: {
-      id: true,
-      nome: true,
-      whatsapp: true,
-      criadoEm: true,
-      statusAssinatura: true,
-      planoAssinatura: true,
-      trialFim: true,
-      assinaturaVence: true,
-      _count: { select: { clientes: true } },
-      pagamentos: {
-        where: { tipo: "ASSINATURA", status: "APROVADO" },
-        orderBy: { criadoEm: "desc" },
-        take: 1,
-        select: { valor: true, meses: true },
+  const where = {
+    papel: "REVENDEDOR" as const,
+    statusAssinatura: statusPorAba(aba),
+    OR: busca
+      ? [
+          { nome: { contains: busca, mode: "insensitive" as const } },
+          { email: { contains: busca, mode: "insensitive" as const } },
+          { cpf: { contains: busca } },
+        ]
+      : undefined,
+  };
+
+  const [totalFiltrados, filtrados] = await Promise.all([
+    prisma.revendedor.count({ where }),
+    prisma.revendedor.findMany({
+      where,
+      orderBy: { criadoEm: "desc" },
+      skip: (paginaAtual - 1) * POR_PAGINA,
+      take: POR_PAGINA,
+      select: {
+        id: true,
+        nome: true,
+        whatsapp: true,
+        criadoEm: true,
+        statusAssinatura: true,
+        planoAssinatura: true,
+        trialFim: true,
+        assinaturaVence: true,
+        _count: { select: { clientes: true } },
+        pagamentos: {
+          where: { tipo: "ASSINATURA", status: "APROVADO" },
+          orderBy: { criadoEm: "desc" },
+          take: 1,
+          select: { valor: true, meses: true },
+        },
       },
-    },
-  });
-
-  const filtrados = revendedores.filter((r) => {
-    if (aba === "assinantes") return r.statusAssinatura === "ATIVO";
-    if (aba === "trial") return r.statusAssinatura === "TRIAL";
-    if (aba === "pausados") return r.statusAssinatura === "PAUSADO";
-    if (aba === "cancelados") return r.statusAssinatura === "CANCELADO";
-    return true;
-  });
+    }),
+  ]);
+  const totalPaginas = Math.max(1, Math.ceil(totalFiltrados / POR_PAGINA));
 
   return (
     <div className="flex flex-col gap-5">
@@ -222,6 +232,11 @@ export default async function AssinantesPage({
           </div>
         </Card>
       )}
+      <Paginacao
+        pagina={paginaAtual}
+        totalPaginas={totalPaginas}
+        href={(p) => `/admin/assinantes?aba=${aba}${busca ? `&q=${encodeURIComponent(busca)}` : ""}&pagina=${p}`}
+      />
     </div>
   );
 }

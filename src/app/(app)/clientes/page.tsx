@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { brl0, dataCurta, fmtTelefone } from "@/lib/format";
+import { brl0, dataCurta, fmtTelefone, inicioDoDiaBr } from "@/lib/format";
 import { PLANO_LABEL, diasParaVencer, faixaVencimento } from "@/lib/planos";
-import { Avatar, Badge, Button, Card, EmptyState, Input, cx } from "@/components/ui";
+import { Avatar, Badge, Button, Card, EmptyState, Input, Paginacao, cx } from "@/components/ui";
 import { cobradosHojePorCliente } from "@/lib/cobrancas";
 import { RenovarBotao } from "./renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "./cobrar-botao";
@@ -40,21 +40,57 @@ const ORDENS = [
 ] as const;
 type Ordem = (typeof ORDENS)[number]["chave"];
 
+const POR_PAGINA = 25;
+
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aba?: string; id?: string; q?: string; ordenar?: string }>;
+  searchParams: Promise<{ aba?: string; id?: string; q?: string; ordenar?: string; pagina?: string }>;
 }) {
   const revendedor = await exigirRevendedor();
-  const { aba = "ativos", id: selecionadoId, q, ordenar } = await searchParams;
+  const { aba = "ativos", id: selecionadoId, q, ordenar, pagina } = await searchParams;
   const ordem: Ordem = ORDENS.some((o) => o.chave === ordenar) ? (ordenar as Ordem) : "vencimento";
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
 
-  const [clientes, cobradosHoje, interessados, clienteSelecionado] = await Promise.all([
-    prisma.cliente.findMany({
-      where: { revendedorId: revendedor.id },
-      include: { servico: true },
-      orderBy: { vencimento: "asc" },
-    }),
+  const busca = q?.trim().toLowerCase();
+  const buscaSoDigitos = busca?.replace(/\D/g, "");
+
+  // VENCIDO ∪ ATE_5_DIAS de faixaVencimento (lib/planos.ts) é só "vence em
+  // menos de 6 dias civis, incluindo quem já venceu" — dá pra filtrar como
+  // uma única faixa de data direto no banco, sem trazer tudo pra memória.
+  const limiteAtencao = inicioDoDiaBr();
+  limiteAtencao.setUTCDate(limiteAtencao.getUTCDate() + 6);
+
+  const whereClientes = {
+    revendedorId: revendedor.id,
+    status: aba === "cancelados" ? ("CANCELADO" as const) : { not: "CANCELADO" as const },
+    vencimento: aba === "atencao" ? { lt: limiteAtencao } : undefined,
+    OR: busca
+      ? [
+          { nome: { contains: busca, mode: "insensitive" as const } },
+          ...(buscaSoDigitos ? [{ whatsapp: { contains: buscaSoDigitos } }] : []),
+        ]
+      : undefined,
+  };
+
+  const orderBy =
+    ordem === "nome"
+      ? { nome: "asc" as const }
+      : ordem === "valor"
+        ? { valorPlano: "desc" as const }
+        : { vencimento: "asc" as const };
+
+  const [totalClientes, clientes, cobradosHoje, interessados, clienteSelecionado] = await Promise.all([
+    aba === "interessados" ? Promise.resolve(0) : prisma.cliente.count({ where: whereClientes }),
+    aba === "interessados"
+      ? Promise.resolve([])
+      : prisma.cliente.findMany({
+          where: whereClientes,
+          include: { servico: true },
+          orderBy,
+          skip: (paginaAtual - 1) * POR_PAGINA,
+          take: POR_PAGINA,
+        }),
     cobradosHojePorCliente(revendedor.id),
     aba === "interessados"
       ? prisma.interessadoCliente.findMany({
@@ -70,30 +106,7 @@ export default async function ClientesPage({
       : Promise.resolve(null),
   ]);
 
-  const busca = q?.trim().toLowerCase();
-  const buscaSoDigitos = busca?.replace(/\D/g, "");
-
-  const filtrados = clientes
-    .filter((c) => {
-      if (aba === "cancelados") return c.status === "CANCELADO";
-      if (c.status === "CANCELADO") return false;
-      if (aba === "atencao") {
-        const faixa = faixaVencimento(c.vencimento);
-        return faixa === "VENCIDO" || faixa === "ATE_5_DIAS";
-      }
-      return true;
-    })
-    .filter(
-      (c) =>
-        !busca ||
-        c.nome.toLowerCase().includes(busca) ||
-        (buscaSoDigitos && c.whatsapp?.includes(buscaSoDigitos))
-    )
-    .sort((a, b) => {
-      if (ordem === "nome") return a.nome.localeCompare(b.nome, "pt-BR");
-      if (ordem === "valor") return b.valorPlano - a.valorPlano;
-      return a.vencimento.getTime() - b.vencimento.getTime();
-    });
+  const totalPaginas = Math.max(1, Math.ceil(totalClientes / POR_PAGINA));
 
   return (
     <div className="flex flex-col gap-5">
@@ -165,10 +178,11 @@ export default async function ClientesPage({
             ))}
           </div>
         )
-      ) : filtrados.length === 0 ? (
+      ) : clientes.length === 0 ? (
         <EmptyState>{busca ? `Nenhum cliente encontrado pra "${q}".` : "Nenhum cliente nesta lista ainda."}</EmptyState>
       ) : (
-        <div className={cx("flex flex-col gap-5", selecionadoId ? "xl:flex-row xl:items-start" : "")}>
+        <>
+          <div className={cx("flex flex-col gap-5", selecionadoId ? "xl:flex-row xl:items-start" : "")}>
           {/* O painel lateral (360px) só entra no layout quando um cliente está selecionado
               (?id= na URL). Reservar esse espaço o tempo todo — mesmo mostrando só o
               placeholder "clique em alguém" — era o que sobrava pouca largura pra tabela
@@ -188,7 +202,7 @@ export default async function ClientesPage({
               <span />
             </div>
             <div className="flex flex-col divide-y divide-border">
-              {filtrados.map((cliente) => {
+              {clientes.map((cliente) => {
                 const estado = estadoCliente(cliente.status, cliente.vencimento);
                 const ativo = cliente.id === selecionadoId;
                 // Cliente "Em dia" não precisa do mesmo peso visual de ação
@@ -277,7 +291,13 @@ export default async function ClientesPage({
               )}
             </div>
           ) : null}
-        </div>
+          </div>
+          <Paginacao
+            pagina={paginaAtual}
+            totalPaginas={totalPaginas}
+            href={(p) => `/clientes?aba=${aba}&ordenar=${ordem}${q ? `&q=${encodeURIComponent(q)}` : ""}&pagina=${p}`}
+          />
+        </>
       )}
     </div>
   );

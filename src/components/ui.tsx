@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 function cx(...classes: Array<string | false | undefined>) {
@@ -319,6 +320,45 @@ export function TrendChip({ pct, sufixo }: { pct: number; sufixo?: string }) {
       {positivo ? "+" : "−"}
       {Math.abs(pct).toFixed(0)}%{sufixo ? ` ${sufixo}` : ""}
     </span>
+  );
+}
+
+// Controle de página anterior/próxima pra qualquer listagem paginada no
+// servidor (skip/take) — `href` recebe o número da página e devolve a URL
+// completa, assim cada página mantém os próprios filtros/busca/ordenação
+// na querystring. Não desenha nada com 1 página só.
+export function Paginacao({
+  pagina,
+  totalPaginas,
+  href,
+}: {
+  pagina: number;
+  totalPaginas: number;
+  href: (pagina: number) => string;
+}) {
+  if (totalPaginas <= 1) return null;
+  const linkStyles = "rounded-lg border border-border-strong px-3 py-1.5 text-xs font-semibold text-text-dim hover:text-text";
+  const desabilitadoStyles = "rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-dim opacity-40";
+  return (
+    <div className="flex items-center justify-center gap-3 py-2">
+      {pagina > 1 ? (
+        <Link href={href(pagina - 1)} className={linkStyles}>
+          ‹ Anterior
+        </Link>
+      ) : (
+        <span className={desabilitadoStyles}>‹ Anterior</span>
+      )}
+      <span className="text-xs text-text-dim">
+        Página {pagina} de {totalPaginas}
+      </span>
+      {pagina < totalPaginas ? (
+        <Link href={href(pagina + 1)} className={linkStyles}>
+          Próxima ›
+        </Link>
+      ) : (
+        <span className={desabilitadoStyles}>Próxima ›</span>
+      )}
+    </div>
   );
 }
 

@@ -1,17 +1,32 @@
 import { exigirAdmin } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
 import { dataPorExtenso } from "@/lib/format";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { DestinoAviso } from "@/generated/prisma/enums";
+import { Badge, Card, EmptyState, Paginacao } from "@/components/ui";
 import { ExcluirAvisoBotao } from "./excluir-aviso-botao";
 import { PublicarAvisoForm } from "./publicar-aviso-form";
 
-export default async function ComunicadosPage() {
+const POR_PAGINA = 25;
+const DESTINOS_COM_AVISO: DestinoAviso[] = ["TODOS_REVENDEDORES", "UM_REVENDEDOR"];
+
+export default async function ComunicadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
   await exigirAdmin();
-  const [avisos, revendedores, cupons] = await Promise.all([
+  const { pagina } = await searchParams;
+  const paginaAtual = Math.max(1, Math.trunc(Number(pagina)) || 1);
+  const whereAvisos = { destino: { in: DESTINOS_COM_AVISO } };
+
+  const [totalAvisos, avisos, revendedores, cupons] = await Promise.all([
+    prisma.aviso.count({ where: whereAvisos }),
     prisma.aviso.findMany({
-      where: { destino: { in: ["TODOS_REVENDEDORES", "UM_REVENDEDOR"] } },
+      where: whereAvisos,
       include: { revendedor: { select: { nome: true, email: true, avisosLidosAte: true } } },
       orderBy: { criadoEm: "desc" },
+      skip: (paginaAtual - 1) * POR_PAGINA,
+      take: POR_PAGINA,
     }),
     prisma.revendedor.findMany({
       where: { papel: "REVENDEDOR" },
@@ -33,6 +48,7 @@ export default async function ComunicadosPage() {
       return !expirado && !esgotado;
     })
     .map((c) => ({ id: c.id, codigo: c.codigo, tipo: c.tipo, valor: c.valor, revendedorId: c.revendedorId }));
+  const totalPaginas = Math.max(1, Math.ceil(totalAvisos / POR_PAGINA));
 
   return (
     <div className="flex flex-col gap-5">
@@ -73,6 +89,7 @@ export default async function ComunicadosPage() {
           ))}
         </div>
       )}
+      <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} href={(p) => `/admin/comunicados?pagina=${p}`} />
     </div>
   );
 }
