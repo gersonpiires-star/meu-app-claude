@@ -70,7 +70,7 @@ export default async function VendasPage({
     dadosVendasMes(revendedor.id, ano, mes),
     receitaUltimosMeses(revendedor.id, 3),
     recibo
-      ? prisma.venda.findUnique({ where: { id: recibo }, include: { produto: true, cliente: true } })
+      ? prisma.venda.findUnique({ where: { id: recibo, revendedorId: revendedor.id }, include: { produto: true, cliente: true } })
       : Promise.resolve(null),
     prisma.cliente.findMany({
       where: { revendedorId: revendedor.id, status: { not: "CANCELADO" } },
