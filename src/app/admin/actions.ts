@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { exigirAdmin } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
-import { brl, dataCurta } from "@/lib/format";
+import { brl, dataCurta, parseDataISOBr } from "@/lib/format";
 import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { enviarEmail } from "@/lib/email";
 import { emailComunicado } from "@/lib/email-templates";
@@ -218,7 +218,7 @@ export async function criarInteressado(formData: FormData) {
       whatsapp: dados.whatsapp,
       interesse: dados.interesse || null,
       observacao: dados.observacao || null,
-      retornarEm: dados.retornarEm ? new Date(dados.retornarEm) : null,
+      retornarEm: parseDataISOBr(dados.retornarEm),
     },
   });
 
