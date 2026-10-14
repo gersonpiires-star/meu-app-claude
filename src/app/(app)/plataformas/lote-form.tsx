@@ -9,12 +9,13 @@ export function LoteForm({
   variant = "ghost",
   className,
 }: {
-  acao: (formData: FormData) => Promise<void>;
+  acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
   label?: string;
   variant?: ButtonVariant;
   className?: string;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -27,10 +28,15 @@ export function LoteForm({
 
   return (
     <form
-      className="flex items-center gap-2"
+      className="flex flex-wrap items-center gap-2"
       action={(formData) =>
         iniciarTransicao(async () => {
-          await acao(formData);
+          setErro(null);
+          const resultado = await acao(formData);
+          if (resultado?.ok === false) {
+            setErro(resultado.erro);
+            return;
+          }
           setAberto(false);
         })
       }
@@ -40,6 +46,7 @@ export function LoteForm({
       <Button type="submit" disabled={pendente} className="whitespace-nowrap">
         {pendente ? "…" : "Adicionar ao saldo"}
       </Button>
+      {erro ? <p className="w-full text-xs font-semibold text-danger">{erro}</p> : null}
     </form>
   );
 }

@@ -12,6 +12,7 @@ import { erroCreditoIndisponivel } from "@/lib/plataformas";
 import { snapshotDoCliente } from "@/lib/renovacao";
 import { registrarLog } from "@/lib/log";
 import { brl } from "@/lib/format";
+import { validarOuErro } from "@/lib/validacao";
 
 const vendaSchema = z.object({
   produtoId: z.string().min(1, "Selecione um produto"),
@@ -53,7 +54,9 @@ const comboSchema = z.object({
 // duas linhas num "Combo" só, em vez de mostrar como duas vendas soltas.
 export async function registrarCombo(formData: FormData): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
-  const dados = comboSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(comboSchema, Object.fromEntries(formData));
+  if (!validado.ok) return { erro: validado.erro };
+  const dados = validado.dados;
 
   const produto = await prisma.produto.findUnique({ where: { id: dados.produtoId, revendedorId: revendedor.id } });
   if (!produto) return { erro: "Produto não encontrado." };
@@ -146,7 +149,9 @@ export async function registrarCombo(formData: FormData): Promise<{ erro: string
 
 export async function registrarVenda(formData: FormData): Promise<{ erro: string } | undefined> {
   const revendedor = await exigirRevendedor();
-  const dados = vendaSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(vendaSchema, Object.fromEntries(formData));
+  if (!validado.ok) return { erro: validado.erro };
+  const dados = validado.dados;
 
   const produto = await prisma.produto.findUnique({ where: { id: dados.produtoId, revendedorId: revendedor.id } });
   if (!produto) return { erro: "Produto não encontrado." };

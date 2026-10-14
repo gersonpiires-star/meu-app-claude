@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { Button, Field, Input } from "@/components/ui";
 
-export function NovoAppForm({ acao }: { acao: (formData: FormData) => Promise<void> }) {
+export function NovoAppForm({ acao }: { acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void> }) {
   const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -20,7 +21,12 @@ export function NovoAppForm({ acao }: { acao: (formData: FormData) => Promise<vo
       className="flex flex-col gap-3 rounded-xl border border-border-strong p-3"
       action={(formData) =>
         iniciarTransicao(async () => {
-          await acao(formData);
+          setErro(null);
+          const resultado = await acao(formData);
+          if (resultado?.ok === false) {
+            setErro(resultado.erro);
+            return;
+          }
           setAberto(false);
         })
       }
@@ -37,6 +43,7 @@ export function NovoAppForm({ acao }: { acao: (formData: FormData) => Promise<vo
           <Input type="number" name="cobrancaTelaExtra" min={0} step="0.01" />
         </Field>
       </div>
+      {erro ? <p className="text-xs font-semibold text-danger">{erro}</p> : null}
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>
           Cancelar

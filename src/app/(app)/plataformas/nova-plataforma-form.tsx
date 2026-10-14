@@ -6,6 +6,7 @@ import { criarPlataforma } from "./actions";
 
 export function NovaPlataformaForm() {
   const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -17,7 +18,12 @@ export function NovaPlataformaForm() {
       className="flex flex-col gap-3 rounded-xl border border-border-strong bg-surface p-4"
       action={(formData) =>
         iniciarTransicao(async () => {
-          await criarPlataforma(formData);
+          setErro(null);
+          const resultado = await criarPlataforma(formData);
+          if (resultado?.ok === false) {
+            setErro(resultado.erro);
+            return;
+          }
           setAberto(false);
         })
       }
@@ -32,6 +38,7 @@ export function NovaPlataformaForm() {
       <Field label="Avisar abaixo de">
         <Input type="number" name="minimo" min={0} defaultValue={5} />
       </Field>
+      {erro ? <p className="text-xs font-semibold text-danger">{erro}</p> : null}
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>
           Cancelar

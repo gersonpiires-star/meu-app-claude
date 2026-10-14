@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirRevendedor, exigirDono } from "@/lib/sessao";
 import { registrarLog } from "@/lib/log";
 import { dataCurta } from "@/lib/format";
+import { validarOuErro } from "@/lib/validacao";
 
 const plataformaSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome do fornecedor"),
@@ -13,9 +14,11 @@ const plataformaSchema = z.object({
   url: z.string().trim().optional(),
 });
 
-export async function criarPlataforma(formData: FormData) {
+export async function criarPlataforma(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = plataformaSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(plataformaSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   await prisma.plataforma.create({
     data: { revendedorId: revendedor.id, nome: dados.nome, minimo: dados.minimo, url: dados.url || null },
@@ -24,9 +27,11 @@ export async function criarPlataforma(formData: FormData) {
   revalidatePath("/plataformas");
 }
 
-export async function editarPlataforma(id: string, formData: FormData) {
+export async function editarPlataforma(id: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = plataformaSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(plataformaSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   // Campo à parte do plataformaSchema (em vez de z.coerce.number().optional())
   // porque "" precisa virar null (sem override, volta a calcular pelo
@@ -80,9 +85,11 @@ const appSchema = z.object({
 // de conseguir usar a plataforma. Se já existe um app com esse nome (por
 // exemplo criado sem querer ao digitar o serviço num cadastro de cliente),
 // vincula ele a essa plataforma em vez de dar erro de nome duplicado.
-export async function criarAppNaPlataforma(plataformaId: string, formData: FormData) {
+export async function criarAppNaPlataforma(plataformaId: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = appSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(appSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   const plataforma = await prisma.plataforma.findUniqueOrThrow({
     where: { id: plataformaId, revendedorId: revendedor.id },
@@ -157,7 +164,9 @@ export async function atualizarConfigServico(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; erro: string }> {
   const revendedor = await exigirRevendedor();
-  const dados = servicoConfigSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(servicoConfigSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   // Nunca confia no plataformaId vindo do form sem checar dono — sem isso
   // dava pra vincular o serviço a uma plataforma de outro revendedor (o id
@@ -272,9 +281,11 @@ const loteSchema = z.object({
   valorPago: z.coerce.number().min(0),
 });
 
-export async function adicionarLote(plataformaId: string, formData: FormData) {
+export async function adicionarLote(plataformaId: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = loteSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(loteSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   const plataforma = await prisma.plataforma.findUniqueOrThrow({
     where: { id: plataformaId, revendedorId: revendedor.id },

@@ -12,6 +12,7 @@ import { registrarLog } from "@/lib/log";
 import { registrarEvento } from "@/lib/analytics";
 import { limitesDoPlano } from "@/lib/planos-assinatura";
 import { brl, parseDataBr, parseDataISOBr } from "@/lib/format";
+import { validarOuErro } from "@/lib/validacao";
 import { snapshotDoCliente, snapshotClienteSchema } from "@/lib/renovacao";
 import type { PlanoCliente } from "@/generated/prisma/enums";
 
@@ -83,7 +84,9 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
     }
   }
 
-  const dados = clienteSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(clienteSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
   const servico = await resolverServico(revendedor.id, dados.servicoId);
   const servicoId = servico?.id ?? null;
   const custo = servico?.custoCredito ? PLANO_MESES[dados.plano as PlanoCliente] * servico.custoCredito : 0;
@@ -170,9 +173,11 @@ export async function criarCliente(formData: FormData): Promise<{ ok: false; err
   redirect(`/clientes/${clienteId}`);
 }
 
-export async function atualizarCliente(id: string, formData: FormData) {
+export async function atualizarCliente(id: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = clienteSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(clienteSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
   const servicoId = (await resolverServico(revendedor.id, dados.servicoId))?.id ?? null;
   const indicadoPorId = await resolverIndicadoPor(revendedor.id, dados.indicadoPorId, id);
 

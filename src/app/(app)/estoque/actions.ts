@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirRevendedor } from "@/lib/sessao";
+import { validarOuErro } from "@/lib/validacao";
 
 const produtoSchema = z.object({
   modelo: z.string().trim().min(1, "Informe o modelo"),
@@ -12,9 +13,11 @@ const produtoSchema = z.object({
   custoUnitario: z.coerce.number().min(0).default(0),
 });
 
-export async function criarProduto(formData: FormData) {
+export async function criarProduto(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = produtoSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(produtoSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   const produto = await prisma.produto.create({
     data: {
@@ -45,9 +48,11 @@ const reporSchema = z.object({
   fornecedor: z.string().trim().optional(),
 });
 
-export async function reporEstoque(produtoId: string, formData: FormData) {
+export async function reporEstoque(produtoId: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = reporSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(reporSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   const produto = await prisma.produto.findUniqueOrThrow({
     where: { id: produtoId, revendedorId: revendedor.id },
@@ -74,9 +79,11 @@ const registrarEntradaSchema = reporSchema.extend({
 // Mesma coisa que reporEstoque, só que pro card "Registrar entrada" do
 // Estoque — onde o produto é escolhido num <select> dentro do próprio
 // formulário, em vez de já vir preso a um botão por produto.
-export async function registrarEntrada(formData: FormData) {
+export async function registrarEntrada(formData: FormData): Promise<{ ok: false; erro: string } | void> {
   const revendedor = await exigirRevendedor();
-  const dados = registrarEntradaSchema.parse(Object.fromEntries(formData));
+  const validado = validarOuErro(registrarEntradaSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
 
   const produto = await prisma.produto.findUniqueOrThrow({
     where: { id: dados.produtoId, revendedorId: revendedor.id },

@@ -8,9 +8,10 @@ export function EditarPlataformaForm({
   acao,
 }: {
   plataforma: { nome: string; url: string | null; minimo: number; custoCreditoManual: number | null };
-  acao: (formData: FormData) => Promise<void>;
+  acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciarTransicao] = useTransition();
 
   if (!aberto) {
@@ -30,7 +31,12 @@ export function EditarPlataformaForm({
       className="flex flex-col gap-3 rounded-xl border border-border-strong bg-surface-2 p-3"
       action={(formData) =>
         iniciarTransicao(async () => {
-          await acao(formData);
+          setErro(null);
+          const resultado = await acao(formData);
+          if (resultado?.ok === false) {
+            setErro(resultado.erro);
+            return;
+          }
           setAberto(false);
         })
       }
@@ -54,6 +60,7 @@ export function EditarPlataformaForm({
           placeholder="Automático"
         />
       </Field>
+      {erro ? <p className="text-xs font-semibold text-danger">{erro}</p> : null}
       <div className="flex gap-2">
         <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>
           Cancelar

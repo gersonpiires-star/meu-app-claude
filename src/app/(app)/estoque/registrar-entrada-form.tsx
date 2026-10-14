@@ -8,10 +8,11 @@ export function RegistrarEntradaForm({
   acao,
 }: {
   produtos: { id: string; modelo: string }[];
-  acao: (formData: FormData) => Promise<void>;
+  acao: (formData: FormData) => Promise<{ ok: false; erro: string } | void>;
 }) {
   const [pendente, iniciarTransicao] = useTransition();
   const [feito, setFeito] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   return (
     <Card className="flex flex-col gap-3">
@@ -20,7 +21,12 @@ export function RegistrarEntradaForm({
         className="flex flex-col gap-3"
         action={(formData) =>
           iniciarTransicao(async () => {
-            await acao(formData);
+            setErro(null);
+            const resultado = await acao(formData);
+            if (resultado?.ok === false) {
+              setErro(resultado.erro);
+              return;
+            }
             setFeito(true);
             setTimeout(() => setFeito(false), 2000);
           })
@@ -49,6 +55,7 @@ export function RegistrarEntradaForm({
         <Field label="Fornecedor">
           <Input name="fornecedor" placeholder="Onde comprou" />
         </Field>
+        {erro ? <p className="text-xs font-semibold text-danger">{erro}</p> : null}
         <Button type="submit" disabled={pendente}>
           {pendente ? "Salvando…" : feito ? "✓ Salvo" : "Salvar entrada"}
         </Button>
