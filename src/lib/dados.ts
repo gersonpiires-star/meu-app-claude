@@ -32,7 +32,7 @@ export async function estoqueAtualProduto(
 }
 
 export type Lote = { restante: number; custoUnitario: number };
-type MovimentoOrdenavel = { tipo: "ENTRADA" | "SAIDA"; quantidade: number; custoUnitario: number; data: Date; id: string };
+export type MovimentoOrdenavel = { tipo: "ENTRADA" | "SAIDA"; quantidade: number; custoUnitario: number; data: Date; id: string };
 
 // Consome a fila de lotes (mais antigo primeiro) — usado tanto pra "andar" o
 // histórico até agora (deixando só os lotes ainda não vendidos) quanto pra
@@ -56,24 +56,38 @@ export function consumirFifo(fila: Lote[], quantidade: number): number {
 // Reconstrói quais lotes de compra ainda não foram totalmente vendidos,
 // andando o histórico de movimentos em ordem cronológica e descontando cada
 // saída dos lotes mais antigos primeiro (FIFO) — a mesma ordem em que as
-// compras de fato vão sendo consumidas.
-function lotesAbertos(movimentos: MovimentoOrdenavel[]): Lote[] {
+// compras de fato vão sendo consumidas. Essa passada ainda é O(movimentos
+// desde sempre) — não tem como saber quais lotes continuam abertos sem
+// reconstituir o consumo FIFO inteiro a partir do histórico real — mas
+// devolve os totais de entrada/saída como subproduto da mesma varredura,
+// em vez de custoMedioProdutos varrer os mesmos movimentos de novo (2x) só
+// pra somar isso.
+export function lotesAbertos(movimentos: MovimentoOrdenavel[]): { fila: Lote[]; qtdEntrada: number; qtdSaida: number } {
   const ordenados = [...movimentos].sort((a, b) => a.data.getTime() - b.data.getTime() || a.id.localeCompare(b.id));
   const fila: Lote[] = [];
+  let qtdEntrada = 0;
+  let qtdSaida = 0;
   for (const m of ordenados) {
     if (m.tipo === "ENTRADA") {
+      qtdEntrada += m.quantidade;
       if (m.quantidade > 0) fila.push({ restante: m.quantidade, custoUnitario: m.custoUnitario });
     } else {
+      qtdSaida += m.quantidade;
       consumirFifo(fila, m.quantidade);
     }
   }
-  return fila;
+  return { fila, qtdEntrada, qtdSaida };
 }
+
+// Seleção mínima de MovimentoEstoque pra reconstituir o FIFO — nem todas as
+// colunas (ex: fornecedor) nem o restante de Produto, que include buscava
+// inteiro antes sem precisar de nada além de id/movimentos.
+const SELECAO_MOVIMENTO_FIFO = { tipo: true, quantidade: true, custoUnitario: true, data: true, id: true } as const;
 
 export async function custoMedioProdutos(revendedorId: string) {
   const produtos = await prisma.produto.findMany({
     where: { revendedorId },
-    include: { movimentos: true },
+    select: { id: true, movimentos: { select: SELECAO_MOVIMENTO_FIFO } },
   });
 
   const mapa = new Map<
@@ -81,13 +95,10 @@ export async function custoMedioProdutos(revendedorId: string) {
     { custoMedio: number; proximoCusto: number; atual: number; entradas: number; vendido: number }
   >();
   for (const produto of produtos) {
-    const qtdEntrada = produto.movimentos.filter((m) => m.tipo === "ENTRADA").reduce((a, m) => a + m.quantidade, 0);
-    const qtdSaida = produto.movimentos.filter((m) => m.tipo === "SAIDA").reduce((a, m) => a + m.quantidade, 0);
-
     // custoMedio aqui é o custo médio só do estoque que ainda está parado —
     // não da vida inteira do produto. Se um lote velho e barato já foi todo
     // vendido, ele não conta mais pro custo do que sobrou.
-    const fila = lotesAbertos(produto.movimentos);
+    const { fila, qtdEntrada, qtdSaida } = lotesAbertos(produto.movimentos);
     const atual = fila.reduce((a, l) => a + l.restante, 0);
     const custoTotalAtual = fila.reduce((a, l) => a + l.restante * l.custoUnitario, 0);
 
@@ -112,8 +123,8 @@ export async function custoConsumoFifo(
   quantidade: number,
   db: Prisma.TransactionClient | typeof prisma = prisma
 ): Promise<{ custoUnitario: number; custoTotal: number }> {
-  const movimentos = await db.movimentoEstoque.findMany({ where: { produtoId } });
-  const fila = lotesAbertos(movimentos);
+  const movimentos = await db.movimentoEstoque.findMany({ where: { produtoId }, select: SELECAO_MOVIMENTO_FIFO });
+  const { fila } = lotesAbertos(movimentos);
   const custoTotal = consumirFifo(fila, quantidade);
   return { custoUnitario: quantidade > 0 ? custoTotal / quantidade : 0, custoTotal };
 }
