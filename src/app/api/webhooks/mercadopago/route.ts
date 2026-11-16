@@ -5,6 +5,7 @@ import { aprovarRenovacaoPaga, aprovarAssinaturaPaga, aprovarAddonPago } from "@
 import { enviarPush } from "@/lib/push";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
 import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
+import { WebhookSignatureValidator, InvalidWebhookSignatureError } from "mercadopago";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
   const porQuery = url.searchParams.get("data.id") ?? url.searchParams.get("id");
@@ -45,6 +46,31 @@ export async function POST(request: Request) {
   }
 
   const url = new URL(request.url);
+
+  // Defesa em profundidade: confere a assinatura HMAC do Mercado Pago quando
+  // o segredo estiver configurado. Falha ABERTA (loga e segue) se a env var
+  // não estiver configurada — diferente do webhook do WhatsApp (que falha
+  // fechado) porque aqui o "nunca confiar no corpo, sempre reconferir na
+  // API" abaixo já fecha o buraco de segurança que importa; a assinatura é
+  // só uma camada extra, não a única.
+  const segredoWebhook = process.env.MP_WEBHOOK_SECRET;
+  if (segredoWebhook) {
+    try {
+      WebhookSignatureValidator.validate({
+        xSignature: request.headers.get("x-signature"),
+        xRequestId: request.headers.get("x-request-id"),
+        dataId: url.searchParams.get("data.id"),
+        secret: segredoWebhook,
+      });
+    } catch (erro) {
+      if (erro instanceof InvalidWebhookSignatureError) {
+        console.error(`Webhook MP: assinatura inválida (${erro.reason})`);
+        return NextResponse.json({ ok: false, ignorado: "assinatura inválida" }, { status: 401 });
+      }
+      throw erro;
+    }
+  }
+
   const corpo = await request.json().catch(() => null);
 
   if (!ehNotificacaoDePagamento(url, corpo)) {
