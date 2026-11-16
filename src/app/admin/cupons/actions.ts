@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { exigirAdmin } from "@/lib/sessao";
+import { registrarLog } from "@/lib/log";
 
 const cupomSchema = z.object({
   codigo: z.string().trim().min(3, "O código precisa de pelo menos 3 caracteres"),
@@ -57,13 +58,27 @@ export async function criarCupom(formData: FormData): Promise<{ ok: true } | { o
     },
   });
 
+  // Só dá pra logar na conta de um revendedor específico — cupom global
+  // (sem revendedorId) não tem pra onde registrar (Cupom não é um tenant).
+  if (dados.revendedorId) {
+    await registrarLog(dados.revendedorId, "admin.cupom_criado", `Recebeu o cupom ${codigo} da Administração GestorPro`, "ADMIN");
+  }
+
   revalidatePath("/admin/cupons");
   return { ok: true };
 }
 
 export async function alternarCupomAtivo(id: string, ativo: boolean) {
   await exigirAdmin();
-  await prisma.cupom.update({ where: { id }, data: { ativo } });
+  const cupom = await prisma.cupom.update({ where: { id }, data: { ativo } });
+  if (cupom.revendedorId) {
+    await registrarLog(
+      cupom.revendedorId,
+      "admin.cupom_alternar",
+      `A Administração GestorPro ${ativo ? "reativou" : "desativou"} o cupom ${cupom.codigo}`,
+      "ADMIN"
+    );
+  }
   revalidatePath("/admin/cupons");
 }
 
@@ -81,5 +96,8 @@ export async function excluirCupom(id: string) {
     throw new Error("Desative o cupom antes de excluir.");
   }
   await prisma.cupom.delete({ where: { id } });
+  if (cupom.revendedorId) {
+    await registrarLog(cupom.revendedorId, "admin.cupom_excluir", `A Administração GestorPro excluiu o cupom ${cupom.codigo}`, "ADMIN");
+  }
   revalidatePath("/admin/cupons");
 }
