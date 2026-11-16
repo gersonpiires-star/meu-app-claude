@@ -12,6 +12,7 @@ import { planoDosMeses, adicionarMeses } from "@/lib/planos-assinatura";
 import { enviarEmail } from "@/lib/email";
 import { emailComunicado } from "@/lib/email-templates";
 import { criptografar, descriptografar } from "@/lib/crypto";
+import { enviarPush } from "@/lib/push";
 
 // `valor`, quando informado, é um pagamento recebido fora do Mercado Pago
 // (ex: Pix direto no WhatsApp) que o admin está registrando manualmente —
@@ -158,9 +159,10 @@ export async function pausarAcesso(revendedorId: string, motivo: string) {
   const motivoLimpo = motivo.trim();
   if (!motivoLimpo) throw new Error("Informe o motivo da pausa");
 
-  await prisma.revendedor.update({
+  const revendedor = await prisma.revendedor.update({
     where: { id: revendedorId },
     data: { statusAssinatura: "PAUSADO", pausadoEm: new Date(), motivoPausa: motivoLimpo },
+    select: { email: true, pushSubscriptions: true },
   });
 
   await registrarLog(
@@ -169,6 +171,27 @@ export async function pausarAcesso(revendedorId: string, motivo: string) {
     `Acesso pausado pela Administração GestorPro — motivo: ${motivoLimpo}`,
     "ADMIN"
   );
+
+  // Avisa o revendedor de imediato — sem isso ele só descobria ao tentar
+  // logar. E-mail (todo revendedor tem) + push (quando ativado), mesmo
+  // canal já usado pra "pagamento de assinatura recusado" no webhook do MP.
+  const { subject, html } = emailComunicado({
+    titulo: "Seu acesso ao GestorPro foi pausado",
+    mensagem: `Seu acesso foi pausado pela Administração GestorPro.\n\nMotivo: ${motivoLimpo}\n\nSeus dados continuam guardados — entre em contato com o suporte pra entender como reativar.`,
+    atualizacao: false,
+  });
+  await enviarEmail({ to: revendedor.email, subject, html }).catch((erro) => {
+    console.error(`Falha ao enviar e-mail de pausa de acesso pro revendedor ${revendedorId}`, erro);
+  });
+
+  for (const inscricao of revendedor.pushSubscriptions) {
+    const manter = await enviarPush(inscricao, {
+      titulo: "Acesso pausado",
+      corpo: `Seu acesso ao GestorPro foi pausado. Motivo: ${motivoLimpo}`,
+      url: "/",
+    });
+    if (!manter) await prisma.pushSubscription.delete({ where: { id: inscricao.id } }).catch(() => {});
+  }
 
   revalidatePath("/admin/assinantes");
   revalidatePath(`/admin/assinantes/${revendedorId}`);
@@ -302,7 +325,13 @@ export async function alternarDestaqueSugestao(id: string, destaque: boolean) {
 
 const creditoSchema = z.object({
   revendedorId: z.string().min(1, "Selecione uma conta"),
-  quantidade: z.coerce.number(),
+  // Teto simétrico pra pegar erro de digitação (ex: 50000 em vez de 500) —
+  // generoso o bastante pra qualquer correção/bônus legítimo, sem travar o
+  // admin de verdade.
+  quantidade: z.coerce
+    .number()
+    .min(-5000, "Quantidade fora do limite permitido (máx. R$ 5.000 por operação)")
+    .max(5000, "Quantidade fora do limite permitido (máx. R$ 5.000 por operação)"),
   observacao: z.string().trim().optional(),
 });
 

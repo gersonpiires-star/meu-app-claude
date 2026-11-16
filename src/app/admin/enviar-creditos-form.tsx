@@ -12,7 +12,19 @@ export function EnviarCreditosForm({ contas }: { contas: { id: string; nome: str
   return (
     <form
       className="flex flex-col gap-3"
-      action={(formData) =>
+      action={(formData) => {
+        // Operação financeira direta na conta de outro revendedor — exige
+        // confirmação explícita mostrando valor e conta, não só o clique no
+        // botão (mesmo cuidado já usado nas outras ações financeiras do app).
+        const quantidade = Number(formData.get("quantidade"));
+        const conta = contas.find((c) => c.id === formData.get("revendedorId"));
+        const direcao = quantidade < 0 ? "remover" : "enviar";
+        const preposicao = quantidade < 0 ? "de" : "pra";
+        const mensagem = Number.isFinite(quantidade)
+          ? `Confirma ${direcao} R$ ${Math.abs(quantidade).toFixed(2)} ${preposicao} ${conta?.nome ?? "essa conta"}?`
+          : "Confirma essa operação?";
+        if (!confirm(mensagem)) return;
+
         iniciarTransicao(async () => {
           setErro(null);
           setSucesso(false);
@@ -22,8 +34,8 @@ export function EnviarCreditosForm({ contas }: { contas: { id: string; nome: str
             setSucesso(true);
             (document.getElementById("form-enviar-creditos") as HTMLFormElement | null)?.reset();
           }
-        })
-      }
+        });
+      }}
       id="form-enviar-creditos"
     >
       <Field label="Conta">
