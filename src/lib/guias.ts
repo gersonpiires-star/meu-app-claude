@@ -101,6 +101,98 @@ export const GUIAS: Guia[] = [
       },
     ],
   },
+  {
+    slug: "clientes-que-atrasam-pagamento",
+    titulo: "Como lidar com clientes que sempre pagam atrasado",
+    resumo:
+      "Antes de cortar o acesso, vale entender se é exatamente o mesmo tipo de atraso de sempre — porque a solução certa muda de caso para caso.",
+    secoes: [
+      {
+        titulo: "Atraso não é tudo igual",
+        paragrafos: [
+          "Tem o cliente que esquece e paga rápido assim que é avisado, o que só paga depois de uma cobrança direta, e o que já demorou tanto que claramente não vai pagar essa renovação. Tratar os três do mesmo jeito — mandar a mesma mensagem, esperar o mesmo tempo — desperdiça energia com quem só precisava de um lembrete e dá corda demais pra quem já devia ter sido cortado.",
+          "Vale olhar o histórico de cada cliente antes de decidir: quem sempre pagou em até 2 dias de atraso merece mais paciência do que quem só paga depois da terceira cobrança todo mês.",
+        ],
+      },
+      {
+        titulo: "O custo de manter o acesso ligado enquanto espera",
+        paragrafos: [
+          "Um detalhe que passa batido: enquanto o acesso continua ativo esperando o pagamento, o crédito da plataforma já foi consumido (ou vai ser, na próxima renovação) — esperar demais por um cliente que não vai pagar não é só receita perdida, é crédito gasto sem retorno.",
+          "Isso muda a conta de 'quanto vale a pena esperar': pra quem paga com atraso mas sempre paga, esperar faz sentido. Pra quem historicamente não paga depois de sumir, suspender mais rápido limita o estrago.",
+        ],
+      },
+      {
+        titulo: "Defina a régua antes de precisar decidir no calor do momento",
+        paragrafos: [
+          "Decidir cliente a cliente, na hora, tende a puxar pro lado errado — ou corta rápido demais um cliente antigo que merecia mais prazo, ou segura demais um que já devia ter sido suspenso há dias. Definir com antecedência depois de quantos dias de atraso o acesso suspende automaticamente tira essa decisão do calor do momento e aplica a mesma régua pra todo mundo.",
+          "Isso não substitui o bom senso pontual (um cliente antigo que avisou que vai atrasar por um motivo real ainda merece uma excepção manual) — só evita que o padrão seja decidir cada atraso do zero.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "quanto-cobrar-pelo-plano-de-streaming",
+    titulo: "Quanto cobrar pelo plano de streaming: como calcular o preço certo",
+    resumo:
+      "Cobrar barato demais pra fechar a venda rápido é a forma mais comum de uma revenda trabalhar bastante e sobrar pouco no fim do mês.",
+    secoes: [
+      {
+        titulo: "O preço mínimo é o custo, não o que parece justo",
+        paragrafos: [
+          "Antes de decidir quanto cobrar, é preciso saber quanto custa manter aquele cliente: o crédito da plataforma consumido por mês, mais a taxa do meio de pagamento usado (Pix costuma não ter taxa; cartão parcelado tem). Cobrar um valor 'que parece justo' sem essa conta na mão é decidir no escuro.",
+          "Dois revendedores cobrando o mesmo preço podem ter margens bem diferentes se um deles paga mais caro pelo crédito — o preço certo depende do seu custo, não do preço do concorrente.",
+        ],
+      },
+      {
+        titulo: "Plano mais longo não é só 'mais barato por mês'",
+        paragrafos: [
+          "Um plano trimestral ou semestral trava o crédito da plataforma de uma vez só, no começo — diferente do mensal, que renova (e consome crédito de novo) todo mês. Dar um desconto grande no plano longo sem considerar isso pode deixar a margem por mês desse cliente pior que a do mensal, mesmo cobrando mais no total.",
+          "Vale calcular a margem mês a mês de cada plano, não só o valor total recebido — é fácil um plano semestral 'parecer' mais vantajoso só porque o número total é maior.",
+        ],
+      },
+      {
+        titulo: "Preço parcelado no cartão custa mais caro pra quem vende",
+        paragrafos: [
+          "Quando o cliente paga parcelado no cartão, a taxa da maquininha sai de quem vende, não de quem compra — e essa taxa cresce com o número de parcelas. Se o preço não considerar isso, cada venda parcelada em mais vezes reduz a margem real sem que pareça, porque o preço anunciado foi o mesmo.",
+          "Pix direto costuma ser a forma mais barata de receber, por isso muitas revendas oferecem um desconto pequeno pra quem paga assim — é repassar parte da economia da taxa, não só uma cortesia.",
+        ],
+      },
+      {
+        titulo: "Reajuste existe, e avisar com antecedência evita perder cliente por susto",
+        paragrafos: [
+          "Ligar o reajuste ao aumento real de custo (a plataforma subiu o preço do crédito) facilita explicar pro cliente e evita parecer um aumento arbitrário. Avisar com alguma antecedência, antes da cobrança chegar com o valor novo sem explicação, reduz bastante a chance de perder esse cliente por puro susto.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "controle-de-creditos-de-plataforma",
+    titulo: "Controle de créditos: como não vender uma tela que você não tem",
+    resumo:
+      "Vender uma tela a mais do que o crédito disponível na plataforma não aparece como erro na hora — aparece dias depois, quando o cliente reclama que o acesso caiu.",
+    secoes: [
+      {
+        titulo: "Crédito não é estoque físico, mas se comporta como um",
+        paragrafos: [
+          "Cada plano vendido consome uma fração do crédito da plataforma proporcional aos meses contratados — um semestral consome de uma vez o equivalente a 6 meses de um mensal. Perder essa conta de vista (vender sem checar se ainda tem saldo) é o jeito mais comum de ficar sem crédito bem no meio do mês, com clientes esperando renovação.",
+          "A diferença pra um estoque físico é que o 'produto' aqui é invisível — não tem uma caixa vazia na estante avisando que acabou. Por isso vale acompanhar o saldo como um número de verdade, não por sensação.",
+        ],
+      },
+      {
+        titulo: "Múltiplas plataformas, múltiplos saldos",
+        paragrafos: [
+          "Quem trabalha com mais de um app/fornecedor de créditos precisa acompanhar o saldo de cada um separadamente — ter saldo sobrando numa plataforma não ajuda em nada um cliente cadastrado em outra. É comum, numa planilha única, esse controle por plataforma se perder e alguém vender achando que tinha saldo 'no geral'.",
+        ],
+      },
+      {
+        titulo: "O que fazer quando o saldo fica baixo antes da hora",
+        paragrafos: [
+          "Quando uma compra de crédito é feita fora do fluxo normal (negociação direta, bônus do fornecedor) e o saldo real não bate com o calculado pelo histórico, o certo é ajustar o saldo manualmente com uma observação do motivo — não tentar forçar o número lançando uma compra fictícia, que distorce o custo médio dali pra frente.",
+          "O mais importante, de qualquer forma, é repor com antecedência: acompanhar o saldo semanalmente (não só quando já faltou) dá tempo de comprar mais crédito antes que um cliente fique esperando.",
+        ],
+      },
+    ],
+  },
 ];
 
 export function buscarGuia(slug: string): Guia | undefined {
