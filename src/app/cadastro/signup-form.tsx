@@ -6,6 +6,7 @@ import { Button, Field, Input } from "@/components/ui";
 
 export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [pendente, iniciarTransicao] = useTransition();
 
   async function aoEnviar(formData: FormData) {
@@ -16,19 +17,9 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
       whatsapp: String(formData.get("whatsapp") ?? ""),
       email: String(formData.get("email") ?? ""),
       senha: String(formData.get("senha") ?? ""),
-      confirmarSenha: String(formData.get("confirmarSenha") ?? ""),
       indicadoPorId,
       indicadoPorEmail: indicadoPorId ? undefined : String(formData.get("indicadoPorEmail") ?? "").trim() || undefined,
     };
-
-    // Confere a senha no cliente antes de qualquer round-trip — o servidor
-    // também confere (defesa em profundidade), mas sem essa checagem aqui o
-    // usuário só descobria o erro depois de esperar a resposta da rede pra
-    // algo que já dava pra saber na hora, com os dois campos preenchidos.
-    if (dados.senha !== dados.confirmarSenha) {
-      setErro("As senhas não coincidem");
-      return;
-    }
 
     iniciarTransicao(async () => {
       const resposta = await fetch("/api/cadastro", {
@@ -62,10 +53,39 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
         <Input type="email" name="email" autoComplete="email" required />
       </Field>
       <Field label="Senha">
-        <Input type="password" name="senha" autoComplete="new-password" minLength={8} required />
-      </Field>
-      <Field label="Confirmar senha">
-        <Input type="password" name="confirmarSenha" autoComplete="new-password" minLength={8} required />
+        <div className="relative">
+          <Input
+            type={mostrarSenha ? "text" : "password"}
+            name="senha"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setMostrarSenha((v) => !v)}
+            aria-label={mostrarSenha ? "Esconder senha" : "Mostrar senha"}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-text-dim hover:text-text"
+          >
+            {mostrarSenha ? (
+              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                <path
+                  d="M3 3l14 14M8.3 8.4a2.2 2.2 0 0 0 3.1 3.1M6 5.4C3.7 6.7 2 9 2 10c0 1.3 3 5 8 5 1.3 0 2.5-.3 3.6-.8M14 5.5c2 1.2 4 3.3 4 4.5 0 .5-.4 1.4-1.1 2.4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                <path d="M2 10c0-1 3-5 8-5s8 4 8 5-3 5-8 5-8-4-8-5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                <circle cx="10" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            )}
+          </button>
+        </div>
       </Field>
       {!indicadoPorId ? (
         <Field label="E-mail de quem te indicou (opcional)">
