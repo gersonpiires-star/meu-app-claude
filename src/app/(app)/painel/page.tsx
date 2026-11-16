@@ -111,6 +111,23 @@ export default async function PainelPage() {
   ];
   const mostrarOnboarding = emTrial && passosOnboarding.some((p) => !p.feito);
 
+  // Mesmo espírito do checklist de trial, só que pra quem já assina — passos
+  // que automatizam o que normalmente é feito na mão (cobrar, receber,
+  // dividir tarefa com equipe). Continua aparecendo até os 3 estarem feitos,
+  // não só nos primeiros dias — não existe hoje um campo de "quando converteu".
+  const totalFuncionariosOnboarding =
+    revendedor.statusAssinatura === "ATIVO" ? await prisma.funcionario.count({ where: { revendedorId: revendedor.id } }) : 0;
+  const passosOnboardingPago = [
+    { label: "Conecte o WhatsApp pra automatizar cobrança", feito: revendedor.whatsappBotAtivo, href: "/configuracoes" },
+    {
+      label: "Configure seu Mercado Pago ou Asaas pra receber de clientes",
+      feito: Boolean(revendedor.mpAccessToken || revendedor.asaasApiKey),
+      href: "/configuracoes",
+    },
+    { label: "Convide um funcionário pra te ajudar", feito: totalFuncionariosOnboarding > 0, href: "/configuracoes/funcionarios" },
+  ];
+  const mostrarOnboardingPago = revendedor.statusAssinatura === "ATIVO" && passosOnboardingPago.some((p) => !p.feito);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -142,6 +159,28 @@ export default async function PainelPage() {
           <p className="mb-3 text-xs text-text-dim">Três passos rápidos pra sentir o GestorPro funcionando de verdade.</p>
           <div className="flex flex-col gap-2">
             {passosOnboarding.map((passo) => (
+              <Link
+                key={passo.label}
+                href={passo.href}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border-strong px-3.5 py-2.5 hover:border-accent"
+              >
+                <span className={`text-sm font-semibold ${passo.feito ? "text-text-dim line-through" : "text-text"}`}>
+                  {passo.label}
+                </span>
+                <Badge tone={passo.feito ? "accent" : "neutral"}>{passo.feito ? "Feito" : "Fazer"}</Badge>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      ) : mostrarOnboardingPago ? (
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-text">Aproveite ao máximo o GestorPro</h2>
+            <Badge tone="accent">Assinante</Badge>
+          </div>
+          <p className="mb-3 text-xs text-text-dim">Três passos pra automatizar o que ainda é manual.</p>
+          <div className="flex flex-col gap-2">
+            {passosOnboardingPago.map((passo) => (
               <Link
                 key={passo.label}
                 href={passo.href}
