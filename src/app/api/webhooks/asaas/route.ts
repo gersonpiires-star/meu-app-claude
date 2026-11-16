@@ -1,9 +1,25 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buscarPagamentoAsaas } from "@/lib/asaas";
 import { aprovarRenovacaoPaga } from "@/lib/pagamentos";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
 import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
+
+// Defesa em profundidade: confere o token estático que o Asaas devolve no
+// header asaas-access-token quando configurado no painel do webhook — o
+// Asaas não assina o corpo (sem HMAC), só repete de volta um token fixo
+// escolhido na hora de cadastrar a URL. Falha ABERTA se a env var não
+// estiver configurada, mesmo raciocínio do Mercado Pago: o "nunca confiar
+// no corpo, sempre reconferir na API" abaixo já fecha o buraco que importa.
+function tokenAsaasValido(recebido: string | null): boolean {
+  const esperado = process.env.ASAAS_WEBHOOK_TOKEN;
+  if (!esperado) return true;
+  if (!recebido) return false;
+  const a = Buffer.from(recebido);
+  const b = Buffer.from(esperado);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Asaas não deixa configurar uma URL de webhook por cobrança como o
 // Mercado Pago (notification_url na preferência) — o webhook é configurado
@@ -25,6 +41,11 @@ export async function POST(request: Request) {
   // isso só limita o custo de abuso.
   if (await excedeuLimite(`webhook-asaas:${ipDoRequest(request)}`, 60, 5)) {
     return NextResponse.json({ ok: false, ignorado: "limite de requisições excedido" }, { status: 429 });
+  }
+
+  if (!tokenAsaasValido(request.headers.get("asaas-access-token"))) {
+    console.error("Webhook Asaas: token inválido");
+    return NextResponse.json({ ok: false, ignorado: "token inválido" }, { status: 401 });
   }
 
   const corpo = await request.json().catch(() => null);
