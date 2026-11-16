@@ -4,6 +4,7 @@ import { buscarPagamentoMP, tokenPlataforma } from "@/lib/mercadopago";
 import { aprovarRenovacaoPaga, aprovarAssinaturaPaga, aprovarAddonPago } from "@/lib/pagamentos";
 import { enviarPush } from "@/lib/push";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
+import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
 
 function extrairPaymentId(url: URL, corpo: unknown): string | null {
   const porQuery = url.searchParams.get("data.id") ?? url.searchParams.get("id");
@@ -34,6 +35,15 @@ function statusMPParaInterno(status: string): "APROVADO" | "RECUSADO" | "CANCELA
 }
 
 export async function POST(request: Request) {
+  // Protege contra alguém martelando essa rota tentando adivinhar
+  // pagamentoId/mpPaymentId — cada tentativa gera uma chamada real à API do
+  // Mercado Pago (buscarPagamentoMP abaixo). Não é a defesa real contra
+  // fraude (essa é "nunca confiar no corpo, sempre reconferir na API", mais
+  // abaixo) — só limita o custo de abuso.
+  if (await excedeuLimite(`webhook-mp:${ipDoRequest(request)}`, 60, 5)) {
+    return NextResponse.json({ ok: false, ignorado: "limite de requisições excedido" }, { status: 429 });
+  }
+
   const url = new URL(request.url);
   const corpo = await request.json().catch(() => null);
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { buscarPagamentoAsaas } from "@/lib/asaas";
 import { aprovarRenovacaoPaga } from "@/lib/pagamentos";
 import { descriptografarOuTextoPuro } from "@/lib/crypto";
+import { excedeuLimite, ipDoRequest } from "@/lib/rate-limit";
 
 // Asaas não deixa configurar uma URL de webhook por cobrança como o
 // Mercado Pago (notification_url na preferência) — o webhook é configurado
@@ -17,6 +18,15 @@ function statusAsaasParaInterno(status: string): "APROVADO" | "CANCELADO" | "PEN
 }
 
 export async function POST(request: Request) {
+  // Mesmo raciocínio do webhook do Mercado Pago: protege contra alguém
+  // martelando essa rota tentando adivinhar pagamentoId/paymentId — cada
+  // tentativa gera uma chamada real à API do Asaas (buscarPagamentoAsaas
+  // abaixo). A defesa real contra fraude é reconferir na API, mais abaixo;
+  // isso só limita o custo de abuso.
+  if (await excedeuLimite(`webhook-asaas:${ipDoRequest(request)}`, 60, 5)) {
+    return NextResponse.json({ ok: false, ignorado: "limite de requisições excedido" }, { status: 429 });
+  }
+
   const corpo = await request.json().catch(() => null);
   const asaasPayment = (corpo as { payment?: { id?: string; externalReference?: string | null } } | null)?.payment;
   const pagamentoId = asaasPayment?.externalReference ?? null;
