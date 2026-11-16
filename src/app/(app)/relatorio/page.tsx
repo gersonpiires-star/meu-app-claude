@@ -2,12 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { exigirRevendedor, permissoesFuncionario } from "@/lib/sessao";
 import { prisma } from "@/lib/prisma";
-import { dadosMes, proximoMes, visaoGeralPeriodo, oQueMaisVendeNoPeriodo } from "@/lib/relatorio";
+import { dadosMes, proximoMes, visaoGeralPeriodo, oQueMaisVendeNoPeriodo, metricasCarteira } from "@/lib/relatorio";
 import { limitesDoMes } from "@/lib/dados";
 import { gradeDoMes } from "@/lib/calendario";
 import { brl, brl0, dataCurta, dataPorExtenso, diaCivilBr } from "@/lib/format";
 import { PLANO_LABEL, PLANO_MESES } from "@/lib/planos";
-import { Card, Sparkline, StatTile, cx } from "@/components/ui";
+import { Badge, Card, Sparkline, StatTile, cx } from "@/components/ui";
 import { GraficoMeses } from "./grafico-meses";
 import { ReceitaPorMes } from "./receita-por-mes";
 import { CalendarioMes } from "./calendario-mes";
@@ -80,7 +80,7 @@ export default async function RelatorioPage({
   const periodo = PERIODOS.find((p) => p.chave === periodoParam) ?? PERIODOS[1];
 
   const { inicio: inicioMesAtual, fim: fimMesAtual } = limitesDoMes(agora);
-  const [dados, futuro, fechamentos, clientesDoMesAtual, visaoGeral, maisVendidos] = await Promise.all([
+  const [dados, futuro, fechamentos, clientesDoMesAtual, visaoGeral, maisVendidos, metricas] = await Promise.all([
     dadosMes(revendedor.id, ano, mes),
     proximoMes(revendedor.id),
     prisma.fechamentoMes.findMany({
@@ -94,6 +94,7 @@ export default async function RelatorioPage({
     }),
     visaoGeralPeriodo(revendedor.id, periodo.meses),
     oQueMaisVendeNoPeriodo(revendedor.id, periodo.meses),
+    metricasCarteira(revendedor.id),
   ]);
   const celulasCalendario = gradeDoMes(clientesDoMesAtual, agora);
 
@@ -281,6 +282,45 @@ export default async function RelatorioPage({
           </div>
         </Card>
       ) : null}
+
+      <Card>
+        <h2 className="mb-3 text-sm font-bold text-text">Métricas da carteira</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <StatTile
+            label="LTV médio"
+            value={brl0(metricas.ltvMedio)}
+            sub={`${metricas.clientesComLtv} cliente${metricas.clientesComLtv === 1 ? "" : "s"} com histórico`}
+          />
+          <StatTile
+            label="Vieram de indicação"
+            value={`${metricas.pctIndicacao.toFixed(0)}%`}
+            sub={`${metricas.comIndicacao} de ${metricas.totalAtivos} ativos`}
+          />
+        </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Pontualidade da carteira</p>
+          <div className="flex flex-wrap gap-1.5">
+            {metricas.pontualidade.map((p) => (
+              <Badge key={p.label} tone="neutral">
+                {p.label}: {p.quantidade}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        {metricas.porApp.length > 0 ? (
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-dim">Lucro por app (todo o histórico)</p>
+            <div className="flex flex-col divide-y divide-border">
+              {metricas.porApp.map((a) => (
+                <div key={a.nome} className="flex items-center justify-between py-1.5 text-sm">
+                  <span className="text-text-muted">{a.nome}</span>
+                  <span className="font-semibold text-money">{brl0(a.lucro)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </Card>
 
       <div className="mt-2 flex items-center justify-between border-t border-border pt-5">
         <div>

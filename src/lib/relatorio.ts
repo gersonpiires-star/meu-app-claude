@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { diaCivilBr, brMidnightUTC } from "@/lib/format";
 import { faixasDosUltimosMeses } from "@/lib/meses";
 import { PLANO_MESES, PLANO_LABEL, faixaVencimento } from "@/lib/planos";
+import { faixaPontualidade } from "@/lib/pontualidade";
 
 export async function ultimosMeses(revendedorId: string, quantidade = 6) {
   // Um mês não depende do resultado de outro — roda todos em paralelo em vez
@@ -281,5 +282,61 @@ export async function resumoUltimos7Dias(revendedorId: string, agora: Date = new
     ativos: clientesAtivos.length,
     vencidos,
     vencendo,
+  };
+}
+
+// Métricas que hoje não apareciam em nenhuma tela, apesar do dado já
+// existir: LTV médio da carteira (cada cliente já tem o próprio total —
+// ver clientes/[id]/page.tsx — nunca somado), pontualidade agregada (idem,
+// faixaPontualidade já existe por cliente), % de clientes que vieram de
+// indicação de outro cliente, e lucro por app (hoje só existe por
+// produto/plano em oQueMaisVendeNoPeriodo).
+export async function metricasCarteira(revendedorId: string) {
+  const [clientes, renovacoes, vendas, servicos] = await Promise.all([
+    prisma.cliente.findMany({
+      where: { revendedorId, status: { not: "CANCELADO" } },
+      select: { id: true, indicadoPorId: true, _count: { select: { cobrancas: true, renovacoes: true } } },
+    }),
+    prisma.renovacao.findMany({ where: { revendedorId }, select: { clienteId: true, valor: true, custo: true, servicoId: true } }),
+    prisma.venda.findMany({ where: { revendedorId, clienteId: { not: null } }, select: { clienteId: true, quantidade: true, valorUnitario: true } }),
+    prisma.servico.findMany({ where: { revendedorId }, select: { id: true, nome: true } }),
+  ]);
+  const nomeServico = new Map(servicos.map((s) => [s.id, s.nome]));
+
+  const ltvPorCliente = new Map<string, number>();
+  for (const r of renovacoes) ltvPorCliente.set(r.clienteId, (ltvPorCliente.get(r.clienteId) ?? 0) + r.valor);
+  for (const v of vendas) {
+    if (!v.clienteId) continue;
+    ltvPorCliente.set(v.clienteId, (ltvPorCliente.get(v.clienteId) ?? 0) + v.quantidade * v.valorUnitario);
+  }
+  const valoresLtv = [...ltvPorCliente.values()];
+  const ltvMedio = valoresLtv.length > 0 ? valoresLtv.reduce((a, b) => a + b, 0) / valoresLtv.length : 0;
+
+  const contagemPontualidade = new Map<string, number>();
+  for (const c of clientes) {
+    const { label } = faixaPontualidade(c._count.cobrancas, c._count.renovacoes);
+    contagemPontualidade.set(label, (contagemPontualidade.get(label) ?? 0) + 1);
+  }
+
+  const comIndicacao = clientes.filter((c) => c.indicadoPorId).length;
+  const pctIndicacao = clientes.length > 0 ? (comIndicacao / clientes.length) * 100 : 0;
+
+  const lucroPorApp = new Map<string, { nome: string; receita: number; lucro: number }>();
+  for (const r of renovacoes) {
+    const nome = r.servicoId ? nomeServico.get(r.servicoId) ?? "App removido" : "Sem app definido";
+    const atual = lucroPorApp.get(nome) ?? { nome, receita: 0, lucro: 0 };
+    atual.receita += r.valor;
+    atual.lucro += r.valor - r.custo;
+    lucroPorApp.set(nome, atual);
+  }
+
+  return {
+    ltvMedio,
+    clientesComLtv: valoresLtv.length,
+    pontualidade: [...contagemPontualidade.entries()].map(([label, quantidade]) => ({ label, quantidade })),
+    totalAtivos: clientes.length,
+    comIndicacao,
+    pctIndicacao,
+    porApp: [...lucroPorApp.values()].sort((a, b) => b.lucro - a.lucro),
   };
 }
