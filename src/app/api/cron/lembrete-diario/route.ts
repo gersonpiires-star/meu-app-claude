@@ -107,6 +107,14 @@ export async function GET(req: NextRequest) {
     .deleteMany({ where: { criadoEm: { lt: new Date(agora.getTime() - 24 * 60 * 60000) } } })
     .catch(() => {});
 
+  // Mesmo raciocínio: LimiteRequisicao só serve pra contar chamadas dentro
+  // da janela de limite usada (a maior é 60 min, em /api/cadastro) — sem
+  // essa limpeza a tabela cresce pra sempre, uma linha por chamada a
+  // excedeuLimite desde o início dos tempos.
+  await prisma.limiteRequisicao
+    .deleteMany({ where: { criadoEm: { lt: new Date(agora.getTime() - 24 * 60 * 60000) } } })
+    .catch(() => {});
+
   const revendedores = await prisma.revendedor.findMany({
     where: { statusAssinatura: { in: ["ATIVO", "TRIAL"] } },
     include: { pushSubscriptions: true },
