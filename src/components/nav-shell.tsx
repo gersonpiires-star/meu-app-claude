@@ -36,6 +36,7 @@ const ITENS = [
 const ITENS_GESTAO = [
   { href: "/plataformas", label: "Plataformas", icone: IconCamadas },
   { href: "/precificacao", label: "Precificação", icone: IconEtiqueta },
+  { href: "/interessados", label: "Interessados", icone: IconPessoaMais },
 ];
 
 // Itens do menu inferior mobile que não cabem nas 4 abas fixas (Painel,
@@ -47,6 +48,7 @@ const MOBILE_MAIS_ITENS = [
   { href: "/relatorio", label: "Relatório", icone: IconGrafico },
   { href: "/plataformas", label: "Plataformas", icone: IconCamadas },
   { href: "/precificacao", label: "Precificação", icone: IconEtiqueta },
+  { href: "/interessados", label: "Interessados", icone: IconPessoaMais },
   { href: "/configuracoes", label: "Configurações", icone: IconAjustes },
   { href: "/ajuda", label: "Ajuda", icone: IconAjuda },
 ];
