@@ -22,7 +22,7 @@ export default async function NovaVendaPage({
       orderBy: { nome: "asc" },
     }),
     prisma.produto.findMany({
-      where: { revendedorId: revendedor.id },
+      where: { revendedorId: revendedor.id, arquivadoEm: null },
       orderBy: { modelo: "asc" },
       select: { id: true, modelo: true },
     }),

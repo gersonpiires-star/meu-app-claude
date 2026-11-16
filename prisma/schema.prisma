@@ -624,6 +624,11 @@ model Produto {
   estoqueMinimo Int      @default(0)
   criadoEm      DateTime @default(now())
 
+  // Produto descontinuado — nunca é removido de verdade (venda/movimento
+  // já lançados precisam continuar existindo pro custo FIFO/relatório de
+  // meses passados), só sai dos seletores de nova venda/reposição.
+  arquivadoEm DateTime?
+
   // Fila FIFO dos lotes de compra ainda não totalmente vendidos (mais
   // antigo primeiro), mantida incrementalmente a cada entrada/saída — ver
   // registrarMovimentoEstoque em lib/dados.ts, o único write path que pode
@@ -649,6 +654,9 @@ model MovimentoEstoque {
   quantidade    Int
   custoUnitario Float
   fornecedor    String?
+  // Motivo de um ajuste manual (perda/quebra/extravio) — null pra entrada
+  // de compra normal, que já tem o fornecedor pra contexto.
+  observacao    String?
   data          DateTime             @default(now())
 
   @@index([produtoId])

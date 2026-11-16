@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { exigirRevendedor } from "@/lib/sessao";
 import { custoMedioProdutos, limitesDoMes } from "@/lib/dados";
 import { precoAVista } from "@/lib/maquininha";
@@ -8,7 +9,7 @@ import { IconCaixa } from "@/components/nav-icons";
 import { NovoProdutoForm } from "./novo-produto-form";
 import { RegistrarEntradaForm } from "./registrar-entrada-form";
 import { ProdutosTabela } from "./produtos-tabela";
-import { criarProduto, registrarEntrada } from "./actions";
+import { criarProduto, registrarEntrada, ajustarEstoque, arquivarProduto, desarquivarProduto } from "./actions";
 
 const IconUnidades = (
   <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
@@ -31,13 +32,19 @@ const IconVendidos = (
   </svg>
 );
 
-export default async function EstoquePage() {
+export default async function EstoquePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ arquivados?: string }>;
+}) {
   const revendedor = await exigirRevendedor();
   const { inicio, fim } = limitesDoMes();
+  const { arquivados } = await searchParams;
+  const verArquivados = arquivados === "1";
 
   const [produtos, custos, vendasMes] = await Promise.all([
     prisma.produto.findMany({
-      where: { revendedorId: revendedor.id },
+      where: { revendedorId: revendedor.id, arquivadoEm: verArquivados ? { not: null } : null },
       orderBy: { modelo: "asc" },
     }),
     custoMedioProdutos(revendedor.id),
@@ -53,9 +60,12 @@ export default async function EstoquePage() {
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-lg font-bold text-text">Estoque</h1>
-          <NovoProdutoForm acao={criarProduto} />
+          {!verArquivados ? <NovoProdutoForm acao={criarProduto} /> : null}
         </div>
-        <EmptyState>Nenhum modelo cadastrado</EmptyState>
+        <EmptyState>{verArquivados ? "Nenhum produto arquivado." : "Nenhum modelo cadastrado"}</EmptyState>
+        <Link href={verArquivados ? "/estoque" : "/estoque?arquivados=1"} className="text-xs font-semibold text-accent hover:underline">
+          {verArquivados ? "‹ Ver produtos ativos" : "Ver produtos arquivados"}
+        </Link>
       </div>
     );
   }
@@ -70,6 +80,7 @@ export default async function EstoquePage() {
       custoMedio: info.custoMedio,
       precoSugerido: precoAVista(info.custoMedio, revendedor.margemPadrao),
       baixo: info.atual <= produto.estoqueMinimo,
+      arquivado: Boolean(produto.arquivadoEm),
     };
   });
 
@@ -109,8 +120,13 @@ export default async function EstoquePage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-text">Estoque</h1>
-        <NovoProdutoForm acao={criarProduto} />
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold text-text">Estoque</h1>
+          <Link href={verArquivados ? "/estoque" : "/estoque?arquivados=1"} className="text-xs font-semibold text-text-dim hover:text-accent">
+            {verArquivados ? "‹ Produtos ativos" : "Ver arquivados"}
+          </Link>
+        </div>
+        {!verArquivados ? <NovoProdutoForm acao={criarProduto} /> : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -145,11 +161,18 @@ export default async function EstoquePage() {
 
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
         <Card className="min-w-0 flex-1">
-          <ProdutosTabela produtos={linhas} />
+          <ProdutosTabela
+            produtos={linhas}
+            acaoAjustar={ajustarEstoque}
+            acaoArquivar={arquivarProduto}
+            acaoDesarquivar={desarquivarProduto}
+          />
         </Card>
-        <div className="w-full xl:w-[320px] xl:shrink-0">
-          <RegistrarEntradaForm produtos={produtos.map((p) => ({ id: p.id, modelo: p.modelo }))} acao={registrarEntrada} />
-        </div>
+        {!verArquivados ? (
+          <div className="w-full xl:w-[320px] xl:shrink-0">
+            <RegistrarEntradaForm produtos={produtos.map((p) => ({ id: p.id, modelo: p.modelo }))} acao={registrarEntrada} />
+          </div>
+        ) : null}
       </div>
 
       {movimentacoes.length > 0 ? (

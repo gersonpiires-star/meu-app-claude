@@ -161,6 +161,7 @@ export async function registrarMovimentoEstoque(
     quantidade: number;
     custoUnitario?: number;
     fornecedor?: string | null;
+    observacao?: string | null;
     data?: Date;
   },
   db: Prisma.TransactionClient | typeof prisma = prisma
@@ -189,6 +190,7 @@ export async function registrarMovimentoEstoque(
       quantidade: args.quantidade,
       custoUnitario,
       fornecedor: args.fornecedor ?? null,
+      observacao: args.observacao ?? null,
       ...(args.data ? { data: args.data } : {}),
     },
   });

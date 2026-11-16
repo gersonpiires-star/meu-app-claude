@@ -97,3 +97,48 @@ export async function registrarEntrada(formData: FormData): Promise<{ ok: false;
   revalidatePath("/estoque");
   revalidatePath("/painel");
 }
+
+const ajusteSchema = z.object({
+  quantidadePerdida: z.coerce.number().int().min(1, "Informe a quantidade"),
+  motivo: z.string().trim().min(1, "Informe o motivo"),
+});
+
+// Perda/quebra/extravio — a única saída de estoque hoje sem venda associada.
+// Sem isso, perda real de mercadoria não tinha onde ser lançada: ou o
+// revendedor simulava uma venda fictícia (distorcendo o relatório), ou o
+// estoque sistêmico ficava pra sempre desalinhado da contagem física.
+export async function ajustarEstoque(produtoId: string, formData: FormData): Promise<{ ok: false; erro: string } | void> {
+  const revendedor = await exigirRevendedor();
+  const validado = validarOuErro(ajusteSchema, Object.fromEntries(formData));
+  if (!validado.ok) return validado;
+  const dados = validado.dados;
+
+  const produto = await prisma.produto.findUniqueOrThrow({
+    where: { id: produtoId, revendedorId: revendedor.id },
+  });
+
+  await registrarMovimentoEstoque({
+    produtoId: produto.id,
+    tipo: "SAIDA",
+    quantidade: dados.quantidadePerdida,
+    observacao: dados.motivo,
+  });
+
+  revalidatePath("/estoque");
+  revalidatePath("/painel");
+}
+
+// Nunca deleta: venda/movimento já lançados continuam precisando do
+// Produto pra custo FIFO e relatório de meses passados — só sai dos
+// seletores de nova venda/reposição (ver vendas/nova/page.tsx).
+export async function arquivarProduto(id: string) {
+  const revendedor = await exigirRevendedor();
+  await prisma.produto.update({ where: { id, revendedorId: revendedor.id }, data: { arquivadoEm: new Date() } });
+  revalidatePath("/estoque");
+}
+
+export async function desarquivarProduto(id: string) {
+  const revendedor = await exigirRevendedor();
+  await prisma.produto.update({ where: { id, revendedorId: revendedor.id }, data: { arquivadoEm: null } });
+  revalidatePath("/estoque");
+}
