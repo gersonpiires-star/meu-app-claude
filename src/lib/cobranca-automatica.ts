@@ -59,32 +59,67 @@ export async function enviarCobrancasAutomaticas(revendedor: RevendedorComToggle
     return 0;
   }
 
-  let enviados = 0;
-
+  // Pré-calcula a etapa de cada cliente (puro, sem tocar o banco) antes de
+  // decidir o que já foi enviado — permite buscar o histórico de Cobranca
+  // numa query só por tipo de janela, em vez de 1 count/findFirst POR
+  // CLIENTE dentro do loop (chegava a 1 round-trip ao banco por cliente
+  // vencendo, multiplicado por todos os revendedores em paralelo no cron).
+  type Candidato = {
+    cliente: ClienteParaCobranca;
+    telefone: string;
+    dias: number;
+    etapa: "lembrete-3d" | "vencimento-dia" | "vencido-3-3";
+    modeloTag: string;
+  };
+  const candidatos: Candidato[] = [];
   for (const cliente of clientes) {
     if (!cliente.whatsapp) continue;
     const dias = diasParaVencer(cliente.vencimento, agora);
 
-    let etapa: "lembrete-3d" | "vencimento-dia" | "vencido-3-3" | null = null;
+    let etapa: Candidato["etapa"] | null = null;
     if (dias === 3 && revendedor.lembreteAntesAtivo) etapa = "lembrete-3d";
     else if (dias === 0 && revendedor.avisoVencimentoAtivo) etapa = "vencimento-dia";
     else if (dias < 0 && revendedor.cobrancaAposVencerAtiva && Math.abs(dias) % 3 === 0) etapa = "vencido-3-3";
     if (!etapa) continue;
 
-    const modeloTag = `${etapa}-auto`;
+    candidatos.push({ cliente, telefone: cliente.whatsapp, dias, etapa, modeloTag: `${etapa}-auto` });
+  }
+  if (candidatos.length === 0) return 0;
 
+  const clienteIds = candidatos.map((c) => c.cliente.id);
+
+  // "vencido-3-3" precisa do histórico inteiro (máximo 2 disparos pra
+  // sempre); lembrete/aviso do dia só precisa do que já rodou hoje — por
+  // isso duas buscas com janelas diferentes, mas cada uma ainda é 1 query só
+  // pra todos os clientes do revendedor, nunca 1 por cliente.
+  const [historicoVencido, jaHojeRows] = await Promise.all([
+    prisma.cobranca.findMany({
+      where: { clienteId: { in: clienteIds }, modelo: "vencido-3-3-auto" },
+      select: { clienteId: true },
+    }),
+    prisma.cobranca.findMany({
+      where: {
+        clienteId: { in: clienteIds },
+        modelo: { in: ["lembrete-3d-auto", "vencimento-dia-auto"] },
+        criadoEm: { gte: inicioDeHoje },
+      },
+      select: { clienteId: true, modelo: true },
+    }),
+  ]);
+
+  const contagemVencido = new Map<string, number>();
+  for (const row of historicoVencido) {
+    contagemVencido.set(row.clienteId, (contagemVencido.get(row.clienteId) ?? 0) + 1);
+  }
+  const jaHojeSet = new Set(jaHojeRows.map((r) => `${r.clienteId}:${r.modelo}`));
+
+  let enviados = 0;
+
+  for (const { cliente, telefone, dias, etapa, modeloTag } of candidatos) {
     if (etapa === "vencido-3-3") {
-      // No máximo 2 disparos automáticos depois do vencimento — conta todo
-      // o histórico dessa etapa pra esse cliente, não só hoje.
-      const jaEnviados = await prisma.cobranca.count({ where: { clienteId: cliente.id, modelo: modeloTag } });
-      if (jaEnviados >= 2) continue;
+      if ((contagemVencido.get(cliente.id) ?? 0) >= 2) continue;
     } else {
-      // Lembrete/aviso do dia só uma vez — evita duplicar se o cron rodar
-      // de novo no mesmo dia.
-      const jaHoje = await prisma.cobranca.findFirst({
-        where: { clienteId: cliente.id, modelo: modeloTag, criadoEm: { gte: inicioDeHoje } },
-      });
-      if (jaHoje) continue;
+      if (jaHojeSet.has(`${cliente.id}:${modeloTag}`)) continue;
     }
 
     const vencido = dias < 0;
@@ -101,7 +136,7 @@ export async function enviarCobrancasAutomaticas(revendedor: RevendedorComToggle
       await enviarMensagemWhatsapp({
         phoneNumberId: revendedor.whatsappTelefoneNumeroId,
         token,
-        para: cliente.whatsapp,
+        para: telefone,
         texto,
       });
       await prisma.cobranca.create({ data: { clienteId: cliente.id, modelo: modeloTag } });
