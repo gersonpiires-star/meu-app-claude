@@ -6,9 +6,14 @@ import { planoDosMeses } from "@/lib/planos-assinatura";
 
 const PLANO_LABEL: Record<string, string> = { MENSAL: "Mensal", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 
+// Protege contra CSV/Formula Injection: uma célula que comece com =+-@ pode
+// ser interpretada como fórmula pelo Excel/Sheets ao abrir o arquivo (ex: um
+// nome de cliente digitado como =HYPERLINK(...) executando algo só de abrir
+// a planilha) — prefixar com apóstrofo neutraliza sem mudar o valor visível.
 function csvEscape(valor: string): string {
-  if (/[",\n;]/.test(valor)) return `"${valor.replace(/"/g, '""')}"`;
-  return valor;
+  const protegido = /^[=+\-@]/.test(valor) ? `'${valor}` : valor;
+  if (/[",\n;]/.test(protegido)) return `"${protegido.replace(/"/g, '""')}"`;
+  return protegido;
 }
 
 // Exporta a base inteira de revendedores (assinantes, trial, pausados,
