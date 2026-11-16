@@ -62,10 +62,10 @@ export function SignupForm({ indicadoPorId }: { indicadoPorId?: string }) {
         <Input type="email" name="email" autoComplete="email" required />
       </Field>
       <Field label="Senha">
-        <Input type="password" name="senha" autoComplete="new-password" minLength={6} required />
+        <Input type="password" name="senha" autoComplete="new-password" minLength={8} required />
       </Field>
       <Field label="Confirmar senha">
-        <Input type="password" name="confirmarSenha" autoComplete="new-password" minLength={6} required />
+        <Input type="password" name="confirmarSenha" autoComplete="new-password" minLength={8} required />
       </Field>
       {!indicadoPorId ? (
         <Field label="E-mail de quem te indicou (opcional)">

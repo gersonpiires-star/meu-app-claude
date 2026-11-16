@@ -55,7 +55,10 @@ export async function salvarPerfil(formData: FormData): Promise<{ erro: string }
 const senhaSchema = z
   .object({
     senhaAtual: z.string().min(1, "Informe a senha atual"),
-    novaSenha: z.string().min(6, "A nova senha precisa ter pelo menos 6 caracteres"),
+    novaSenha: z
+      .string()
+      .min(8, "A nova senha precisa ter pelo menos 8 caracteres")
+      .regex(/[0-9A-Z]/, "A nova senha precisa de pelo menos 1 número ou 1 letra maiúscula"),
     confirmarSenha: z.string(),
   })
   .refine((d) => d.novaSenha === d.confirmarSenha, { message: "As senhas não coincidem", path: ["confirmarSenha"] });

@@ -7,7 +7,10 @@ import { redefinirSenhaComToken } from "@/lib/recuperacao-senha";
 const schema = z
   .object({
     token: z.string().min(1),
-    senha: z.string().min(6, "A senha precisa de pelo menos 6 caracteres"),
+    senha: z
+      .string()
+      .min(8, "A senha precisa de pelo menos 8 caracteres")
+      .regex(/[0-9A-Z]/, "A senha precisa de pelo menos 1 número ou 1 letra maiúscula"),
     confirmarSenha: z.string(),
   })
   .refine((d) => d.senha === d.confirmarSenha, { message: "As senhas não coincidem", path: ["confirmarSenha"] });

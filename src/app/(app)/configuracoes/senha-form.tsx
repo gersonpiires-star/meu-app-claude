@@ -35,10 +35,10 @@ export function SenhaForm() {
         <Input type="password" name="senhaAtual" autoComplete="current-password" required />
       </Field>
       <Field label="Nova senha">
-        <Input type="password" name="novaSenha" autoComplete="new-password" required minLength={6} />
+        <Input type="password" name="novaSenha" autoComplete="new-password" required minLength={8} />
       </Field>
       <Field label="Confirmar nova senha">
-        <Input type="password" name="confirmarSenha" autoComplete="new-password" required minLength={6} />
+        <Input type="password" name="confirmarSenha" autoComplete="new-password" required minLength={8} />
       </Field>
       {resultado ? (
         <p className={resultado.ok ? "text-sm text-accent" : "text-sm text-danger"}>{resultado.texto}</p>

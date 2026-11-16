@@ -11,7 +11,10 @@ import { limitesDoPlano } from "@/lib/planos-assinatura";
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome"),
   email: z.string().trim().email("E-mail inválido"),
-  senha: z.string().min(6, "A senha precisa de pelo menos 6 caracteres"),
+  senha: z
+    .string()
+    .min(8, "A senha precisa de pelo menos 8 caracteres")
+    .regex(/[0-9A-Z]/, "A senha precisa de pelo menos 1 número ou 1 letra maiúscula"),
   podeExcluir: z.coerce.boolean().optional(),
   podeVerFinanceiro: z.coerce.boolean().optional(),
 });

@@ -93,7 +93,7 @@ export function FuncionarioForm({ funcionarios }: { funcionarios: Funcionario[] 
           <Input type="email" name="email" required />
         </Field>
         <Field label="Senha">
-          <Input type="password" name="senha" minLength={6} required />
+          <Input type="password" name="senha" minLength={8} required />
         </Field>
         <div className="flex flex-wrap gap-3">
           <label className="flex items-center gap-1.5 text-xs text-text-dim">
