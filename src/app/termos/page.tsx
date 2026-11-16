@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/logo-mark";
 export const metadata: Metadata = {
   title: "Termos de Uso — GestorPro",
   description: "Termos de uso do GestorPro.",
+  alternates: { canonical: "/termos" },
 };
 
 // ATENÇÃO (comentário interno, não aparece na página): os campos marcados

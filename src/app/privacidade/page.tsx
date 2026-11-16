@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/logo-mark";
 export const metadata: Metadata = {
   title: "Política de Privacidade — GestorPro",
   description: "Política de privacidade do GestorPro.",
+  alternates: { canonical: "/privacidade" },
 };
 
 // Mesma observação de src/app/termos/page.tsx: campos [PREENCHER: ...] são

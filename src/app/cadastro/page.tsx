@@ -1,8 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Card } from "@/components/ui";
 import { LogoMark } from "@/components/logo-mark";
 import { registrarCliqueIndicacao } from "@/lib/indicacao";
 import { SignupForm } from "./signup-form";
+
+export const metadata: Metadata = {
+  title: "Criar conta grátis — GestorPro",
+  description: "7 dias grátis pra testar, sem cartão. Organize cobrança, clientes e estoque da sua revenda de streaming/IPTV.",
+  alternates: { canonical: "/cadastro" },
+};
 
 export default async function CadastroPage({
   searchParams,

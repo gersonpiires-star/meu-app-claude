@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { sessaoValida } from "@/lib/sessao";
 import { LandingPage } from "@/components/landing-page";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const session = await sessaoValida();

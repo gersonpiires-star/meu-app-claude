@@ -1,7 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Card } from "@/components/ui";
 import { LogoMark } from "@/components/logo-mark";
 import { RecuperarForm } from "./recuperar-form";
+
+export const metadata: Metadata = {
+  title: "Recuperar senha — GestorPro",
+  description: "Esqueceu sua senha? Informe o e-mail da sua conta GestorPro para receber o link de redefinição.",
+  alternates: { canonical: "/recuperar-senha" },
+};
 
 export default function RecuperarSenhaPage() {
   return (

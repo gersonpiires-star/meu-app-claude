@@ -6,6 +6,7 @@ import { GUIAS } from "@/lib/guias";
 export const metadata: Metadata = {
   title: "Guias para revenda de streaming — GestorPro",
   description: "Guias práticos sobre cobrança, controle de clientes e cálculo de lucro pra quem revende streaming/IPTV.",
+  alternates: { canonical: "/guias" },
 };
 
 export default function GuiasPage() {

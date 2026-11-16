@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { sessaoValida } from "@/lib/sessao";
 import { Card } from "@/components/ui";
 import { LogoMark } from "@/components/logo-mark";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = {
+  title: "Entrar — GestorPro",
+  description: "Acesse sua conta GestorPro para gerenciar clientes, vendas e estoque da sua revenda de streaming.",
+  alternates: { canonical: "/entrar" },
+};
 
 export default async function EntrarPage() {
   const session = await sessaoValida();
