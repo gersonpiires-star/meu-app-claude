@@ -10,3 +10,15 @@ export async function definirMetaMensal(valor: number) {
   await prisma.revendedor.update({ where: { id: revendedor.id }, data: { metaReceitaMensal: valorSeguro } });
   revalidatePath("/painel");
 }
+
+export async function dispensarOnboardingTrial() {
+  const revendedor = await exigirRevendedor();
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { onboardingTrialDispensado: true } });
+  revalidatePath("/painel");
+}
+
+export async function dispensarOnboardingPago() {
+  const revendedor = await exigirRevendedor();
+  await prisma.revendedor.update({ where: { id: revendedor.id }, data: { onboardingPagoDispensado: true } });
+  revalidatePath("/painel");
+}

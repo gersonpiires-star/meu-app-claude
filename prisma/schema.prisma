@@ -133,6 +133,14 @@ model Revendedor {
   // próprio revendedor sobre o negócio dele.
   relatorioSemanalAtivo Boolean @default(true)
 
+  // Revendedor dispensou o card de "primeiros passos" (trial) ou "aproveite
+  // ao máximo" (pós-conversão) no Painel — sem isso os dois ficavam fixos
+  // até completar os 3 passos, sem jeito de esconder pra quem não quer
+  // fazer aquilo agora. Cada um dispensa independente do outro porque são
+  // momentos diferentes da conta (trial vs. já assinando).
+  onboardingTrialDispensado Boolean @default(false)
+  onboardingPagoDispensado  Boolean @default(false)
+
   // Saldo de crédito financeiro que o dono do GestorPro concede à conta do
   // revendedor (ex: compensação, bônus de indicação fora do fluxo normal de
   // cupom) — não confundir com os créditos de IPTV que cada revendedor

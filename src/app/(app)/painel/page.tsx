@@ -13,6 +13,8 @@ import { RenovarBotao } from "../clientes/renovar-em-lote/renovar-botao";
 import { CobrarBotao } from "../clientes/cobrar-botao";
 import { MetaMensalCard } from "./meta-mensal";
 import { IndicacaoCard } from "./indicacao-card";
+import { dispensarOnboardingTrial, dispensarOnboardingPago } from "./actions";
+import { DispensarOnboardingBotao } from "./dispensar-onboarding-botao";
 
 function baseUrl() {
   return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -109,12 +111,13 @@ export default async function PainelPage() {
     { label: "Cadastre seu primeiro cliente", feito: totalClientesOnboarding > 0, href: "/clientes/novo" },
     { label: "Cadastre uma chave Pix pra receber", feito: totalChavesOnboarding > 0, href: "/configuracoes" },
   ];
-  const mostrarOnboarding = emTrial && passosOnboarding.some((p) => !p.feito);
+  const mostrarOnboarding = emTrial && !revendedor.onboardingTrialDispensado && passosOnboarding.some((p) => !p.feito);
 
   // Mesmo espírito do checklist de trial, só que pra quem já assina — passos
   // que automatizam o que normalmente é feito na mão (cobrar, receber,
-  // dividir tarefa com equipe). Continua aparecendo até os 3 estarem feitos,
-  // não só nos primeiros dias — não existe hoje um campo de "quando converteu".
+  // dividir tarefa com equipe). Continua aparecendo até os 3 estarem feitos
+  // (ou até o revendedor dispensar pelo ×) — não só nos primeiros dias, já
+  // que não existe hoje um campo de "quando converteu".
   const totalFuncionariosOnboarding =
     revendedor.statusAssinatura === "ATIVO" ? await prisma.funcionario.count({ where: { revendedorId: revendedor.id } }) : 0;
   const passosOnboardingPago = [
@@ -126,7 +129,8 @@ export default async function PainelPage() {
     },
     { label: "Convide um funcionário pra te ajudar", feito: totalFuncionariosOnboarding > 0, href: "/configuracoes/funcionarios" },
   ];
-  const mostrarOnboardingPago = revendedor.statusAssinatura === "ATIVO" && passosOnboardingPago.some((p) => !p.feito);
+  const mostrarOnboardingPago =
+    revendedor.statusAssinatura === "ATIVO" && !revendedor.onboardingPagoDispensado && passosOnboardingPago.some((p) => !p.feito);
 
   return (
     <div className="flex flex-col gap-6">
@@ -152,9 +156,12 @@ export default async function PainelPage() {
 
       {mostrarOnboarding ? (
         <Card>
-          <div className="mb-1 flex items-center justify-between">
+          <div className="mb-1 flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-text">Primeiros passos</h2>
-            <Badge tone="accent">Trial</Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge tone="accent">Trial</Badge>
+              <DispensarOnboardingBotao acao={dispensarOnboardingTrial} />
+            </div>
           </div>
           <p className="mb-3 text-xs text-text-dim">Três passos rápidos pra sentir o GestorPro funcionando de verdade.</p>
           <div className="flex flex-col gap-2">
@@ -174,9 +181,12 @@ export default async function PainelPage() {
         </Card>
       ) : mostrarOnboardingPago ? (
         <Card>
-          <div className="mb-1 flex items-center justify-between">
+          <div className="mb-1 flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-text">Aproveite ao máximo o GestorPro</h2>
-            <Badge tone="accent">Assinante</Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge tone="accent">Assinante</Badge>
+              <DispensarOnboardingBotao acao={dispensarOnboardingPago} />
+            </div>
           </div>
           <p className="mb-3 text-xs text-text-dim">Três passos pra automatizar o que ainda é manual.</p>
           <div className="flex flex-col gap-2">
